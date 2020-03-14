@@ -17,6 +17,7 @@ import os
 import click
 import gym
 import neat
+import visualization.visualize as visualize
 
 from pytorch_neat.multi_env_eval import MultiEnvEvaluator
 from pytorch_neat.neat_reporter import LogReporter
@@ -68,7 +69,13 @@ def run(n_generations):
     logger = LogReporter("neat.log", evaluator.eval_genome)
     pop.add_reporter(logger)
 
-    pop.run(eval_genomes, n_generations)
+    winner = pop.run(eval_genomes, n_generations)
+    
+    # Visualization
+    visualize.draw_net(config, winner, True, filename="graph_neat_examples_CartPole-v0")
+    visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_CartPole-v0")
+    visualize.plot_species(stats, view=True, filename="species_neat_examples_CartPole-v0")
+
 
 
 if __name__ == "__main__":

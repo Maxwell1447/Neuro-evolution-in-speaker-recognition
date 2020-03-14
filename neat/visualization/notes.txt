@@ -1,0 +1,12 @@
+graph
+
+inputs : grey squares
+
+outputs : blue circles
+
+connections : arrows
+	      style : solid enabled
+	             dotted disabled
+	      color : negative red
+	             positive green
+	      width : proportional to weights

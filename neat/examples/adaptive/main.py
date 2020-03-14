@@ -17,6 +17,7 @@ import os
 
 import click
 import neat
+import visualization.visualize as visualize
 
 # import torch
 import numpy as np
@@ -62,8 +63,8 @@ def activate_net(net, states, debug=False, step_num=0):
 
 
 @click.command()
-@click.option("--n_generations", type=int, default=10000)
-@click.option("--n_processes", type=int, default=1)
+@click.option("--n_generations", type=int, default=1000)
+@click.option("--n_processes", type=int, default=6)
 def run(n_generations, n_processes):
     # Load the config file, which is assumed to live in
     # the same directory as this script.
@@ -118,6 +119,13 @@ def run(n_generations, n_processes):
     final_performance = evaluator.eval_genome(winner, config)
     print("Final performance: {}".format(final_performance))
     generations = reporter.generation + 1
+    
+    # Visualization
+    visualize.draw_net(config, winner, True, filename="graph_neat_examples_T-maze")
+    visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_T-maze")
+    visualize.plot_species(stats, view=True, filename="species_neat_examples_T-maze")
+    
+    
     return generations
 
 
