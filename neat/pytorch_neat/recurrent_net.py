@@ -34,8 +34,18 @@ def dense_from_coo(shape, conns, dtype=torch.float64):
     if len(idxs) == 0:
         return mat
     rows, cols = np.array(idxs).transpose()
+    '''
+    trying to fix issues
+    '''
+    mat[torch.LongTensor(rows), torch.LongTensor(cols)] = torch.tensor(
+            weights, dtype=dtype)
+    '''
+    end
+    
+    original code
     mat[torch.tensor(rows), torch.tensor(cols)] = torch.tensor(
-        weights, dtype=dtype)
+            weights, dtype=dtype)
+    '''
     return mat
 
 
