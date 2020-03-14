@@ -4,9 +4,11 @@ inputs : grey squares
 
 outputs : blue circles
 
+hiddenlayers : white circles
+
 connections : arrows
 	      style : solid enabled
 	             dotted disabled
 	      color : negative red
 	             positive green
-	      width : proportional to weights
+	      width : proportional to weight
