@@ -180,7 +180,7 @@ def test_match_neat():
     with open("tests/test-genome.pkl", "rb") as f:
         genome = pickle.load(f)
 
-    # use tanh since neat sets output nodes with no inputs to 0
+    # use tanh since neat_local sets output nodes with no inputs to 0
     # (sigmoid would output 0.5 for us)
     def neat_tanh_activation(z):
         return float(torch.tanh(2.5 * torch.tensor(z, dtype=torch.float64)))

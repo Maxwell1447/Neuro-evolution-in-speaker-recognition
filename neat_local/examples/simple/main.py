@@ -17,11 +17,11 @@ import os
 import click
 import gym
 import neat
-import visualization.visualize as visualize
+import neat_local.visualization.visualize as visualize
 
-from pytorch_neat.multi_env_eval import MultiEnvEvaluator
-from pytorch_neat.neat_reporter import LogReporter
-from pytorch_neat.recurrent_net import RecurrentNet
+from neat_local.pytorch_neat.multi_env_eval import MultiEnvEvaluator
+from neat_local.pytorch_neat.neat_reporter import LogReporter
+from neat_local.pytorch_neat.recurrent_net import RecurrentNet
 
 max_env_steps = 200
 
@@ -44,7 +44,7 @@ def activate_net(net, states):
 def run(n_generations):
     # Load the config file, which is assumed to live in
     # the same directory as this script.
-    config_path = os.path.join(os.path.dirname(__file__), "neat.cfg")
+    config_path = os.path.join(os.path.dirname(__file__), "neat_local.cfg")
     config = neat.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
@@ -66,7 +66,7 @@ def run(n_generations):
     pop.add_reporter(stats)
     reporter = neat.StdOutReporter(True)
     pop.add_reporter(reporter)
-    logger = LogReporter("neat.log", evaluator.eval_genome)
+    logger = LogReporter("neat_local.log", evaluator.eval_genome)
     pop.add_reporter(logger)
 
     winner = pop.run(eval_genomes, n_generations)

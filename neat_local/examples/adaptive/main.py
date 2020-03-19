@@ -17,19 +17,21 @@ import os
 
 import click
 import neat
-import visualization.visualize as visualize
+import neat_local.visualization.visualize as visualize
 
 # import torch
 import numpy as np
 
-from pytorch_neat import t_maze
-from pytorch_neat.activations import tanh_activation
-from pytorch_neat.adaptive_linear_net import AdaptiveLinearNet
-from pytorch_neat.multi_env_eval import MultiEnvEvaluator
-from pytorch_neat.neat_reporter import LogReporter
+from neat_local.pytorch_neat import t_maze
+from neat_local.pytorch_neat.activations import tanh_activation
+from neat_local.pytorch_neat.adaptive_linear_net import AdaptiveLinearNet
+from neat_local.pytorch_neat.multi_env_eval import MultiEnvEvaluator
+from neat_local.pytorch_neat.neat_reporter import LogReporter
 
 batch_size = 4
 DEBUG = True
+
+os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
 
 def make_net(genome, config, _batch_size):
@@ -68,7 +70,7 @@ def activate_net(net, states, debug=False, step_num=0):
 def run(n_generations, n_processes):
     # Load the config file, which is assumed to live in
     # the same directory as this script.
-    config_path = os.path.join(os.path.dirname(__file__), "neat.cfg")
+    config_path = os.path.dirname(__file__)+"/neat.cfg"
     config = neat.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
@@ -124,8 +126,7 @@ def run(n_generations, n_processes):
     visualize.draw_net(config, winner, True, filename="graph_neat_examples_T-maze")
     visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_T-maze")
     visualize.plot_species(stats, view=True, filename="species_neat_examples_T-maze")
-    
-    
+
     return generations
 
 

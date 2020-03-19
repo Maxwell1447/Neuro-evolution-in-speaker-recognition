@@ -1,4 +1,4 @@
 venv/*
 .idea
-TEST.py
+TESTS/*
 neat-python-master
