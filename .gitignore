@@ -2,3 +2,5 @@ venv/*
 .idea
 TESTS/*
 neat-python-master
+.spyproject
+*.pyc
