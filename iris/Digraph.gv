@@ -1,0 +1,10 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	"sepal l" [fillcolor=lightgray shape=box style=filled]
+	"sepal w" [fillcolor=lightgray shape=box style=filled]
+	"petal l" [fillcolor=lightgray shape=box style=filled]
+	"petal w" [fillcolor=lightgray shape=box style=filled]
+	label [fillcolor=lightblue style=filled]
+	"sepal w" -> label [color=red penwidth=0.830376670601839 style=solid]
+	"petal l" -> label [color=green penwidth=1.0971520959225962 style=solid]
+}

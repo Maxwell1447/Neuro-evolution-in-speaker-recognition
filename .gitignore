@@ -2,3 +2,4 @@ venv/*
 .idea
 TESTS/*
 neat-python-master
+*.pyc
