@@ -4,6 +4,8 @@ import os
 import neat
 import neat_local.visualization.visualize as visualize
 from sklearn import datasets
+import matplotlib.pyplot as plt
+import numpy as np
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
@@ -14,12 +16,18 @@ NEAT APPLIED TO IRIS DATASET
 """
 
 
-def load_iris():
+def load_iris(pair):
     iris = datasets.load_iris()
-    iris_x = iris['data']
-    iris_y = iris['target']
-    # print(iris['feature_names'])
-    return iris_x, iris_y
+    iris_x = iris['data'][:, pair]
+    iris_target = iris['target']
+    iris_y = []
+    for i in range(3):
+        iris_y.append((iris_target == i).astype(np.float32))
+    iris_y = np.array(iris_y).T
+
+    labels_ = [iris['feature_names'][i] for i in pair]
+    names_ = iris['target_names']
+    return iris_x, iris_y, labels_, names_
 
 
 def eval_genomes(genomes, config):
@@ -27,8 +35,8 @@ def eval_genomes(genomes, config):
         genome.fitness = 4.0
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         for xi, xo in zip(inputs, outputs):
-            output = net.activate(xi)
-            genome.fitness -= (output[0] - xo) ** 2
+            output = np.array(net.activate(xi))
+            genome.fitness -= np.linalg.norm(output - xo)
 
 
 def run(config_file):
@@ -53,29 +61,69 @@ def run(config_file):
     print('\nBest genome:\n{!s}'.format(winner))
 
     # Show output of the most fit genome against training data.
-    print('\nOutput:')
+    print('\n')
     winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
 
     accuracy = 0
     for xi, xo in zip(inputs, outputs):
         output = winner_net.activate(xi)
-        if xo == output:
+        if np.argmax(xo) == np.argmax(output):
             accuracy += 1
     accuracy /= outputs.size
     print("**** accuracy = {}  ****".format(accuracy))
 
-    node_names = {-1: 'sepal l', -2: 'sepal w', -3: 'petal l', -4: 'petal w', 0: 'label'}
+    plot_decision(winner_net)
+
+    node_names = {-1: labels[0], -2: labels[1], 0: 'label'}
+
     visualize.draw_net(config, winner, True, node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True)
     visualize.plot_species(stats, view=True)
 
-    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-4')
-    p.run(eval_genomes, 10)
+
+def prediction(clf, xy):
+    z = []
+    for x, y in xy:
+        z.append(np.argmax(clf.activate(np.array([x, y]))))
+
+    return np.array(z)
+
+
+def plot_decision(clf):
+
+    X = inputs
+    y = outputs
+
+    plot_step = 0.02
+
+    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, plot_step),
+                         np.arange(y_min, y_max, plot_step))
+    plt.tight_layout(h_pad=0.5, w_pad=0.5, pad=2.5)
+
+    Z = prediction(clf, np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+    cs = plt.contourf(xx, yy, Z, cmap=plt.cm.RdYlBu)
+
+    plt.xlabel(labels[0])
+    plt.ylabel(labels[1])
+
+    # Plot the training points
+    for i, color in zip(range(3), "ryb"):
+        print("y", y)
+        idx = np.where(np.argmax(y, axis=1) == i)
+        print(idx)
+        plt.scatter(X[idx, 0], X[idx, 1], c=color, label=names[i],
+                    cmap=plt.cm.RdYlBu, edgecolor='black', s=15)
+
+    plt.show()
+    plt.close()
 
 
 if __name__ == '__main__':
 
-    inputs, outputs = load_iris()
+    inputs, outputs, labels, names = load_iris([0, 2])
 
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
