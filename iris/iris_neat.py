@@ -25,14 +25,17 @@ def load_iris(pair):
         iris_y.append((iris_target == i).astype(np.float32))
     iris_y = np.array(iris_y).T
 
+    idx = np.arange(iris_target.size)
+    np.random.shuffle(idx)
+
     labels_ = [iris['feature_names'][i] for i in pair]
     names_ = iris['target_names']
-    return iris_x, iris_y, labels_, names_
+    return iris_x[idx], iris_y[idx], labels_, names_
 
 
 def eval_genomes(genomes, config):
     for genome_id, genome in genomes:
-        genome.fitness = 4.0
+        genome.fitness = 50.
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         for xi, xo in zip(inputs, outputs):
             output = np.array(net.activate(xi))
@@ -55,7 +58,7 @@ def run(config_file):
     # p.add_reporter(neat.Checkpointer(5))
 
     # Run for up to 300 generations.
-    winner = p.run(eval_genomes, 300)
+    winner = p.run(eval_genomes, 10000)
 
     # Display the winning genome.
     print('\nBest genome:\n{!s}'.format(winner))
@@ -69,12 +72,21 @@ def run(config_file):
         output = winner_net.activate(xi)
         if np.argmax(xo) == np.argmax(output):
             accuracy += 1
+
+        if accuracy < 20:
+            print(xo, np.argmax(xo))
+            print("--> input : ({0:6.4f}, {1:6.4f}) |||  expected : {2}  -  got : {3}".format(xi[0],
+                                                                                  xi[1],
+                                                                                  names[np.argmax(xo)],
+                                                                                  names[np.argmax(output)]
+                                                                                  ))
+    accuracy *= 3
     accuracy /= outputs.size
     print("**** accuracy = {}  ****".format(accuracy))
 
     plot_decision(winner_net)
 
-    node_names = {-1: labels[0], -2: labels[1], 0: 'label'}
+    node_names = {-1: labels[0], -2: labels[1], 0: names[0], 1: names[1], 2: names[2]}
 
     visualize.draw_net(config, winner, True, node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True)
@@ -90,7 +102,6 @@ def prediction(clf, xy):
 
 
 def plot_decision(clf):
-
     X = inputs
     y = outputs
 
@@ -111,18 +122,16 @@ def plot_decision(clf):
 
     # Plot the training points
     for i, color in zip(range(3), "ryb"):
-        print("y", y)
         idx = np.where(np.argmax(y, axis=1) == i)
-        print(idx)
         plt.scatter(X[idx, 0], X[idx, 1], c=color, label=names[i],
                     cmap=plt.cm.RdYlBu, edgecolor='black', s=15)
 
+    plt.savefig("decision_surface.svg")
     plt.show()
     plt.close()
 
 
 if __name__ == '__main__':
-
     inputs, outputs, labels, names = load_iris([0, 2])
 
     # Determine path to configuration file. This path manipulation is
@@ -131,4 +140,5 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config_iris')
 
+    print(names)
     run(config_path)
