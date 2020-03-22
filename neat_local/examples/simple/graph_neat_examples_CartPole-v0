@@ -1,0 +1,9 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	"Cart Position" [fillcolor=lightgray shape=box style=filled]
+	"Cart Velocity" [fillcolor=lightgray shape=box style=filled]
+	"Pole Angle" [fillcolor=lightgray shape=box style=filled]
+	"Pole Velocity At Tip" [fillcolor=lightgray shape=box style=filled]
+	"Push cart to the left or to the right" [fillcolor=lightblue style=filled]
+	"Pole Velocity At Tip" -> "Push cart to the left or to the right" [color=green penwidth=0.5632235264074452 style=solid]
+}

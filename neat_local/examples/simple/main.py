@@ -23,6 +23,9 @@ from neat_local.pytorch_neat.multi_env_eval import MultiEnvEvaluator
 from neat_local.pytorch_neat.neat_reporter import LogReporter
 from neat_local.pytorch_neat.recurrent_net import RecurrentNet
 
+from neat.nn.feed_forward import FeedForwardNetwork
+
+
 max_env_steps = 200
 
 
@@ -38,9 +41,10 @@ def activate_net(net, states):
     outputs = net.activate(states).numpy()
     return outputs[:, 0] > 0.5
 
-
+'''
 @click.command()
-@click.option("--n_generations", type=int, default=100)
+@click.option("--n_generations", type=int, default=5)
+'''
 def run(n_generations):
     # Load the config file, which is assumed to live in
     # the same directory as this script.
@@ -71,12 +75,37 @@ def run(n_generations):
 
     winner = pop.run(eval_genomes, n_generations)
     
+    node_names = {-1:'Cart Position', -2: 'Cart Velocity', -3:'Pole Angle', -4:'Pole Velocity At Tip', 0:'Push cart to the left or to the right'}
+    
     # Visualization
-    visualize.draw_net(config, winner, True, filename="graph_neat_examples_CartPole-v0")
+    '''
+    visualize.draw_net(config, winner, True, filename="graph_neat_examples_CartPole-v0", node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_CartPole-v0")
     visualize.plot_species(stats, view=True, filename="species_neat_examples_CartPole-v0")
+    '''
+
+    winner_net = FeedForwardNetwork.create(winner, config)
+    
+    return winner_net 
 
 
 
 if __name__ == "__main__":
-    run()  # pylint: disable=no-value-for-parameter
+    winner_net = run(10)  # pylint: disable=no-value-for-parameter
+    env = gym.make('CartPole-v0')
+    for i_episode in range(20):
+        observation = env.reset()
+        action = env.action_space.sample()
+        for t in range(200):
+            env.render()
+            observation, reward, done, info = env.step(action)
+            action = winner_net.activate(observation)[0]
+            if action > .5:
+                action = 1
+            else:
+                action = 0
+            if done:
+                print("Episode finished after {} timesteps".format(t+1))
+                break
+    env.close()
+    
