@@ -26,11 +26,14 @@ from neat_local.pytorch_neat.recurrent_net import RecurrentNet
 from neat.nn.feed_forward import FeedForwardNetwork
 
 
-max_env_steps = 200
+max_env_steps = 10000
+
 
 
 def make_env():
-    return gym.make("CartPole-v0")
+    env = gym.make("CartPole-v1")
+    env._max_episode_steps = max_env_steps
+    return env
 
 
 def make_net(genome, config, bs):
@@ -77,12 +80,13 @@ def run(n_generations):
     
     node_names = {-1:'Cart Position', -2: 'Cart Velocity', -3:'Pole Angle', -4:'Pole Velocity At Tip', 0:'Push cart to the left or to the right'}
     
+    
     # Visualization
-    '''
-    visualize.draw_net(config, winner, True, filename="graph_neat_examples_CartPole-v0", node_names=node_names)
-    visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_CartPole-v0")
-    visualize.plot_species(stats, view=True, filename="species_neat_examples_CartPole-v0")
-    '''
+    visualize.draw_net(config, winner, True, filename="graph_neat_examples_CartPole-v1", node_names=node_names)
+    visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_CartPole-v1")
+    visualize.plot_species(stats, view=True, filename="species_neat_examples_CartPole-v1")
+    
+    
 
     winner_net = FeedForwardNetwork.create(winner, config)
     
@@ -91,12 +95,15 @@ def run(n_generations):
 
 
 if __name__ == "__main__":
-    winner_net = run(10)  # pylint: disable=no-value-for-parameter
-    env = gym.make('CartPole-v0')
-    for i_episode in range(20):
+    winner_net = run(15)  # pylint: disable=no-value-for-parameter
+    print("\n \n")
+    env = make_env()
+    nb_episode = 5
+    sum_timesteps = 0
+    for i_episode in range(nb_episode):
         observation = env.reset()
         action = env.action_space.sample()
-        for t in range(200):
+        for t in range(max_env_steps):
             env.render()
             observation, reward, done, info = env.step(action)
             action = winner_net.activate(observation)[0]
@@ -105,7 +112,9 @@ if __name__ == "__main__":
             else:
                 action = 0
             if done:
-                print("Episode finished after {} timesteps".format(t+1))
+                print("\n Episode finished after {} timesteps".format(t+1))
+                sum_timesteps += t+1
                 break
     env.close()
+    print("\n average timesteps = ", sum_timesteps/ nb_episode )
     

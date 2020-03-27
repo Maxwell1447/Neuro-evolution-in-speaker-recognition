@@ -4,3 +4,5 @@ TESTS/*
 neat-python-master
 .spyproject
 *.pyc
+*.log
+neat_local/pytorch_neat/__pycache__/
