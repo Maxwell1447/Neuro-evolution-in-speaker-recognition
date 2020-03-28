@@ -47,6 +47,8 @@ class TMazeEnv(gym.Env):
         self.reward_flip = reward_flip_mean
         self.reset_trial_on_step = False
         self.trial_num = self.n_trials
+        
+        self.viewer = None
 
         self.make_maze()
 
@@ -58,7 +60,56 @@ class TMazeEnv(gym.Env):
         self.maze[1, 1:-1].fill(0)
 
     def render(self, mode="human"):
-        raise NotImplementedError()
+        '''
+        does not work yet
+        '''
+        #raise NotImplementedError()
+        screen_width = 1000
+        screen_height = 700
+
+        world_width = 6*2
+        scale = screen_width/world_width
+        box_length = 100
+
+        if self.viewer is None:
+            from gym.envs.classic_control import rendering
+            self.viewer = rendering.Viewer(screen_width, screen_height)
+            for i in range(self.maze.shape[0]):
+                for j in range(self.maze.shape[1]):
+                    l = i * box_length - 500
+                    r = i * box_length + 500
+                    t = j * box_length + 350
+                    b = j * box_length - 350
+                    if (i,j) == (4,4):
+                        position = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
+                        position.set_color(1, 0, 0)
+                        self.carttrans = rendering.Transform()
+                        position.add_attr(self.carttrans)
+                        self.viewer.add_geom(position)
+                    elif self.maze[i,j] == 1:
+                        wall = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
+                        wall.set_color(0, 0, 0)
+                        self.viewer.add_geom(wall)
+                    elif (i == 1) and (j== 1 or j==7):
+                        goal = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
+                        goal.set_color(1, 1, 0)
+                        self.viewer.add_geom(goal)
+
+        if self.state is None: return None
+
+        target_row = self.row_pos * scale + screen_width/2.0
+        target_col = self.col_pos * scale + screen_width/2.0
+        
+        self.carttrans.set_translation(target_col, target_row)
+
+        return self.viewer.render(return_rgb_array = mode=='rgb_array')
+
+        
+    def close(self):
+        if self.viewer:
+            self.viewer.close()
+            self.viewer = None
+        
 
     def state(self):
         state = np.zeros(4)
@@ -130,3 +181,4 @@ class TMazeEnv(gym.Env):
         return "TMazeEnv({}, step_num={}, pos={}, reward_side={})".format(
             self.maze, self.trial_num, (self.row_pos, self.col_pos), self.reward_side
         )
+        

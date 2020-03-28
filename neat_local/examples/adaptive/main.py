@@ -29,7 +29,7 @@ from neat_local.pytorch_neat.multi_env_eval import MultiEnvEvaluator
 from neat_local.pytorch_neat.neat_reporter import LogReporter
 
 batch_size = 4
-DEBUG = True
+DEBUG = False
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
@@ -64,9 +64,11 @@ def activate_net(net, states, debug=False, step_num=0):
     return np.argmax(outputs, axis=1)
 
 
+'''
 @click.command()
-@click.option("--n_generations", type=int, default=1000)
+@click.option("--n_generations", type=int, default=20)
 @click.option("--n_processes", type=int, default=6)
+'''
 def run(n_generations, n_processes):
     # Load the config file, which is assumed to live in
     # the same directory as this script.
@@ -122,13 +124,47 @@ def run(n_generations, n_processes):
     print("Final performance: {}".format(final_performance))
     generations = reporter.generation + 1
     
+    node_names = {-1:'left', -2: 'front', -3:'right', -4:'color'}
+    node_names[-5] = "reward"
+    node_names[-6] = "False"
+    node_names[-7] = "{}"
+    node_names[0] = "direction"
+    
     # Visualization
-    visualize.draw_net(config, winner, True, filename="graph_neat_examples_T-maze")
+    visualize.draw_net(config, winner, True, filename="graph_neat_examples_T-maze", node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_T-maze")
     visualize.plot_species(stats, view=True, filename="species_neat_examples_T-maze")
+    
+    input_coords = [[-1.0, 0.0], [0.0, 0.0], [1.0, 0.0], [0.0, -1.0]]
+    output_coords = [[-1.0, 0.0], [0.0, 0.0], [1.0, 0.0]]
+    
+    return AdaptiveLinearNet.create(
+        winner,
+        config,
+        input_coords=input_coords,
+        output_coords=output_coords,
+        weight_threshold=0.4,
+        batch_size=1,
+        activation=tanh_activation,
+        output_activation=tanh_activation,
+        device="cpu",
+    )
 
-    return generations
-
+    
 
 if __name__ == "__main__":
-    run()  # pylint: disable=no-value-for-parameter
+    winner_net = run(5, 1)  # pylint: disable=no-value-for-parameter
+    print("\n \n")
+    env = t_maze.TMazeEnv()
+    nb_episode = 5
+    sum_reward = 0
+    for i_episode in range(nb_episode):
+        states = [env.reset()]
+        #inputs = env.state(), 0, False, {}
+        for t in range(100):
+            print(t)
+            env.render()
+            [action] = activate_net(winner_net, states, debug=DEBUG, step_num=t)
+            states = [np.array(env.step(action)[0])]
+    env.close()
+    
