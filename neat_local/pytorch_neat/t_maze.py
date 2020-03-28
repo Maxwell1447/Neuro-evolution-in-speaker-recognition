@@ -17,6 +17,9 @@ import random
 import gym
 import numpy as np
 
+import pygame as pyg
+from ctypes import windll, Structure, c_long, byref
+
 
 class TMazeEnv(gym.Env):
     def __init__(
@@ -48,7 +51,6 @@ class TMazeEnv(gym.Env):
         self.reset_trial_on_step = False
         self.trial_num = self.n_trials
         
-        self.viewer = None
 
         self.make_maze()
 
@@ -63,52 +65,54 @@ class TMazeEnv(gym.Env):
         '''
         does not work yet
         '''
-        #raise NotImplementedError()
-        screen_width = 1000
-        screen_height = 700
-
-        world_width = 6*2
-        scale = screen_width/world_width
-        box_length = 100
-
-        if self.viewer is None:
-            from gym.envs.classic_control import rendering
-            self.viewer = rendering.Viewer(screen_width, screen_height)
-            for i in range(self.maze.shape[0]):
-                for j in range(self.maze.shape[1]):
-                    l = i * box_length - 500
-                    r = i * box_length + 500
-                    t = j * box_length + 350
-                    b = j * box_length - 350
-                    if (i,j) == (4,4):
-                        position = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
-                        position.set_color(1, 0, 0)
-                        self.carttrans = rendering.Transform()
-                        position.add_attr(self.carttrans)
-                        self.viewer.add_geom(position)
-                    elif self.maze[i,j] == 1:
-                        wall = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
-                        wall.set_color(0, 0, 0)
-                        self.viewer.add_geom(wall)
-                    elif (i == 1) and (j== 1 or j==7):
-                        goal = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
-                        goal.set_color(1, 1, 0)
-                        self.viewer.add_geom(goal)
-
-        if self.state is None: return None
-
-        target_row = self.row_pos * scale + screen_width/2.0
-        target_col = self.col_pos * scale + screen_width/2.0
+        scale = 30
+        pyg.init()
+        self.screen = pyg.display.set_mode((9 * scale, 6 * scale))
+        pyg.display.set_caption("Snake")
+        on_top(pyg.display.get_wm_info()['window'])
         
-        self.carttrans.set_translation(target_col, target_row)
+    def draw(self, FPS=20):
+        scale = 30
+        self.screen.fill((20, 20, 20))  # Overlay the screen with a black-gray surface
+        goal_color = (255, 255, 10)
+        pos_color = (255, 10, 10)
+        empty_color = (255, 255, 255)
 
-        return self.viewer.render(return_rgb_array = mode=='rgb_array')
+        # draw the empty paces
+        for i in range(1,8):
+            j = 1
+            pyg.draw.rect(self.screen, empty_color,
+                          [scale * i, scale * j,
+                           scale - 1, scale - 1], 0)
+        for j in range(1, 5):
+            i = 4
+            pyg.draw.rect(self.screen, empty_color,
+                          [scale * i, scale * j,
+                           scale - 1, scale - 1], 0)
+
+        
+        #draw the goals
+        pyg.draw.rect(self.screen, goal_color,
+                      [scale, scale,
+                       scale - 1, scale - 1], 0)
+        pyg.draw.rect(self.screen, goal_color,
+                      [7 * scale, scale,
+                       scale - 1, scale - 1], 0)
+    
+        # draw the position
+        x, y = self.col_pos, self.row_pos
+        pyg.draw.rect(self.screen, pos_color,
+                      [scale * x, scale * y,
+                       scale - 1, scale - 1], 0)
+
+        pyg.display.flip()
+        clock = pyg.time.Clock()
+        clock.tick(FPS)
+
 
         
     def close(self):
-        if self.viewer:
-            self.viewer.close()
-            self.viewer = None
+        pyg.quit()
         
 
     def state(self):
@@ -182,3 +186,25 @@ class TMazeEnv(gym.Env):
             self.maze, self.trial_num, (self.row_pos, self.col_pos), self.reward_side
         )
         
+        
+class RECT(Structure):
+    _fields_ = [
+        ('left', c_long),
+        ('top', c_long),
+        ('right', c_long),
+        ('bottom', c_long),
+    ]
+
+    def width(self):
+        return self.right - self.left
+
+    def height(self):
+        return self.bottom - self.top
+
+
+def on_top(window):
+    set_window_pos = windll.user32.SetWindowPos
+    get_window_pos = windll.user32.GetWindowRect
+    rc = RECT()
+    get_window_pos(window, byref(rc))
+    set_window_pos(window, -1, rc.left, rc.top, 0, 0, 0x0001)

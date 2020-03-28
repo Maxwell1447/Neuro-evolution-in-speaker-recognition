@@ -6,3 +6,5 @@ neat-python-master
 *.pyc
 *.log
 neat_local/pytorch_neat/__pycache__/
+*.json
+raw-audio-gender-classification/data/LibriSpeech
