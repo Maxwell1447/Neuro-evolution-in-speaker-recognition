@@ -131,9 +131,11 @@ def run(n_generations, n_processes):
     node_names[0] = "direction"
     
     # Visualization
+
     visualize.draw_net(config, winner, True, filename="graph_neat_examples_T-maze", node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True, filename="stats_neat_examples_T-maze")
     visualize.plot_species(stats, view=True, filename="species_neat_examples_T-maze")
+    
     
     input_coords = [[-1.0, 0.0], [0.0, 0.0], [1.0, 0.0], [0.0, -1.0]]
     output_coords = [[-1.0, 0.0], [0.0, 0.0], [1.0, 0.0]]
@@ -158,13 +160,24 @@ if __name__ == "__main__":
     env = t_maze.TMazeEnv()
     nb_episode = 5
     sum_reward = 0
+    sum_length = 0
     for i_episode in range(nb_episode):
+        env.render()
         states = [env.reset()]
-        #inputs = env.state(), 0, False, {}
         for t in range(100):
-            print(t)
-            env.render()
+            env.draw()
             [action] = activate_net(winner_net, states, debug=DEBUG, step_num=t)
-            states = [np.array(env.step(action)[0])]
+            states, reward = env.step(action)[0:2]
+            states = [np.array(states)]
+            if reward > 0:
+                sum_reward += 1
+                sum_length += t+1
+                break
+            elif reward < 0:
+                sum_length += t+1
+                break
+                
     env.close()
+    print("\n average reward = ", sum_reward/ nb_episode )
+    print("\n average episode length = ", sum_length/ nb_episode )
     

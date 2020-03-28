@@ -6,3 +6,5 @@ neat-python-master
 *.pyc
 *.log
 neat_local/pytorch_neat/__pycache__/
+raw-audio-gender-classification
+*.json
