@@ -21,8 +21,8 @@
 </g>
 <!-- sepal length (cm)&#45;&gt;setosa -->
 <g id="edge1" class="edge"><title>sepal length (cm)&#45;&gt;setosa</title>
-<path fill="none" stroke="green" stroke-width="0.384988" d="M60.7569,-109.303C56.5864,-100.311 49.638,-85.3313 43.1745,-71.3964"/>
-<polygon fill="green" stroke="green" stroke-width="0.384988" points="46.2002,-69.6014 38.8173,-62.0025 39.85,-72.5469 46.2002,-69.6014"/>
+<path fill="none" stroke="green" stroke-width="0.174366" d="M60.7569,-109.303C56.5864,-100.311 49.638,-85.3313 43.1745,-71.3964"/>
+<polygon fill="green" stroke="green" stroke-width="0.174366" points="46.2002,-69.6014 38.8173,-62.0025 39.85,-72.5469 46.2002,-69.6014"/>
 </g>
 <!-- versicolor -->
 <g id="node4" class="node"><title>versicolor</title>
@@ -31,8 +31,8 @@
 </g>
 <!-- sepal length (cm)&#45;&gt;versicolor -->
 <g id="edge2" class="edge"><title>sepal length (cm)&#45;&gt;versicolor</title>
-<path fill="none" stroke="red" stroke-width="0.696485" d="M69.2235,-109.303C73.4824,-101.753 80.1231,-89.9815 86.7968,-78.1514"/>
-<polygon fill="red" stroke="red" stroke-width="0.696485" points="90.0027,-79.5918 91.8677,-69.1624 83.9059,-76.1524 90.0027,-79.5918"/>
+<path fill="none" stroke="red" stroke-width="0.252974" d="M69.2235,-109.303C73.4824,-101.753 80.1231,-89.9815 86.7968,-78.1514"/>
+<polygon fill="red" stroke="red" stroke-width="0.252974" points="90.0027,-79.5918 91.8677,-69.1624 83.9059,-76.1524 90.0027,-79.5918"/>
 </g>
 <!-- virginica -->
 <g id="node5" class="node"><title>virginica</title>
@@ -41,8 +41,8 @@
 </g>
 <!-- sepal length (cm)&#45;&gt;virginica -->
 <g id="edge3" class="edge"><title>sepal length (cm)&#45;&gt;virginica</title>
-<path fill="none" stroke="red" stroke-width="0.353107" d="M84.8891,-109.488C103.871,-101.561 132.647,-88.4938 155.577,-73.5391 158.911,-71.3645 162.27,-68.9532 165.557,-66.4393"/>
-<polygon fill="red" stroke="red" stroke-width="0.353107" points="167.91,-69.0391 173.527,-60.0557 163.534,-63.5757 167.91,-69.0391"/>
+<path fill="none" stroke="green" stroke-width="0.361572" stroke-dasharray="1,5" d="M84.8891,-109.488C103.871,-101.561 132.647,-88.4938 155.577,-73.5391 158.911,-71.3645 162.27,-68.9532 165.557,-66.4393"/>
+<polygon fill="green" stroke="green" stroke-width="0.361572" points="167.91,-69.0391 173.527,-60.0557 163.534,-63.5757 167.91,-69.0391"/>
 </g>
 <!-- petal length (cm) -->
 <g id="node2" class="node"><title>petal length (cm)</title>
@@ -51,18 +51,18 @@
 </g>
 <!-- petal length (cm)&#45;&gt;setosa -->
 <g id="edge4" class="edge"><title>petal length (cm)&#45;&gt;setosa</title>
-<path fill="none" stroke="red" stroke-width="0.614177" d="M136.607,-109.409C116.177,-101.857 86.5592,-89.3979 63.5772,-73.5391 59.8879,-70.9933 56.2432,-68.0467 52.771,-64.9591"/>
-<polygon fill="red" stroke="red" stroke-width="0.614177" points="55.1648,-62.4057 45.4952,-58.0756 50.354,-67.4906 55.1648,-62.4057"/>
+<path fill="none" stroke="red" stroke-width="0.388841" d="M136.607,-109.409C116.177,-101.857 86.5592,-89.3979 63.5772,-73.5391 59.8879,-70.9933 56.2432,-68.0467 52.771,-64.9591"/>
+<polygon fill="red" stroke="red" stroke-width="0.388841" points="55.1648,-62.4057 45.4952,-58.0756 50.354,-67.4906 55.1648,-62.4057"/>
 </g>
 <!-- petal length (cm)&#45;&gt;versicolor -->
 <g id="edge5" class="edge"><title>petal length (cm)&#45;&gt;versicolor</title>
-<path fill="none" stroke="green" stroke-width="0.295908" d="M155.311,-109.303C150.266,-101.411 142.271,-88.906 134.367,-76.5432"/>
-<polygon fill="green" stroke="green" stroke-width="0.295908" points="137.282,-74.6056 128.947,-68.0656 131.385,-78.3762 137.282,-74.6056"/>
+<path fill="none" stroke="green" stroke-width="0.486324" d="M155.311,-109.303C150.266,-101.411 142.271,-88.906 134.367,-76.5432"/>
+<polygon fill="green" stroke="green" stroke-width="0.486324" points="137.282,-74.6056 128.947,-68.0656 131.385,-78.3762 137.282,-74.6056"/>
 </g>
 <!-- petal length (cm)&#45;&gt;virginica -->
 <g id="edge6" class="edge"><title>petal length (cm)&#45;&gt;virginica</title>
-<path fill="none" stroke="green" stroke-width="0.512856" d="M164.397,-109.303C168.046,-101.436 173.822,-88.9848 179.538,-76.6602"/>
-<polygon fill="green" stroke="green" stroke-width="0.512856" points="182.829,-77.8826 183.862,-67.3382 176.479,-74.9371 182.829,-77.8826"/>
+<path fill="none" stroke="green" stroke-width="0.175673" d="M164.397,-109.303C168.046,-101.436 173.822,-88.9848 179.538,-76.6602"/>
+<polygon fill="green" stroke="green" stroke-width="0.175673" points="182.829,-77.8826 183.862,-67.3382 176.479,-74.9371 182.829,-77.8826"/>
 </g>
 </g>
 </svg>

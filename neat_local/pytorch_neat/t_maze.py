@@ -76,6 +76,10 @@ class TMazeEnv(gym.Env):
             self.reward_side = 1 - self.reward_side
 
     def step(self, action):
+        try:
+            action = action.item()
+        except():
+            ...
         assert action in {0, 1, 2}
 
         if self.reset_trial_on_step:

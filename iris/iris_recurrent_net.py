@@ -2,12 +2,18 @@ from __future__ import print_function
 import torch
 import os
 import neat
-import neat_local.nn.feed_forward as feed_forward
 import neat_local.visualization.visualize as visualize
 from sklearn import datasets
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+
+from neat_local.pytorch_neat import t_maze
+from neat_local.pytorch_neat.activations import sigmoid_activation
+from neat_local.pytorch_neat.recurrent_net import RecurrentNet
+from neat_local.pytorch_neat.adaptive_linear_net import AdaptiveLinearNet
+from neat_local.pytorch_neat.multi_env_eval import MultiEnvEvaluator
+from neat_local.pytorch_neat.neat_reporter import LogReporter
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
@@ -18,7 +24,28 @@ NEAT APPLIED TO IRIS DATASET
 """
 
 
-def load_iris(pair, device="cpu"):
+class Evaluator:
+
+    def __init__(self):
+        ...
+
+    def eval_genome(self, genome, config, debug=False):
+        fitness = 50.
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        for xi, xo in zip(inputs, outputs):
+            output = torch.tensor(net.activate(xi))
+            fitness -= torch.sum((output - xo) ** 2)
+        print(fitness)
+        return fitness
+
+
+def activate_net(net, states, debug=False, step_num=0):
+    _, out = net.activate(states).max(0)
+    print(out)
+    return out
+
+
+def load_iris(pair):
     iris = datasets.load_iris()
     iris_x = iris['data'][:, pair]
     iris_target = iris['target']
@@ -32,22 +59,7 @@ def load_iris(pair, device="cpu"):
 
     labels_ = [iris['feature_names'][i] for i in pair]
     names_ = iris['target_names']
-    if device == "cpu":
-        return iris_x[idx], iris_y[idx], labels_, names_
-    return torch.tensor([idx], dtype=torch.float32), torch.tensor([idx], dtype=torch.float32), labels_, names_
-
-
-def eval_genomes(genomes, config):
-    for genome_id, genome in genomes:
-        genome.fitness = 50.
-        net = feed_forward.FeedForwardNetwork.create(genome, config)
-        for xi, xo in zip(inputs, outputs):
-            if device == "cpu":
-                output = np.array([net.activate(xi)])
-                genome.fitness -= np.sum((output - xo) ** 2)
-            else:
-                output = torch.tensor([net.activate(xi)])
-                genome.fitness -= torch.sum((output - xo) ** 2).item()
+    return iris_x[idx], iris_y[idx], labels_, names_
 
 
 def run(config_file, n_gen):
@@ -55,6 +67,16 @@ def run(config_file, n_gen):
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_file)
+
+    evaluator = Evaluator()
+
+    def eval_genomes(genomes, config):
+        for i, (_, genome) in enumerate(genomes):
+            try:
+                genome.fitness = evaluator.eval_genome(genome, config)
+            except Exception as e:
+                print(genome)
+                raise e
 
     # Create the population, which is the top-level object for a NEAT run.
     p = neat.Population(config)
@@ -84,10 +106,10 @@ def run(config_file, n_gen):
         if accuracy < 20:
             print(xo, np.argmax(xo))
             print("--> input : ({0:6.4f}, {1:6.4f}) |||  expected : {2}  -  got : {3}".format(xi[0],
-                                                                                  xi[1],
-                                                                                  names[np.argmax(xo)],
-                                                                                  names[np.argmax(output)]
-                                                                                  ))
+                                                                                              xi[1],
+                                                                                              names[np.argmax(xo)],
+                                                                                              names[np.argmax(output)]
+                                                                                              ))
     accuracy *= 3
     accuracy /= outputs.size
     print("**** accuracy = {}  ****".format(accuracy))
@@ -145,7 +167,6 @@ def make_visualize(winner_, config_, stats_):
 
 
 def general_stats(n, config_path):
-
     max_gen = 1000
     best_seed = (-1, max_gen)
     total_steps = []
@@ -167,9 +188,8 @@ def general_stats(n, config_path):
 
 
 if __name__ == '__main__':
-
-    device = "cpu"
-    inputs, outputs, labels, names = load_iris([0, 2], device)
+    inputs, outputs, labels, names = load_iris([0, 2])
+    data = {"X": inputs, "Y": outputs}
 
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
@@ -177,8 +197,8 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config_iris')
 
-    general_stats(20, config_path)
+    # general_stats(15, config_path)
 
-    # random.seed(7)
-    # winner, config, stats = run(config_path, 10)
-    # make_visualize(winner, config, stats)
+    random.seed(7)
+    winner, config, stats = run(config_path, 1000)
+    make_visualize(winner, config, stats)
