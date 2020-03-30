@@ -28,8 +28,8 @@ from .activations import sigmoid_activation
 #     return mat
 
 
-def dense_from_coo(shape, conns, dtype=torch.float64):
-    mat = torch.zeros(shape, dtype=dtype)
+def dense_from_coo(shape, conns, dtype=torch.float64, device="cpu"):
+    mat = torch.zeros(shape, dtype=dtype, device=device)
     idxs, weights = conns
     if len(idxs) == 0:
         return mat
@@ -38,7 +38,7 @@ def dense_from_coo(shape, conns, dtype=torch.float64):
     trying to fix issues
     '''
     mat[torch.LongTensor(rows), torch.LongTensor(cols)] = torch.tensor(
-            weights, dtype=dtype)
+            weights, dtype=dtype, device=device)
     '''
     end
     
@@ -59,12 +59,14 @@ class RecurrentNet():
                  use_current_activs=False,
                  activation=sigmoid_activation,
                  n_internal_steps=1,
-                 dtype=torch.float64):
+                 dtype=torch.float64,
+                 device="cpu"):
 
         self.use_current_activs = use_current_activs
         self.activation = activation
         self.n_internal_steps = n_internal_steps
         self.dtype = dtype
+        self.device = device
 
         self.n_inputs = n_inputs
         self.n_hidden = n_hidden
@@ -72,36 +74,36 @@ class RecurrentNet():
 
         if n_hidden > 0:
             self.input_to_hidden = dense_from_coo(
-                (n_hidden, n_inputs), input_to_hidden, dtype=dtype)
+                (n_hidden, n_inputs), input_to_hidden, dtype=dtype, device=self.device)
             self.hidden_to_hidden = dense_from_coo(
-                (n_hidden, n_hidden), hidden_to_hidden, dtype=dtype)
+                (n_hidden, n_hidden), hidden_to_hidden, dtype=dtype, device=self.device)
             self.output_to_hidden = dense_from_coo(
-                (n_hidden, n_outputs), output_to_hidden, dtype=dtype)
+                (n_hidden, n_outputs), output_to_hidden, dtype=dtype, device=self.device)
             self.hidden_to_output = dense_from_coo(
-                (n_outputs, n_hidden), hidden_to_output, dtype=dtype)
+                (n_outputs, n_hidden), hidden_to_output, dtype=dtype, device=self.device)
         self.input_to_output = dense_from_coo(
-            (n_outputs, n_inputs), input_to_output, dtype=dtype)
+            (n_outputs, n_inputs), input_to_output, dtype=dtype, device=self.device)
         self.output_to_output = dense_from_coo(
-            (n_outputs, n_outputs), output_to_output, dtype=dtype)
+            (n_outputs, n_outputs), output_to_output, dtype=dtype, device=self.device)
 
         if n_hidden > 0:
-            self.hidden_responses = torch.tensor(hidden_responses, dtype=dtype)
-            self.hidden_biases = torch.tensor(hidden_biases, dtype=dtype)
+            self.hidden_responses = torch.tensor(hidden_responses, dtype=dtype, device=self.device)
+            self.hidden_biases = torch.tensor(hidden_biases, dtype=dtype, device=self.device)
 
         self.output_responses = torch.tensor(
-            output_responses, dtype=dtype)
-        self.output_biases = torch.tensor(output_biases, dtype=dtype)
+            output_responses, dtype=dtype, device=self.device)
+        self.output_biases = torch.tensor(output_biases, dtype=dtype, device=self.device)
 
         self.reset(batch_size)
 
     def reset(self, batch_size=1):
         if self.n_hidden > 0:
             self.activs = torch.zeros(
-                batch_size, self.n_hidden, dtype=self.dtype)
+                batch_size, self.n_hidden, dtype=self.dtype, device=self.device)
         else:
             self.activs = None
         self.outputs = torch.zeros(
-            batch_size, self.n_outputs, dtype=self.dtype)
+            batch_size, self.n_outputs, dtype=self.dtype, device=self.device)
 
     def activate(self, inputs):
         '''
@@ -110,7 +112,8 @@ class RecurrentNet():
         returns: (batch_size, n_outputs)
         '''
         with torch.no_grad():
-            inputs = torch.tensor(inputs, dtype=self.dtype)
+            if type(inputs) != torch.Tensor:
+                inputs = torch.tensor(inputs, dtype=self.dtype, device=self.device)
             activs_for_output = self.activs
             if self.n_hidden > 0:
                 for _ in range(self.n_internal_steps):
@@ -132,7 +135,7 @@ class RecurrentNet():
 
     @staticmethod
     def create(genome, config, batch_size=1, activation=sigmoid_activation,
-               prune_empty=False, use_current_activs=False, n_internal_steps=1):
+               prune_empty=False, use_current_activs=False, n_internal_steps=1, device="cpu"):
         from neat.graphs import required_for_output
 
         genome_config = config.genome_config
@@ -222,4 +225,5 @@ class RecurrentNet():
                             batch_size=batch_size,
                             activation=activation,
                             use_current_activs=use_current_activs,
-                            n_internal_steps=n_internal_steps)
+                            n_internal_steps=n_internal_steps,
+                            device=device)
