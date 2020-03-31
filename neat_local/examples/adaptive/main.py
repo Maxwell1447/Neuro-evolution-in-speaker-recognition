@@ -126,8 +126,8 @@ def run(n_generations, n_processes):
     
     node_names = {-1:'left', -2: 'front', -3:'right', -4:'color'}
     node_names[-5] = "reward"
-    node_names[-6] = "False"
-    node_names[-7] = "{}"
+    node_names[-6] = "done"
+    node_names[-7] = "info"
     node_names[0] = "direction"
     
     # Visualization
@@ -155,29 +155,23 @@ def run(n_generations, n_processes):
     
 
 if __name__ == "__main__":
-    winner_net = run(5, 1)  # pylint: disable=no-value-for-parameter
+    winner_net = run(15, 1)  # pylint: disable=no-value-for-parameter
     print("\n \n")
     env = t_maze.TMazeEnv()
-    nb_episode = 5
+    nb_episode = 2
     sum_reward = 0
-    sum_length = 0
+    #sum_length = 0
     for i_episode in range(nb_episode):
         env.render()
         states = [env.reset()]
         for t in range(100):
             env.draw()
             [action] = activate_net(winner_net, states, debug=DEBUG, step_num=t)
-            states, reward = env.step(action)[0:2]
-            states = [np.array(states)]
-            if reward > 0:
-                sum_reward += 1
-                sum_length += t+1
-                break
-            elif reward < 0:
-                sum_length += t+1
-                break
+            states, reward, done, info = env.step(action)
+            states = [np.array(states)]         
+            sum_reward += reward
                 
     env.close()
     print("\n average reward = ", sum_reward/ nb_episode )
-    print("\n average episode length = ", sum_length/ nb_episode )
+    #print("\n average episode length = ", sum_length/ nb_episode )
     

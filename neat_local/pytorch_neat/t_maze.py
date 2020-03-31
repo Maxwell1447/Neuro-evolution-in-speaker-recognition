@@ -71,7 +71,7 @@ class TMazeEnv(gym.Env):
         pyg.display.set_caption("Snake")
         on_top(pyg.display.get_wm_info()['window'])
         
-    def draw(self, FPS=20):
+    def draw(self, FPS=10):
         scale = 30
         self.screen.fill((20, 20, 20))  # Overlay the screen with a black-gray surface
         goal_color = (255, 255, 10)
