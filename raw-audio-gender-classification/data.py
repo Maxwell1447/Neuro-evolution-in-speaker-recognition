@@ -22,7 +22,14 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
         :param stochastic: If True then we will take a random fragment from each file of sufficient length. If False we
         wil always take a fragment starting at the beginning of a file.
         """
+        
+        '''
+        fixing issues
+        change long deprecated
         assert isinstance(length, (int, long)), 'Length is not an integer!'
+        '''
+        
+        assert isinstance(length, int), 'Length is not an integer!'
         self.subset = subsets
         self.fragment_length = length
         self.stochastic = stochastic
@@ -98,21 +105,32 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             for root, folders, files in os.walk(PATH+'/data/LibriSpeech/{}/'.format(s)):
                 if len(files) == 0:
                     continue
-
+                
+                '''
+                fixing issues
+                remove
                 librispeech_id = int(root.split('/')[-2])
+                '''
 
                 for f in files:
                     # Skip non-sound files
                     if not f.endswith('.flac'):
                         continue
-
+                    
+                    '''
+                    fixing issues
+                    adding
+                    '''
+                    librispeech_id = int(files[0].split('-')[0])
+                    if librispeech_id not in self.librispeech_id_to_sex:
+                        continue
                     progress_bar.update(1)
 
                     # Skip short files
                     instance, samplerate = sf.read(os.path.join(root, f))
                     if len(instance) <= self.fragment_length:
                         continue
-
+                    
                     self.datasetid_to_filepath[datasetid] = os.path.abspath(os.path.join(root, f))
                     self.datasetid_to_sex[datasetid] = self.librispeech_id_to_sex[librispeech_id]
                     self.datasetid_to_name[datasetid] = self.librispeech_id_to_name[librispeech_id]
