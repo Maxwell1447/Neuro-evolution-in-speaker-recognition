@@ -61,8 +61,8 @@ def preprocessor(batch):
 ###################
 trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
 testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
-trainloader = DataLoader(trainset, batch_size=batchsize, num_workers=4, shuffle=True, drop_last=True)
-testloader = DataLoader(testset, batch_size=batchsize, num_workers=4, drop_last=True)
+trainloader = DataLoader(trainset, batch_size=batchsize, num_workers=0, shuffle=True, drop_last=True)
+testloader = DataLoader(testset, batch_size=batchsize, num_workers=0, drop_last=True)
 
 
 ################
@@ -98,7 +98,7 @@ t0 = time.time()
 
 print('\n[Epoch, Batches, Seconds]')
 for epoch in range(n_epochs):  # loop over the dataset multiple times
-
+    print("epoch =",epoch)
     running_loss = 0.0
     running_correct_samples = 0
     for i, data in enumerate(trainloader, 0):
