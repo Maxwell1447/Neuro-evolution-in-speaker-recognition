@@ -11,7 +11,7 @@ import soundfile as sf
 import json
 
 from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RATE
-from models import *
+from raw_audio_gender_classification.models import *
 from raw_audio_gender_classification.utils import whiten
 
 import torch

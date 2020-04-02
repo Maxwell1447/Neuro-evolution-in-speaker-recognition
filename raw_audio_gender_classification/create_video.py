@@ -7,7 +7,7 @@ import pandas as pd
 import cv2
 import os
 
-from config import PATH
+from raw_audio_gender_classification.config import PATH
 
 
 ##############
