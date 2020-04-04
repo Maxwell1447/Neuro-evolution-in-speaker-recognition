@@ -113,7 +113,6 @@ if __name__ == "__main__":
 
         running_loss = 0.0
         running_correct_samples = 0
-        ttt = enumerate(trainloader)
         for i, data in enumerate(trainloader, 0):
             # Get batch
             inputs, labels = data
