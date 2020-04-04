@@ -17,7 +17,7 @@ class TestWhitening(unittest.TestCase):
         whitened = whiten(torch.from_numpy(test_data), desired_rms)
 
         # Mean correct
-        self.assert_(np.isclose(whitened.mean().item(), 0))
+        self.assertTrue(np.isclose(whitened.mean().item(), 0))
 
         # RMS correct
-        self.assert_(np.isclose(np.sqrt(np.power(whitened[0,:], 2).mean()).item(), desired_rms))
+        self.assertTrue(np.isclose(np.sqrt(np.power(whitened[0,:], 2).mean()).item(), desired_rms))

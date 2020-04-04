@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
 
 
 class DilatedNet(nn.Module):
@@ -39,7 +40,7 @@ class DilatedNet(nn.Module):
 
         x = F.max_pool1d(x, kernel_size=x.size()[2:])
         x = x.view(-1, self.filters)
-        x = F.sigmoid(self.output(x))
+        x = torch.sigmoid(self.output(x))
         return x
 
 
@@ -83,6 +84,6 @@ class ConvNet(nn.Module):
 
         x = F.max_pool1d(x, kernel_size=x.size()[2:])
         x = x.view(-1, self.filters)
-        x = F.sigmoid(self.output(x))
+        x = torch.sigmoid(self.output(x))
 
         return x

@@ -42,11 +42,11 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             subsets = [subsets]
 
         # Check if we have already indexed the files
-        cached_id_to_filepath_location = '/data/LibriSpeech__datasetid_to_filepath__subsets={}__length={}.json'.format(
+        cached_id_to_filepath_location = '\\data\\LibriSpeech__datasetid_to_filepath__subsets={}__length={}.json'.format(
             subsets, length)
         cached_id_to_filepath_location = PATH + cached_id_to_filepath_location
 
-        cached_id_to_sex_location = '/data/LibriSpeech__datasetid_to_sex__subsets={}__length={}.json'.format(
+        cached_id_to_sex_location = '\\data\\LibriSpeech__datasetid_to_sex__subsets={}__length={}.json'.format(
             subsets, length)
         cached_id_to_sex_location = PATH + cached_id_to_sex_location
 
@@ -62,8 +62,8 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
 
             # The dictionaries loaded from json have string type keys
             # Convert them back to integers
-            self.datasetid_to_filepath = {int(k): v for k, v in self.datasetid_to_filepath.iteritems()}
-            self.datasetid_to_sex = {int(k): v for k, v in self.datasetid_to_sex.iteritems()}
+            self.datasetid_to_filepath = {int(k): v for k, v in self.datasetid_to_filepath.items()}
+            self.datasetid_to_sex = {int(k): v for k, v in self.datasetid_to_sex.items()}
 
             assert len(self.datasetid_to_filepath) == len(self.datasetid_to_sex), 'Cached indexes are different lengths!'
 
@@ -72,7 +72,8 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
 
             return
 
-        df = pd.read_csv(PATH+'/data/LibriSpeech/SPEAKERS.TXT', skiprows=11, delimiter='|', error_bad_lines=False)
+        print("*********", PATH+'\\data\\LibriSpeech\\SPEAKERS.TXT')
+        df = pd.read_csv(PATH+'\\data\\LibriSpeech\\SPEAKERS.TXT', skiprows=11, delimiter='|', error_bad_lines=False)
         df.columns = [col.strip().replace(';', '').lower() for col in df.columns]
         df = df.assign(
             sex=df['sex'].apply(lambda x: x.strip()),
@@ -98,11 +99,12 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             print('Indexing {}...'.format(s))
             # Quick first pass to find total for tqdm bar
             subset_len = 0
-            for root, folders, files in os.walk(PATH+'/data/LibriSpeech/{}/'.format(s)):
+            for root, folders, files in os.walk(PATH+'\\data\\LibriSpeech\\{}\\'.format(s)):
                 subset_len += len([f for f in files if f.endswith('.flac')])
 
             progress_bar = tqdm(total=subset_len)
-            for root, folders, files in os.walk(PATH+'/data/LibriSpeech/{}/'.format(s)):
+            for root, folders, files in os.walk(PATH+'\\data\\LibriSpeech\\{}\\'.format(s)):
+
                 if len(files) == 0:
                     continue
                 

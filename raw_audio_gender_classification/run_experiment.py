@@ -56,101 +56,114 @@ def preprocessor(batch):
     return batch
 
 
-###################
-# Create datasets #
-###################
-trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
-testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
-trainloader = DataLoader(trainset, batch_size=batchsize, num_workers=4, shuffle=True, drop_last=True)
-testloader = DataLoader(testset, batch_size=batchsize, num_workers=4, drop_last=True)
+if __name__ == "__main__":
+
+    ###################
+    # Create datasets #
+    ###################
+    print("--- Create Datasets")
+    trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
+    testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
+
+    print(len(trainset))
+    assert len(trainset) != 0
+
+    print("\t --- Train loader")
+    trainloader = DataLoader(trainset, batch_size=batchsize, num_workers=4, shuffle=True, drop_last=True)
+    print("\t --- Test loader")
+    testloader = DataLoader(testset, batch_size=batchsize, num_workers=4, drop_last=True)
+
+    print(len(testloader))
 
 
-################
-# Define model #
-################
-if model_type == 'max_pooling':
-    model = ConvNet(model_n_filters, model_n_layers)
-elif model_type == 'dilated':
-    model = DilatedNet(model_n_filters, model_dilation_depth, model_dilation_stacks)
-else:
-    raise(ValueError, 'Model type not recognised.')
-model.double()
-model.cuda()
+    ################
+    # Define model #
+    ################
+    print("--- Define model")
+    if model_type == 'max_pooling':
+        model = ConvNet(model_n_filters, model_n_layers)
+    elif model_type == 'dilated':
+        model = DilatedNet(model_n_filters, model_dilation_depth, model_dilation_stacks)
+    else:
+        raise(ValueError, 'Model type not recognised.')
+    model.double()
+    model.cuda()
 
 
-#############################
-# Define loss and optimiser #
-#############################
-criterion = nn.BCELoss()
-optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+    #############################
+    # Define loss and optimiser #
+    #############################
+    criterion = nn.BCELoss()
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
 
 
-#################
-# Training loop #
-#################
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=reduce_lr_patience)
+    #################
+    # Training loop #
+    #################
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=reduce_lr_patience)
 
-best_accuracy = 0
-val_acc_values = []
-acc_values = []
+    best_accuracy = 0
+    val_acc_values = []
+    acc_values = []
 
-t0 = time.time()
+    t0 = time.time()
 
-print('\n[Epoch, Batches, Seconds]')
-for epoch in range(n_epochs):  # loop over the dataset multiple times
+    print('\n[Epoch, Batches, Seconds]')
+    for epoch in range(n_epochs):  # loop over the dataset multiple times
 
-    running_loss = 0.0
-    running_correct_samples = 0
-    for i, data in enumerate(trainloader, 0):
-        # Get batch
-        inputs, labels = data
+        running_loss = 0.0
+        running_correct_samples = 0
+        ttt = enumerate(trainloader)
+        for i, data in enumerate(trainloader, 0):
+            # Get batch
+            inputs, labels = data
 
-        # Normalise the volume to a fixed root mean square value as some speakers are much quieter than others
-        inputs = whiten(inputs)
+            # Normalise the volume to a fixed root mean square value as some speakers are much quieter than others
+            inputs = whiten(inputs)
 
-        # Resample audio
-        inputs = torch.from_numpy(
-            resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
-        ).reshape((batchsize, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
+            # Resample audio
+            inputs = torch.from_numpy(
+                resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
+            ).reshape((batchsize, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
 
-        # Zero the parameter gradients
-        optimizer.zero_grad()
+            # Zero the parameter gradients
+            optimizer.zero_grad()
 
-        # Forward + backward + optimize
-        outputs = model(inputs)
-        loss = criterion(outputs, labels.reshape((batchsize, 1)).cuda().double())
-        loss.backward()
-        optimizer.step()
+            # Forward + backward + optimize
+            outputs = model(inputs)
+            loss = criterion(outputs, labels.reshape((batchsize, 1)).cuda().double())
+            loss.backward()
+            optimizer.step()
 
-        # Print statistics
-        running_loss += loss.item()
-        running_correct_samples += torch.eq((outputs[:, 0] > 0.5).cpu(), labels.byte()).numpy().sum()
-        if i % evaluate_every_n_batches == evaluate_every_n_batches - 1:  # print every 'print_every' mini-batches
-            val_acc = evaluate(model, testloader, preprocessor)
+            # Print statistics
+            running_loss += loss.item()
+            running_correct_samples += torch.eq((outputs[:, 0] > 0.5).cpu(), labels.byte()).numpy().sum()
+            if i % evaluate_every_n_batches == evaluate_every_n_batches - 1:  # print every 'print_every' mini-batches
+                val_acc = evaluate(model, testloader, preprocessor)
 
-            # return model to training mode
-            model.train()
+                # return model to training mode
+                model.train()
 
-            print('[%d, %5d, %.1f] loss: %.3f acc: %.3f val_acc: %.3f' %
-                  (epoch + 1, i + 1, time.time() - t0,
-                   running_loss / evaluate_every_n_batches,
-                   running_correct_samples * 1. / (evaluate_every_n_batches * batchsize),
-                   val_acc))
-            running_loss = 0.0
-            running_correct_samples = 0
+                print('[%d, %5d, %.1f] loss: %.3f acc: %.3f val_acc: %.3f' %
+                      (epoch + 1, i + 1, time.time() - t0,
+                       running_loss / evaluate_every_n_batches,
+                       running_correct_samples * 1. / (evaluate_every_n_batches * batchsize),
+                       val_acc))
+                running_loss = 0.0
+                running_correct_samples = 0
 
-            val_acc_values.append(val_acc)
-            acc_values.append((running_correct_samples * 1. / (evaluate_every_n_batches * batchsize)))
+                val_acc_values.append(val_acc)
+                acc_values.append((running_correct_samples * 1. / (evaluate_every_n_batches * batchsize)))
 
-            # Save new model if its the best
-            if val_acc > best_accuracy:
-                print('Saving new best model.')
-                torch.save(model.state_dict(), PATH + '/models/' + model_name)
-                best_accuracy = val_acc
+                # Save new model if its the best
+                if val_acc > best_accuracy:
+                    print('Saving new best model.')
+                    torch.save(model.state_dict(), PATH + '/models/' + model_name)
+                    best_accuracy = val_acc
 
-            # Check for plateau
-            scheduler.step(val_acc)
+                # Check for plateau
+                scheduler.step(val_acc)
 
-print('\nFinished Training')
-print('Best validation accuracy was {:.3f}'.format(best_accuracy))
-print('Best model weights saved to: {}'.format(PATH + '/models/' + model_name))
+    print('\nFinished Training')
+    print('Best validation accuracy was {:.3f}'.format(best_accuracy))
+    print('Best model weights saved to: {}'.format(PATH + '/models/' + model_name))
