@@ -28,7 +28,7 @@ training_set = ['train-clean-100', 'train-clean-360']
 validation_set = 'dev-clean'
 n_seconds = 3
 downsampling = 1
-batch_size = 5
+batch_size = 15
 
 
 def preprocessor(batch, batchsize=batch_size):
@@ -79,6 +79,7 @@ def eval_genomes(genomes, config_):
         net = neat.nn.RecurrentNetwork.create(genome, config_)
         mse = 0
         for single_inputs, output in zip(inputs, outputs):
+            net.reset()
             xo = final_activation(net, single_inputs)
             mse += (xo - output.item())**2
         genome.fitness = 1 / (1 + mse)
@@ -88,6 +89,7 @@ def evaluate(net, data_loader):
 
     correct = 0
     total = 0
+    net.reset()
     for data in tqdm(data_loader):
         inputs, output = data
         inputs = preprocessor(inputs, batchsize=1)
@@ -172,7 +174,8 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
+    print(len(trainloader_))
     # for the result of just one run
     random.seed(0)
-    winner, config, stats, acc = run(config_path, 200)
+    winner, config, stats, acc = run(config_path, len(trainloader_))
     make_visualize(winner, config, stats)
