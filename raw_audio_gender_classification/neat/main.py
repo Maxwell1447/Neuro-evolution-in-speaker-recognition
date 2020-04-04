@@ -11,6 +11,7 @@ import time
 
 from torch.utils.data import DataLoader
 import torch.optim as optim
+from tqdm import tqdm
 
 from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RATE
 from raw_audio_gender_classification.data import LibriSpeechDataset
@@ -74,7 +75,7 @@ def eval_genomes(genomes, config_):
     inputs, outputs = data
     inputs = preprocessor(inputs)
 
-    for _, genome in genomes:
+    for _, genome in tqdm(genomes):
         net = neat.nn.RecurrentNetwork.create(genome, config_)
         mse = 0
         for single_inputs, output in zip(inputs, outputs):
@@ -87,8 +88,7 @@ def evaluate(net, data_loader):
 
     correct = 0
     total = 0
-    for data in data_loader:
-        print("evaluating sample n°".format(total))
+    for data in tqdm(data_loader):
         inputs, output = data
         inputs = preprocessor(inputs, batchsize=1)
         xo = None
@@ -96,6 +96,8 @@ def evaluate(net, data_loader):
             xo = net.activate([xi.item()])
         total += 1
         correct += ((xo[0] > 0.5) == output[0].item())
+
+    return float(correct)/total
 
 
 def run(config_file, n_gen):
