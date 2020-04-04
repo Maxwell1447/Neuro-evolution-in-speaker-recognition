@@ -24,7 +24,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
         """
         
         '''
-        fixing issues
+        fixing issues Arnaud
         change long deprecated
         assert isinstance(length, (int, long)), 'Length is not an integer!'
         '''
@@ -62,6 +62,11 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
 
             # The dictionaries loaded from json have string type keys
             # Convert them back to integers
+            '''
+            fixing issues Arnaud
+            iteritems no longer exist in python 3
+            replace iteritems by items
+            '''
             self.datasetid_to_filepath = {int(k): v for k, v in self.datasetid_to_filepath.items()}
             self.datasetid_to_sex = {int(k): v for k, v in self.datasetid_to_sex.items()}
 
@@ -109,7 +114,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                     continue
                 
                 '''
-                fixing issues
+                fixing issues Arnaud
                 remove
                 librispeech_id = int(root.split('/')[-2])
                 '''
@@ -120,7 +125,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                         continue
                     
                     '''
-                    fixing issues
+                    fixing issues Arnaud
                     adding
                     '''
                     librispeech_id = int(files[0].split('-')[0])
@@ -132,7 +137,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                     instance, samplerate = sf.read(os.path.join(root, f))
                     if len(instance) <= self.fragment_length:
                         continue
-                    
+                    # TODO fixing issues with librispeech_id or whatever
                     self.datasetid_to_filepath[datasetid] = os.path.abspath(os.path.join(root, f))
                     self.datasetid_to_sex[datasetid] = self.librispeech_id_to_sex[librispeech_id]
                     self.datasetid_to_name[datasetid] = self.librispeech_id_to_name[librispeech_id]
