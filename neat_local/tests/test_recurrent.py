@@ -18,8 +18,8 @@ import neat
 import numpy as np
 import torch
 
-from pytorch_neat.activations import tanh_activation
-from pytorch_neat.recurrent_net import RecurrentNet
+from neat_local.pytorch_neat.activations import tanh_activation
+from neat_local.pytorch_neat.recurrent_net import RecurrentNet
 
 
 def assert_almost_equal(x, y, tol):

@@ -14,7 +14,7 @@
 
 import pytest
 
-from pytorch_neat.t_maze import TMazeEnv
+from neat_local.pytorch_neat.t_maze import TMazeEnv
 
 
 def test_default_initialization():
@@ -44,8 +44,11 @@ def test_step_without_reset():
 
 def test_render():
     env = TMazeEnv()
-    with pytest.raises(NotImplementedError):
-        env.render()
+    '''
+    TMaze.render implemented
+    '''
+    env.render()
+    env.close()
 
 
 def test_step_with_reset():
