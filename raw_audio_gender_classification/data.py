@@ -120,20 +120,18 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             # Quick first pass to find total for tqdm bar
             subset_len = 0
             if current_os == "Windows":
-                for root, folders, files in os.walk(PATH + '\\data\\LibriSpeech\\{}\\'.format(s)):
+                libri_path = PATH + '\\data\\LibriSpeech\\{}\\'
+                for root, folders, files in os.walk(libri_path.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
             else:
-                print("******"+'/speechmaterials/databases/LibriSpeech/{}/'.format(s), os.path.isdir('/speechmaterial/downloads/{}/'.format(s)))
+                libri_path = '/speechmaterials/databases/LibriSpeech/{}/'.format(s)
+                print("******"+libri_path.format(s), os.path.isdir(libri_path.format(s)))
 
-                for root, folders, files in os.walk('/speechmaterials/databases/LibriSpeech/{}/'.format(s)):
+                for root, folders, files in os.walk(libri_path.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
 
-            if current_os == "Windows":
-                libri_path = "\\data\\LibriSpeech\\{}\\"
-            else:
-                libri_path = "/speechmaterial/downloads/{}/"
             progress_bar = tqdm(total=subset_len)
-            for root, folders, files in os.walk(PATH + libri_path.format(s)):
+            for root, folders, files in os.walk(libri_path.format(s)):
 
                 if len(files) == 0:
                     continue
