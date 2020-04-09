@@ -123,14 +123,14 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                 for root, folders, files in os.walk(PATH + '\\data\\LibriSpeech\\{}\\'.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
             else:
-                print("******"+PATH + '/../../../speechmaterial/downloads/{}/'.format(s))
-                for root, folders, files in os.walk(PATH + '/../../../speechmaterial/downloads/{}/'.format(s)):
+                print("******"+'/speechmaterial/downloads/{}/'.format(s))
+                for root, folders, files in os.walk('/speechmaterial/downloads/{}/'.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
 
             if current_os == "Windows":
                 libri_path = "\\data\\LibriSpeech\\{}\\"
             else:
-                libri_path = "/../../../speechmaterial/downloads/{}/"
+                libri_path = "/speechmaterial/downloads/{}/"
             progress_bar = tqdm(total=subset_len)
             for root, folders, files in os.walk(PATH + libri_path.format(s)):
 
