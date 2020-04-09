@@ -85,11 +85,13 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
 
             return
 
-        print("*********", PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT')
+
         if current_os == "Windows":
+            print("*********", PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT')
             df = pd.read_csv(PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT', skiprows=11, delimiter='|',
                              error_bad_lines=False)
         else:
+            print("*********", PATH + '/data/SPEAKERS.TXT')
             df = pd.read_csv(PATH + '/data/SPEAKERS.TXT', skiprows=11, delimiter='|',
                              error_bad_lines=False)
 
