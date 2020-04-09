@@ -31,56 +31,6 @@ downsampling = 1
 batch_size = 15
 
 
-class BasicRNN(nn.Module):
-    def __init__(self, n_inputs, n_neurons, device="cuda"):
-        super(BasicRNN, self).__init__()
-        self.n_neurons = n_neurons
-        self.device = torch.device(device)
-        self.rnn = nn.RNNCell(n_inputs, n_neurons)
-        self.hx = torch.randn(batch_size, n_neurons, device=device)  # initialize hidden state
-        self.fc = nn.Linear(n_neurons, 1)
-        if device == "cuda":
-            self.rnn.cuda()
-            self.fc.cuda()
-
-    def init_hidden(self, ):
-        # (num_layers, batch_size, n_neurons)
-        return torch.zeros(batch_size, self.n_neurons, device=self.device)
-
-    def forward(self, x):
-
-        if x.dtype != torch.float32:
-            x = x.float()
-
-        xt = x.transpose(0, 1)
-
-        # Initializing hidden state for first input using method defined below
-        hidden = self.init_hidden()
-
-        # Passing in the input and hidden state into the model and obtaining outputs
-        for xi in xt:
-            hidden = self.rnn(xi.view(batch_size, -1), hidden)
-
-        # Reshaping the outputs such that it can be fit into the fully connected layer
-        out = hidden.contiguous().view(-1, self.n_neurons)
-
-        out = torch.sigmoid(self.fc(out))
-
-        return out
-
-    def cuda(self, **kwargs):
-        super(BasicRNN, self).cuda(**kwargs)
-        self.rnn.cuda()
-
-
-def preprocessor(batch, batchsize=batch_size):
-    batch = whiten(batch)
-    batch = torch.from_numpy(
-        resample(batch, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
-    ).reshape(batchsize, (int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
-    return batch
-
-
 def load_data():
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
@@ -91,18 +41,36 @@ def load_data():
     return train_loader, test_loader
 
 
+def get_partial_data(x, keep=200):
+    range_x = x.size(1)
+    range_p = range_x - keep - 50
+    n = random.randint(25, range_p)
+    return x[:, n:n + keep]
+
+
 if __name__ == '__main__':
 
     trainloader, testloader = load_data()
 
-    rnn = BasicRNN(1, 40, device="cpu")
+    model = "RNN"
+
+    if model == "LSTM":
+        rnn = LSTM(1, 100, device="cpu")
+    elif model == "RNN":
+        rnn = BasicRNN(1, 100, batch_size, device="cpu")
+    elif model == "ConvNet":
+        rnn = ConvNet(64, 4)
+        rnn.double().cuda()
+    else:
+        raise ValueError("wrong model used")
 
     # rnn.cuda()
 
-    criterion = nn.MSELoss()
+    criterion = nn.BCELoss()
     optimizer = optim.Adam(rnn.parameters(), lr=0.001)
 
-    writer = SummaryWriter('../../runs/experiment_rnn')
+    writer = SummaryWriter('./runs/experiment_rnn')
+    print(writer.log_dir)
 
 
     def get_accuracy(logit, target):
@@ -122,23 +90,30 @@ if __name__ == '__main__':
             # zero the parameter gradients
             optimizer.zero_grad()
 
-            # reset hidden states
-            rnn.hidden = rnn.init_hidden()
-
             # get the inputs
             inputs, labels = data
-            labels = labels.float()  # .cuda()
+            inputs = whiten(inputs)
+            inputs = torch.from_numpy(
+                resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
+            ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
+            labels = labels.view(batch_size, 1)  # .cuda()
             inputs = inputs.view(-1, 48000)  # .cuda()
+            inputs = get_partial_data(inputs)
+
+            if model == "ConvNet":
+                inputs = inputs.view(batch_size, 1, -1).double()
+                labels = labels.cuda().double()
+            else:
+                labels = labels.float()
 
             # forward + backward + optimize
-            outputs = rnn(inputs).view(batch_size)
-
+            outputs = rnn(inputs).view(batch_size, 1)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
             current_loss = loss.detach().item()
             train_running_loss += current_loss
-            writer.add_scalar('training loss', current_loss)
+            writer.add_scalar('training loss - {}'.format(model), current_loss)
             train_acc += get_accuracy(outputs, labels)
 
         rnn.eval()
