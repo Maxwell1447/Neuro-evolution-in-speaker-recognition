@@ -26,7 +26,7 @@ model_n_layers = 4
 model_n_filters = 64
 model_dilation_depth = 7  # Only relevant for model_type == 'dilated'
 model_dilation_stacks = 1  # Only relevant for model_type == 'dilated'
-training_set = ['train-clean-100', 'train-clean-360']
+training_set = ['train-clean-100']
 validation_set = 'dev-clean'
 learning_rate = 0.001
 momentum = 0.9

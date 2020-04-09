@@ -24,7 +24,7 @@ os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
 torch.cuda.set_device(0)
 
-training_set = ['train-clean-100', 'train-clean-360']
+training_set = ['train-clean-100']
 validation_set = 'dev-clean'
 n_seconds = 3
 downsampling = 1

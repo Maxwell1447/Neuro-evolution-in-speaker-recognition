@@ -124,6 +124,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                     subset_len += len([f for f in files if f.endswith('.flac')])
             else:
                 print("******"+'/speechmaterial/downloads/{}/'.format(s))
+                os.path.isdir('/speechmaterial/downloads/{}/'.format(s))
                 for root, folders, files in os.walk('/speechmaterial/downloads/{}/'.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
 
