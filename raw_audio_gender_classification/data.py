@@ -90,7 +90,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             df = pd.read_csv(PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT', skiprows=11, delimiter='|',
                              error_bad_lines=False)
         else:
-            df = pd.read_csv(PATH + 'data/SPEAKERS.TXT', skiprows=11, delimiter='|',
+            df = pd.read_csv(PATH + '/data/SPEAKERS.TXT', skiprows=11, delimiter='|',
                              error_bad_lines=False)
 
         df.columns = [col.strip().replace(';', '').lower() for col in df.columns]
