@@ -6,7 +6,9 @@ import pandas as pd
 import numpy as np
 import json
 import os
+import platform
 
+current_os = platform.system()
 
 sex_to_label = {'M': False, 'F': True}
 label_to_sex = {False: 'M', True: 'F'}
@@ -22,13 +24,13 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
         :param stochastic: If True then we will take a random fragment from each file of sufficient length. If False we
         wil always take a fragment starting at the beginning of a file.
         """
-        
+
         '''
         fixing issues Arnaud
         change long deprecated
         assert isinstance(length, (int, long)), 'Length is not an integer!'
         '''
-        
+
         assert isinstance(length, int), 'Length is not an integer!'
         self.subset = subsets
         self.fragment_length = length
@@ -42,16 +44,21 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             subsets = [subsets]
 
         # Check if we have already indexed the files
-        cached_id_to_filepath_location = '\\data\\LibriSpeech__datasetid_to_filepath__subsets={}__length={}.json'.format(
-            subsets, length)
+        if current_os == "Windows":
+            cached_id_to_filepath_location = '/data/LibriSpeech__datasetid_to_filepath__subsets={}__length={}.json'.format(
+                subsets, length)
+            cached_id_to_sex_location = '/data/LibriSpeech__datasetid_to_sex__subsets={}__length={}.json'.format(
+                subsets, length)
+        else:
+            cached_id_to_filepath_location = '/data/LibriSpeech__datasetid_to_filepath__subsets={}__length={}.json'.format(
+                subsets, length)
+            cached_id_to_sex_location = '/data/LibriSpeech__datasetid_to_sex__subsets={}__length={}.json'.format(
+                subsets, length)
         cached_id_to_filepath_location = PATH + cached_id_to_filepath_location
-
-        cached_id_to_sex_location = '\\data\\LibriSpeech__datasetid_to_sex__subsets={}__length={}.json'.format(
-            subsets, length)
         cached_id_to_sex_location = PATH + cached_id_to_sex_location
 
         cached_dictionaries_exist = os.path.exists(cached_id_to_filepath_location) \
-            and os.path.exists(cached_id_to_sex_location)
+                                    and os.path.exists(cached_id_to_sex_location)
         if cache and cached_dictionaries_exist:
             print('Cached indexes found.')
             with open(cached_id_to_filepath_location) as f:
@@ -70,15 +77,22 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             self.datasetid_to_filepath = {int(k): v for k, v in self.datasetid_to_filepath.items()}
             self.datasetid_to_sex = {int(k): v for k, v in self.datasetid_to_sex.items()}
 
-            assert len(self.datasetid_to_filepath) == len(self.datasetid_to_sex), 'Cached indexes are different lengths!'
+            assert len(self.datasetid_to_filepath) == len(
+                self.datasetid_to_sex), 'Cached indexes are different lengths!'
 
             self.n_files = len(self.datasetid_to_filepath)
             print('{} usable files found.'.format(self.n_files))
 
             return
 
-        print("*********", PATH+'\\data\\LibriSpeech\\SPEAKERS.TXT')
-        df = pd.read_csv(PATH+'\\data\\LibriSpeech\\SPEAKERS.TXT', skiprows=11, delimiter='|', error_bad_lines=False)
+        print("*********", PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT')
+        if current_os == "Windows":
+            df = pd.read_csv(PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT', skiprows=11, delimiter='|',
+                             error_bad_lines=False)
+        else:
+            df = pd.read_csv(PATH + 'data/SPEAKERS.TXT', skiprows=11, delimiter='|',
+                             error_bad_lines=False)
+
         df.columns = [col.strip().replace(';', '').lower() for col in df.columns]
         df = df.assign(
             sex=df['sex'].apply(lambda x: x.strip()),
@@ -104,15 +118,23 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
             print('Indexing {}...'.format(s))
             # Quick first pass to find total for tqdm bar
             subset_len = 0
-            for root, folders, files in os.walk(PATH+'\\data\\LibriSpeech\\{}\\'.format(s)):
-                subset_len += len([f for f in files if f.endswith('.flac')])
+            if current_os == "Windows":
+                for root, folders, files in os.walk(PATH + '\\data\\LibriSpeech\\{}\\'.format(s)):
+                    subset_len += len([f for f in files if f.endswith('.flac')])
+            else:
+                for root, folders, files in os.walk(PATH + '/../../../speechmaterial/downloads/{}/'.format(s)):
+                    subset_len += len([f for f in files if f.endswith('.flac')])
 
+            if current_os == "Windows":
+                libri_path = "\\data\\LibriSpeech\\{}\\"
+            else:
+                libri_path = "/../../../speechmaterial/downloads/{}/"
             progress_bar = tqdm(total=subset_len)
-            for root, folders, files in os.walk(PATH+'\\data\\LibriSpeech\\{}\\'.format(s)):
+            for root, folders, files in os.walk(PATH + libri_path.format(s)):
 
                 if len(files) == 0:
                     continue
-                
+
                 '''
                 fixing issues Arnaud
                 remove
@@ -123,7 +145,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                     # Skip non-sound files
                     if not f.endswith('.flac'):
                         continue
-                    
+
                     '''
                     fixing issues Arnaud
                     adding
@@ -159,10 +181,10 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
         instance, samplerate = sf.read(self.datasetid_to_filepath[index])
         # Choose a random sample of the file
         if self.stochastic:
-            fragment_start_index = np.random.randint(0, len(instance)-self.fragment_length)
+            fragment_start_index = np.random.randint(0, len(instance) - self.fragment_length)
         else:
             fragment_start_index = 0
-        instance = instance[fragment_start_index:fragment_start_index+self.fragment_length]
+        instance = instance[fragment_start_index:fragment_start_index + self.fragment_length]
         sex = self.datasetid_to_sex[index]
         return instance, sex_to_label[sex]
 
