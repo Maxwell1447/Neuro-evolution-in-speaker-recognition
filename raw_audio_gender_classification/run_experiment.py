@@ -4,12 +4,13 @@ import time
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch
+from tqdm import tqdm
 
 from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RATE
 from raw_audio_gender_classification.data import LibriSpeechDataset
 from raw_audio_gender_classification.models import *
 from raw_audio_gender_classification.utils import whiten, evaluate
-
+import random
 
 print('Training {} GPU support'.format('with' if torch.cuda.is_available() else 'without'))
 
@@ -21,15 +22,15 @@ n_seconds = 3
 downsampling = 1
 batchsize = 8
 model_type = 'max_pooling'
-model_n_layers = 7
+model_n_layers = 4
 model_n_filters = 64
 model_dilation_depth = 7  # Only relevant for model_type == 'dilated'
 model_dilation_stacks = 1  # Only relevant for model_type == 'dilated'
 training_set = ['train-clean-100', 'train-clean-360']
 validation_set = 'dev-clean'
-learning_rate = 0.005
+learning_rate = 0.001
 momentum = 0.9
-n_epochs = 10
+n_epochs = 1
 reduce_lr_patience = 32
 evaluate_every_n_batches = 500
 
@@ -56,21 +57,22 @@ def preprocessor(batch):
     return batch
 
 
+def get_partial_data(x, keep=200):
+    range_x = x.size(2)
+    range_p = range_x - keep - 50
+    n = random.randint(25, range_p)
+    return x[:, :, n:n+keep+1]
+
+
 if __name__ == "__main__":
 
     ###################
     # Create datasets #
     ###################
-    print("--- Create Datasets")
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
 
-    print(len(trainset))
-    assert len(trainset) != 0
-
-    print("\t --- Train loader")
     trainloader = DataLoader(trainset, batch_size=batchsize, num_workers=4, shuffle=True, drop_last=True)
-    print("\t --- Test loader")
     testloader = DataLoader(testset, batch_size=batchsize, num_workers=4, drop_last=True)
 
     print(len(testloader))
@@ -79,7 +81,6 @@ if __name__ == "__main__":
     ################
     # Define model #
     ################
-    print("--- Define model")
     if model_type == 'max_pooling':
         model = ConvNet(model_n_filters, model_n_layers)
     elif model_type == 'dilated':
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     # Define loss and optimiser #
     #############################
     criterion = nn.BCELoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 
     #################
@@ -113,7 +114,7 @@ if __name__ == "__main__":
 
         running_loss = 0.0
         running_correct_samples = 0
-        for i, data in enumerate(trainloader, 0):
+        for i, data in tqdm(enumerate(trainloader, 0), total=len(trainloader)):
             # Get batch
             inputs, labels = data
 
@@ -124,6 +125,8 @@ if __name__ == "__main__":
             inputs = torch.from_numpy(
                 resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
             ).reshape((batchsize, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
+
+            inputs = get_partial_data(inputs, keep=200)
 
             # Zero the parameter gradients
             optimizer.zero_grad()
