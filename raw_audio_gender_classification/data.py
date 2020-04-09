@@ -85,7 +85,6 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
 
             return
 
-
         if current_os == "Windows":
             print("*********", PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT')
             df = pd.read_csv(PATH + '\\data\\LibriSpeech\\SPEAKERS.TXT', skiprows=11, delimiter='|',
@@ -124,6 +123,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                 for root, folders, files in os.walk(PATH + '\\data\\LibriSpeech\\{}\\'.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
             else:
+                print("******"+PATH + '/../../../speechmaterial/downloads/{}/'.format(s))
                 for root, folders, files in os.walk(PATH + '/../../../speechmaterial/downloads/{}/'.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
 
