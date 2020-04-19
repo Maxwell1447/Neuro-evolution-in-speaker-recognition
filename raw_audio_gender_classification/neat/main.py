@@ -67,6 +67,9 @@ def gate_activation(recurrent_net, inputs):
     score, select = np.zeros(len(inputs)), np.zeros(len(inputs))
     for (i, xi) in enumerate(inputs):
         select[i], score[i] = recurrent_net.activate([xi.item()])
+        # TODO : delete this
+        if i > 200:
+            break
     mask = (select > 0.5)
     return mask, score
 
@@ -137,7 +140,7 @@ def run(config_file, n_gen):
     # p.add_reporter(neat.Checkpointer(5))
 
     # Run for up to n_gen generations.
-    n_gen = 0
+    n_gen = 1
     winner_ = p.run(eval_genomes, n_gen)
 
     # Display the winning genome.
