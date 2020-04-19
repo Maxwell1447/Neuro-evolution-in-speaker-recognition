@@ -90,19 +90,16 @@ class ConvNet(nn.Module):
 
 
 class BasicRNN(nn.Module):
-    def __init__(self, n_inputs, hidden_size, batch_size, device="cuda"):
+    def __init__(self, hidden_size, batch_size, device="cuda"):
         super(BasicRNN, self).__init__()
         self.hidden_size = hidden_size
         self.device = torch.device(device)
         self.batch_size = batch_size
-        self.rnn = nn.RNN(input_size=n_inputs, hidden_size=self.hidden_size,
-                          nonlinearity="tanh", batch_first=True)
         self.hx = torch.randn(1, batch_size, hidden_size, device=device)  # initialize hidden state
-        self.fc = nn.Linear(self.hidden_size, 1)
+        self.fc = nn.Linear(self.hidden_size, 2)
 
     def forward(self, x: torch.Tensor):
-        if x.dtype != torch.float32:
-            x = x.float()
+        x = x.float()
 
         # xt = x.transpose(0, 1)
         # print("x_t", xt.shape)
@@ -113,34 +110,30 @@ class BasicRNN(nn.Module):
         # Reshaping the outputs such that it can be fit into the fully connected layer
         out = out.contiguous().view(-1, self.hidden_size)
 
-        out = torch.sigmoid(self.fc(out)).view(self.batch_size, -1).mean(dim=1)
+        out = torch.sigmoid(self.fc(out)).view(self.batch_size, -1, 2)
 
-        return out
+        score = out[:, :, 1]
+        selectivity = out[:, :, 0]
+
+        selected_score = score * selectivity
+        prediction = selected_score.sum(dim=1) / selectivity.sum(dim=1)
+
+        return prediction
 
 
-class LSTM(nn.Module):
+class RNN(BasicRNN):
     def __init__(self, n_inputs, hidden_size, batch_size, device="cuda"):
-        super(LSTM, self).__init__()
-        self.hidden_size = hidden_size
-        self.device = torch.device(device)
-        self.batch_size = batch_size
-        self.lstm = nn.LSTM(input_size=n_inputs, hidden_size=self.hidden_size, batch_first=True)
-        self.hx = torch.randn(1, batch_size, hidden_size, device=device)  # initialize hidden state
-        self.fc = nn.Linear(self.hidden_size, 1)
+        super(RNN, self).__init__(hidden_size, batch_size, device="cuda")
+        self.rnn = nn.RNN(input_size=n_inputs, hidden_size=self.hidden_size, batch_first=True)
 
-    def forward(self, x: torch.Tensor):
-        if x.dtype != torch.float32:
-            x = x.float()
 
-        # xt = x.transpose(0, 1)
-        # print("x_t", xt.shape)
+class LSTM(BasicRNN):
+    def __init__(self, n_inputs, hidden_size, batch_size, device="cuda"):
+        super(LSTM, self).__init__(hidden_size, batch_size, device="cuda")
+        self.rnn = nn.LSTM(input_size=n_inputs, hidden_size=self.hidden_size, batch_first=True)
 
-        # Passing in the input and hidden state into the model and obtaining outputs
-        out, _ = self.lstm(x.view(self.batch_size, -1, 1))
 
-        # Reshaping the outputs such that it can be fit into the fully connected layer
-        out = out[:, -2:-1, :].contiguous().view(-1, self.hidden_size)
-
-        out = torch.sigmoid(self.fc(out))
-
-        return out
+class GRU(BasicRNN):
+    def __init__(self, n_inputs, hidden_size, batch_size, device="cuda"):
+        super(GRU, self).__init__(hidden_size, batch_size, device="cuda")
+        self.rnn = nn.GRU(input_size=n_inputs, hidden_size=self.hidden_size, batch_first=True)

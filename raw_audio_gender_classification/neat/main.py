@@ -24,7 +24,7 @@ os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 NEAT APPLIED TO RAW GENDER AUDIO CLASSIFICATION
 """
 
-training_set = ['train-clean-100', 'train-clean-360']
+training_set = ['train-clean-100']
 validation_set = 'dev-clean'
 n_seconds = 3
 downsampling = 1
@@ -63,6 +63,14 @@ def final_activation(recurrent_net, inputs):
     return xo[0]
 
 
+def gate_activation(recurrent_net, inputs):
+    score, select = np.zeros(len(inputs)), np.zeros(len(inputs))
+    for (i, xi) in enumerate(inputs):
+        select[i], score[i] = recurrent_net.activate([xi.item()])
+    mask = (select > 0.5)
+    return mask, score
+
+
 def eval_genomes(genomes, config_):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
@@ -80,7 +88,12 @@ def eval_genomes(genomes, config_):
         mse = 0
         for single_inputs, output in zip(inputs, outputs):
             net.reset()
-            xo = final_activation(net, single_inputs)
+            mask, score = gate_activation(net, single_inputs)
+            selected_score = score[mask]
+            if selected_score.size == 0:
+                xo = 0.5
+            else:
+                xo = np.sum(selected_score) / selected_score.size
             mse += (xo - output.item())**2
         genome.fitness = 1 / (1 + mse)
 
@@ -124,6 +137,7 @@ def run(config_file, n_gen):
     # p.add_reporter(neat.Checkpointer(5))
 
     # Run for up to n_gen generations.
+    n_gen = 0
     winner_ = p.run(eval_genomes, n_gen)
 
     # Display the winning genome.

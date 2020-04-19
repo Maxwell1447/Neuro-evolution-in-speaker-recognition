@@ -22,8 +22,6 @@ from raw_audio_gender_classification.utils import whiten
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
-torch.cuda.set_device(0)
-
 training_set = ['train-clean-100']
 validation_set = 'dev-clean'
 n_seconds = 3
@@ -52,19 +50,19 @@ if __name__ == '__main__':
 
     trainloader, testloader = load_data()
 
-    model = "RNN"
+    model = "GRU"
 
     if model == "LSTM":
-        rnn = LSTM(1, 100, device="cpu")
+        rnn = LSTM(1, 300, batch_size, device="cpu")
     elif model == "RNN":
-        rnn = BasicRNN(1, 100, batch_size, device="cpu")
+        rnn = RNN(1, 300, batch_size, device="cpu")
+    elif model == "GRU":
+        rnn = GRU(1, 300, batch_size, device="cpu")
     elif model == "ConvNet":
         rnn = ConvNet(64, 4)
         rnn.double().cuda()
     else:
         raise ValueError("wrong model used")
-
-    # rnn.cuda()
 
     criterion = nn.BCELoss()
     optimizer = optim.Adam(rnn.parameters(), lr=0.001)
@@ -80,7 +78,7 @@ if __name__ == '__main__':
         return accuracy.item()
 
 
-    for epoch in range(1):  # loop over the dataset multiple times
+    for epoch in range(2):  # loop over the dataset multiple times
         train_running_loss = 0.0
         train_acc = 0.0
         rnn.train()
@@ -98,7 +96,7 @@ if __name__ == '__main__':
             ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
             labels = labels.view(batch_size, 1)  # .cuda()
             inputs = inputs.view(-1, 48000)  # .cuda()
-            inputs = get_partial_data(inputs)
+            inputs = get_partial_data(inputs, keep=1000)
 
             if model == "ConvNet":
                 inputs = inputs.view(batch_size, 1, -1).double()
