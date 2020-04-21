@@ -11,8 +11,10 @@ from tqdm import tqdm
 from neat_local.nn import recurrent_net as rnn
 import multiprocessing
 import time
+from itertools import product
+import pandas as pd
 
-N_HIDDEN = 500
+N_HIDDEN = 50
 DROPOUT = 0.2
 INPUT_SIZE = 1000
 POPULATION = 100
@@ -71,8 +73,8 @@ def test_performance(g, conf, input_size=100, verbose=True):
     if verbose:
         print("##### TIMES #####")
         print()
-        print("net building time (s): ", t1-t0)
-        print("input prepare time (s): ", t2-t1)
+        print("net building time (s): ", t1 - t0)
+        print("input prepare time (s): ", t2 - t1)
     start = time.time()
     out = []
     for xi in inputs:
@@ -88,7 +90,6 @@ def test_performance(g, conf, input_size=100, verbose=True):
 
 
 def create_genome(conf, key):
-
     # create genome
     genome = conf.genome_type(key)
     # initialize the genome with no connection, only input/output nodes
@@ -107,8 +108,9 @@ def create_genome(conf, key):
     return genome
 
 
-def create_population(conf):
-    print("number of connections: ", int((N_HIDDEN + 3) * (N_HIDDEN + 1) * (1 - DROPOUT)))
+def create_population(conf, verbose=False):
+    if verbose:
+        print("number of connections: ", int((N_HIDDEN + 3) * (N_HIDDEN + 1) * (1 - DROPOUT)))
     population = {}
     for i in range(POPULATION):
         g = create_genome(conf, i)
@@ -129,17 +131,33 @@ if __name__ == '__main__':
     # ################### TIME PERFORMANCE ###################### #
     config.__setattr__("device", "vanilla")
 
-    pop = create_population(config)
     multi_eval = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genome)
 
-    t_0 = time.time()
-    multi_eval.evaluate(pop, config)
-    t_1 = time.time()
-    eval_genomes(pop, config)
-    t_2 = time.time()
+    N = [10, 20, 50, 80, 100]
+    D = [0., 0.5, 0.8]
+    I = [100, 500, 1000, 2000]
+    P = [20, 50, 100]
+    devices = ["vanilla", "cpu", "cuda"]
 
-    print("Multi: ", t_1-t_0)
-    print("Simple: ", t_2-t_1)
+    df = pd.DataFrame(columns=["N", "D", "I", "P", "device", "M", "S"])
 
+    for (n, d, i, p, device) in product(N, D, I, P, devices):
 
-    # visualize.draw_net(config, genome, True)
+        N_HIDDEN = n
+        DROPOUT = d
+        INPUT_SIZE = i
+        POPULATION = p
+        config.__setattr__("device", device)
+        pop = create_population(config, verbose=False)
+
+        t_0 = time.time()
+        multi_eval.evaluate(pop, config)
+        t_1 = time.time()
+        eval_genomes(pop, config)
+        t_2 = time.time()
+
+        df = df.append(pd.Series([n, d, i, p, device, t_1 - t_0, t_2 - t_1], index=df.columns), ignore_index=True)
+
+    df.to_csv("test.csv")
+    print(df.head())
+
