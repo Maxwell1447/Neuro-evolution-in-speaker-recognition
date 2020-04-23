@@ -41,15 +41,17 @@ def dropout(genome, num_drop):
 
 
 def eval_genomes(population, conf):
-    for (_, g) in tqdm(population):
+    for (_, g) in population:
         eval_genome(g, conf)
 
 
 def eval_genome(g, conf):
-    test_performance(g, conf, input_size=INPUT_SIZE, verbose=False)
+    test_performance(g, conf, input_size=None, verbose=False)
 
 
-def test_performance(g, conf, input_size=100, verbose=True):
+def test_performance(g, conf, input_size=None, verbose=True):
+    if input_size is None:
+        input_size = conf.input_size
     if verbose:
         print()
     inputs = np.zeros(input_size)
@@ -134,30 +136,35 @@ if __name__ == '__main__':
     multi_eval = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genome)
 
     N = [10, 20, 50, 80, 100]
-    D = [0., 0.5, 0.8]
+    D = [0.0, 0.5, 0.8]
     I = [100, 500, 1000, 2000]
     P = [20, 50, 100]
     devices = ["vanilla", "cpu", "cuda"]
-
     df = pd.DataFrame(columns=["N", "D", "I", "P", "device", "M", "S"])
-
-    for (n, d, i, p, device) in product(N, D, I, P, devices):
+    df.to_csv("time_stats_local.csv")
+    prod = product(N, D, I, P, devices)
+    for (n, d, i, p, device) in tqdm(prod, total=len(N)*len(D)*len(I)*len(P)*len(devices)):
 
         N_HIDDEN = n
         DROPOUT = d
         INPUT_SIZE = i
         POPULATION = p
         config.__setattr__("device", device)
+        config.__setattr__("input_size", i)
         pop = create_population(config, verbose=False)
+        multi_eval = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genome)
 
         t_0 = time.time()
-        multi_eval.evaluate(pop, config)
+        if device != "cuda":
+            multi_eval.evaluate(pop, config)
         t_1 = time.time()
         eval_genomes(pop, config)
         t_2 = time.time()
 
-        df = df.append(pd.Series([n, d, i, p, device, t_1 - t_0, t_2 - t_1], index=df.columns), ignore_index=True)
+        dt = t_1 - t_0 if device != "cuda" else None
+        df = pd.DataFrame(columns=["N", "D", "I", "P", "device", "M", "S"])
+        df = df.append(pd.Series([n, d, i, p, device, dt, t_2 - t_1], index=df.columns), ignore_index=True)
+        df.to_csv("time_stats_local.csv", mode='a', header=False)
 
-    df.to_csv("test.csv")
     print(df.head())
 
