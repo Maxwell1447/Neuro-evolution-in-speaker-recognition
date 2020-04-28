@@ -9,18 +9,23 @@ import random
 from scipy.signal import resample
 import time
 
+
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
 
-from raw_audio_gender_classification.config import  LIBRISPEECH_SAMPLING_RATE
-from anti_spoofing.data_utils import ASVDataset
+from anti_spoofing.data_utils import ASVDataset, ASVFile
 from raw_audio_gender_classification.utils import whiten
+
+SAMPLING_RATE = 16000
+DATA_ROOT = 'data'
 
 
 """
 NEAT APPLIED TO ASV 2019
 """
+
+nb_samples = 30
 
 training_set = ['ASVspoof2019_PA_train']
 validation_set = 'ASVspoof2019_PA_eval'
@@ -29,21 +34,21 @@ downsampling = 1
 batch_size = 15
 
 
+
 def preprocessor(batch, batchsize=batch_size):
     batch = whiten(batch)
     batch = torch.from_numpy(
-        resample(batch, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
-    ).reshape(batchsize, (int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
+        resample(batch, int(SAMPLING_RATE * n_seconds / downsampling), axis=1)
+    ).reshape(batchsize, (int(SAMPLING_RATE * n_seconds / downsampling)))
     return batch
 
 
 def load_data():
-    trainset = ASVDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
-    testset = ASVDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
-
-    train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=True, drop_last=True)
+    trainset = ASVDataset(DATA_ROOT, is_train=True, is_eval=False, nb_samples=nb_samples)
+    testset = ASVDataset(DATA_ROOT, is_train=False, is_eval=True, nb_samples=nb_samples)
+    
+    train_loader = DataLoader(trainset, batch_size=1, num_workers=4, shuffle=True, drop_last=True)
     test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True)
-
     return train_loader, test_loader
 
 
@@ -80,6 +85,7 @@ def eval_genomes(genomes, config_):
     :param genomes: list of all the genomes to get evaluated
     """
     data = next_batch()
+    print(data)
     assert data is not None
     inputs, outputs = data
     inputs = preprocessor(inputs)
