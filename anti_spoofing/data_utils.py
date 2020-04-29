@@ -5,7 +5,7 @@
     
 """
 
-
+from tqdm import tqdm
 import torch
 import collections
 import os
@@ -22,8 +22,8 @@ ASVFile = collections.namedtuple('ASVFile',
 
 class ASVDataset(Dataset):
     """ Utility class to load  train/dev datatsets """
-    def __init__(self, transform=None, nb_samples=10000,
-        is_train=True, sample_size=None, 
+    def __init__(self, length, transform=None, nb_samples=10000,
+        is_train=True, sample_size=None,
         is_logical=True, feature_name=None, is_eval=False,
         eval_part=0, save_cache=False):
         data_root = DATA_ROOT
@@ -33,6 +33,7 @@ class ASVDataset(Dataset):
             track = 'PA'
         if is_eval:
             data_root = os.path.join('eval_data', data_root)
+        self.fragment_length = length
         self.track = track
         self.is_train = is_train
         self.is_logical = is_logical
@@ -81,7 +82,8 @@ class ASVDataset(Dataset):
             print('Dataset loaded from cache ', self.cache_fname)
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
-            data = list(map(self.read_file, self.files_meta))
+            # tqdm bar
+            data = list(map(self.read_file, tqdm(self.files_meta)))
             self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
             if save_cache:
                 torch.save((self.data_x, self.data_y, self.data_sysid, self.files_meta), self.cache_fname)
@@ -99,11 +101,11 @@ class ASVDataset(Dataset):
 
     def __getitem__(self, idx):
         x = self.data_x[idx]
+        x = x[0: self.fragment_length]
         y = self.data_y[idx]
         return x, y, self.files_meta[idx]
 
     def read_file(self, meta):
-        print(meta.path)
         if self.is_train:
             tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
         elif self.is_eval:
@@ -123,11 +125,10 @@ class ASVDataset(Dataset):
             key=int(tokens[4] == 'bonafide'))
 
     def parse_protocols_file(self, protocols_fname):
-        print(protocols_fname)
         lines = open(protocols_fname).readlines()
         files_meta = map(self._parse_line, lines)
         return list(files_meta)[:self.nb_samples]
 
-if __name__ == '__main__':
-   #train_loader = ASVDataset(DATA_ROOT, is_train=True)
-   testset = ASVDataset(DATA_ROOT, is_train=False, is_eval=True)
+# if __name__ == '__main__':
+#    train_loader = ASVDataset(DATA_ROOT, is_train=True, nb_samples=1000)
+#    testset = ASVDataset(DATA_ROOT, is_train=False, is_eval=True, nb_samples=1000)

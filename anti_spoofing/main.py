@@ -7,17 +7,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 from scipy.signal import resample
-import time
-
 
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
 
-from anti_spoofing.data_utils import ASVDataset, ASVFile
+from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
 
-SAMPLING_RATE = 16000
+SAMPLING_RATE = 24000
 DATA_ROOT = 'data'
 
 
@@ -25,13 +23,14 @@ DATA_ROOT = 'data'
 NEAT APPLIED TO ASV 2019
 """
 
-nb_samples = 30
+nb_samples = 1000
 
 training_set = ['ASVspoof2019_PA_train']
 validation_set = 'ASVspoof2019_PA_eval'
-n_seconds = 3
+n_seconds = .5
 downsampling = 1
-batch_size = 15
+batch_size = 30
+num_workers = 4
 
 
 
@@ -39,16 +38,16 @@ def preprocessor(batch, batchsize=batch_size):
     batch = whiten(batch)
     batch = torch.from_numpy(
         resample(batch, int(SAMPLING_RATE * n_seconds / downsampling), axis=1)
-    ).reshape(batchsize, (int(SAMPLING_RATE * n_seconds / downsampling)))
+    ).reshape(batchsize, -1)
     return batch
 
 
 def load_data():
-    trainset = ASVDataset(DATA_ROOT, is_train=True, is_eval=False, nb_samples=nb_samples)
-    testset = ASVDataset(DATA_ROOT, is_train=False, is_eval=True, nb_samples=nb_samples)
+    trainset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, nb_samples=nb_samples)
+    testset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=False, is_eval=True, nb_samples=nb_samples)
     
-    train_loader = DataLoader(trainset, batch_size=1, num_workers=4, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True)
+    train_loader = DataLoader(trainset, batch_size=15, num_workers=num_workers, shuffle=True, drop_last=True)
+    test_loader = DataLoader(testset, batch_size=15, num_workers=num_workers, drop_last=True)
     return train_loader, test_loader
 
 
@@ -85,9 +84,8 @@ def eval_genomes(genomes, config_):
     :param genomes: list of all the genomes to get evaluated
     """
     data = next_batch()
-    print(data)
     assert data is not None
-    inputs, outputs = data
+    inputs, outputs = data[0], data[1]
     inputs = preprocessor(inputs)
 
     for _, genome in tqdm(genomes):
@@ -111,7 +109,7 @@ def evaluate(net, data_loader):
     total = 0
     net.reset()
     for data in tqdm(data_loader):
-        inputs, output = data
+        inputs, output = data[0], data[1]
         inputs = preprocessor(inputs, batchsize=1)
         xo = None
         for xi in inputs[0]:
@@ -188,7 +186,9 @@ if __name__ == '__main__':
     trainloader_, testloader = load_data()
 
     trainloader = iter(trainloader_)
-
+    
+    data = next_batch()
+    
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.

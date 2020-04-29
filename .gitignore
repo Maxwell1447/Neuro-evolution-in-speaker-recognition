@@ -13,3 +13,7 @@ raw-audio-gender-classification/notebooks/.ipynb_checkpoints/
 anti_spoofing/data/
 
 .pylint.d/
+
+*.svg
+
+*.gv
