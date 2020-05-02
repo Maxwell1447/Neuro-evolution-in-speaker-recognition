@@ -1,19 +1,22 @@
 """
+
     adapted from https://github.com/nesl/asvspoof2019
     Author: Moustafa Alzantot (malzantot@ucla.edu)
     All rights reserved.
     
 """
 
+
 from tqdm import tqdm
 import torch
 import collections
 import os
 import soundfile as sf
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 import numpy as np
-from joblib import Parallel, delayed
-import h5py
+import platform
+
+current_os = platform.system()
 
 DATA_ROOT = 'data'
 
@@ -41,7 +44,7 @@ class ASVDataset(Dataset):
         self.nb_samples = nb_samples
         v1_suffix = ''
         if is_eval and track == 'PA':
-            v1_suffix='_v1'
+            v1_suffix = '_v1'
         self.sysid_dict = {
             '-': 0,  # bonafide speech
             'A01': 1, # Wavenet vocoder
@@ -74,7 +77,10 @@ class ASVDataset(Dataset):
             '{}_protocols/'.format(self.prefix))
         self.files_dir = os.path.join(self.data_root, '{}_{}'.format(
             self.prefix, self.dset_name )+v1_suffix, 'flac')
-        self.protocols_fname = 'data\\{}\\ASVspoof2019_{}_cm_protocols\\ASVspoof2019.{}.cm.{}.txt'.format(track, track, track, self.protocols_fname)
+        if current_os == "Windows":
+            self.protocols_fname = 'data\\{}\\ASVspoof2019_{}_cm_protocols\\ASVspoof2019.{}.cm.{}.txt'.format(track, track, track, self.protocols_fname)
+        else:
+            self.protocols_fname = 'data/{}/ASVspoof2019_{}_cm_protocols/ASVspoof2019.{}.cm.{}.txt'.format(track, track, track, self.protocols_fname)
         self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name,'',track)
         self.transform = transform
         if os.path.exists(self.cache_fname):
@@ -84,7 +90,9 @@ class ASVDataset(Dataset):
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
             # tqdm bar
             data = list(map(self.read_file, tqdm(self.files_meta)))
-            self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
+            self.data_x, self.data_y = map(list, zip(*data))
+            # to add meta data    
+            # self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
             if save_cache:
                 torch.save((self.data_x, self.data_y, self.data_sysid, self.files_meta), self.cache_fname)
                 print('Dataset saved to cache ', self.cache_fname)
@@ -93,7 +101,7 @@ class ASVDataset(Dataset):
             self.files_meta= [self.files_meta[x] for x in select_idx]
             self.data_x = [self.data_x[x] for x in select_idx]
             self.data_y = [self.data_y[x] for x in select_idx]
-            self.data_sysid = [self.data_sysid[x] for x in select_idx]
+            #self.data_sysid = [self.data_sysid[x] for x in select_idx]
         self.length = len(self.data_x)
 
     def __len__(self):
@@ -101,20 +109,37 @@ class ASVDataset(Dataset):
 
     def __getitem__(self, idx):
         x = self.data_x[idx]
-        x = x[0: self.fragment_length]
         y = self.data_y[idx]
-        return x, y, self.files_meta[idx]
+        return x, y 
+        # to add meta data
+        # self.files_meta[idx]
 
     def read_file(self, meta):
-        if self.is_train:
-            tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
-        elif self.is_eval:
-            tmp_path = meta.path[10:15] + self.track + "\\" + meta.path[15:]
+        if current_os == "Windows":
+            if self.is_train:
+                tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
+            elif self.is_eval:
+                tmp_path = meta.path[10:15] + self.track + "\\" + meta.path[15:]
+            else:
+                tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
         else:
-            tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
+            if self.is_train:
+                tmp_path = meta.path[:5] + self.track + "/" + meta.path[5:]
+            elif self.is_eval:
+                tmp_path = meta.path[10:15] + self.track + "/" + meta.path[15:]
+            else:
+                tmp_path = meta.path[:5] + self.track + "/" + meta.path[5:]
         data_x, sample_rate = sf.read(tmp_path)
+        # to make all data to have the same length
+        if data_x.size < self.fragment_length:
+            nb_iter =  self.fragment_length // data_x.size + 1 
+            data_x_copy = data_x[:]
+            for _ in range(nb_iter):
+                data_x = np.concatenate((data_x, data_x_copy))
         data_y = meta.key
-        return data_x, float(data_y), meta.sys_id
+        return data_x[:self.fragment_length], float(data_y) 
+        # to add meta data    
+        # meta.sys_id
 
     def _parse_line(self, line):
         tokens = line.strip().split(' ')
@@ -129,6 +154,6 @@ class ASVDataset(Dataset):
         files_meta = map(self._parse_line, lines)
         return list(files_meta)[:self.nb_samples]
 
-# if __name__ == '__main__':
-#    train_loader = ASVDataset(DATA_ROOT, is_train=True, nb_samples=1000)
-#    testset = ASVDataset(DATA_ROOT, is_train=False, is_eval=True, nb_samples=1000)
+if __name__ == '__main__':
+    train_loader = ASVDataset(48000, is_train=True, nb_samples=10)
+#    testset = ASVDataset(DATA_ROOT, is_train=False, is_eval=True, nb_samples=10)

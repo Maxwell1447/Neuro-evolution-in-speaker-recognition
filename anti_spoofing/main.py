@@ -15,7 +15,7 @@ from tqdm import tqdm
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
 
-SAMPLING_RATE = 24000
+SAMPLING_RATE = 16000
 DATA_ROOT = 'data'
 
 
@@ -23,13 +23,13 @@ DATA_ROOT = 'data'
 NEAT APPLIED TO ASV 2019
 """
 
-nb_samples = 1000
+nb_samples_train = 1000
+nb_samples_test = 10
 
-training_set = ['ASVspoof2019_PA_train']
-validation_set = 'ASVspoof2019_PA_eval'
-n_seconds = .5
+is_logic = True
+n_seconds = 3
 downsampling = 1
-batch_size = 30
+batch_size = 100
 num_workers = 4
 
 
@@ -43,11 +43,11 @@ def preprocessor(batch, batchsize=batch_size):
 
 
 def load_data():
-    trainset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, nb_samples=nb_samples)
-    testset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=False, is_eval=True, nb_samples=nb_samples)
+    trainset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, nb_samples=nb_samples_train)
+    testset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=False, is_eval=True, nb_samples=nb_samples_test)
     
-    train_loader = DataLoader(trainset, batch_size=15, num_workers=num_workers, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=15, num_workers=num_workers, drop_last=True)
+    train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=num_workers, shuffle=True, drop_last=True)
+    test_loader = DataLoader(testset, batch_size=1, num_workers=num_workers, drop_last=True)
     return train_loader, test_loader
 
 
@@ -186,8 +186,6 @@ if __name__ == '__main__':
     trainloader_, testloader = load_data()
 
     trainloader = iter(trainloader_)
-    
-    data = next_batch()
     
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
