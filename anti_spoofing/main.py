@@ -3,13 +3,11 @@ import torch
 import os
 import neat
 import neat_local.visualization.visualize as visualize
-import matplotlib.pyplot as plt
 import numpy as np
 import random
 from scipy.signal import resample
 
 from torch.utils.data import DataLoader
-import torch.optim as optim
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
@@ -23,15 +21,18 @@ DATA_ROOT = 'data'
 NEAT APPLIED TO ASV 2019
 """
 
-nb_samples_train = 1000
+nb_samples_train = 100
 nb_samples_test = 10
 
 is_logic = True
 n_seconds = 3
 downsampling = 1
-batch_size = 100
 num_workers = 4
 
+index_train = [k for k in range(5)] + [k for k in range(2590,2595)]
+batch_size = 1
+
+n_generation = 1000
 
 
 def preprocessor(batch, batchsize=batch_size):
@@ -43,11 +44,11 @@ def preprocessor(batch, batchsize=batch_size):
 
 
 def load_data():
-    trainset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, nb_samples=nb_samples_train)
-    testset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=False, is_eval=True, nb_samples=nb_samples_test)
+    trainset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
+    testset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train, nb_samples=nb_samples_test)
     
     train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=num_workers, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=1, num_workers=num_workers, drop_last=True)
+    test_loader = DataLoader(testset, batch_size=batch_size, num_workers=num_workers, drop_last=True)
     return train_loader, test_loader
 
 
@@ -68,10 +69,7 @@ def final_activation(recurrent_net, inputs):
 def gate_activation(recurrent_net, inputs):
     score, select = np.zeros(len(inputs)), np.zeros(len(inputs))
     for (i, xi) in enumerate(inputs):
-        select[i], score[i] = recurrent_net.activate([xi.item()])
-        # TODO : delete this
-        if i > 200:
-            break
+        select[i], score[i] = recurrent_net.activate([xi.item()])    
     mask = (select > 0.5)
     return mask, score
 
@@ -83,17 +81,17 @@ def eval_genomes(genomes, config_):
     :param config_: config from the config file
     :param genomes: list of all the genomes to get evaluated
     """
-    data = next_batch()
-    assert data is not None
-    inputs, outputs = data[0], data[1]
-    inputs = preprocessor(inputs)
+    
+    global trainloader
 
     for _, genome in tqdm(genomes):
         net = neat.nn.RecurrentNetwork.create(genome, config_)
         mse = 0
-        for single_inputs, output in zip(inputs, outputs):
+        for data in trainloader:
+            inputs, output = data[0], data[1]
+            inputs = preprocessor(inputs)
             net.reset()
-            mask, score = gate_activation(net, single_inputs)
+            mask, score = gate_activation(net, inputs[0])
             selected_score = score[mask]
             if selected_score.size == 0:
                 xo = 0.5
@@ -101,7 +99,7 @@ def eval_genomes(genomes, config_):
                 xo = np.sum(selected_score) / selected_score.size
             mse += (xo - output.item())**2
         genome.fitness = 1 / (1 + mse)
-
+        
 
 def evaluate(net, data_loader):
 
@@ -142,7 +140,6 @@ def run(config_file, n_gen):
     # p.add_reporter(neat.Checkpointer(5))
 
     # Run for up to n_gen generations.
-    n_gen = 1
     winner_ = p.run(eval_genomes, n_gen)
 
     # Display the winning genome.
@@ -183,18 +180,13 @@ def make_visualize(winner_, config_, stats_):
 if __name__ == '__main__':
     model_name = 'neat__downsampling={}__n_seconds={}.torch'.format(downsampling, n_seconds)
 
-    trainloader_, testloader = load_data()
+    trainloader, testloader = load_data()
 
-    trainloader = iter(trainloader_)
-    
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    print(len(trainloader_))
-    # for the result of just one run
-    random.seed(0)
-    winner, config, stats, acc = run(config_path, len(trainloader_))
+    winner, config, stats, acc = run(config_path, n_generation)
     make_visualize(winner, config, stats)
