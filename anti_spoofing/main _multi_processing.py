@@ -26,13 +26,15 @@ nb_samples_test = 10
 is_logic = True
 n_seconds = 3
 downsampling = 1
-num_workers = 4
+n_processes = 8
 
 index_train = [k for k in range(5)] + [k for k in range(2590,2595)]
 batch_size = 1
 
 n_generation = 1000
 
+trainloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
+testloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
 
 
 def preprocessor(batch, batchsize=batch_size):
@@ -41,22 +43,6 @@ def preprocessor(batch, batchsize=batch_size):
         resample(batch, int(SAMPLING_RATE * n_seconds / downsampling), axis=1)
     ).reshape(batchsize, -1)
     return batch
-
-
-def load_data():
-    trainset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
-    testset = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train, nb_samples=nb_samples_test)
-    
-    train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=num_workers, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=batch_size, num_workers=num_workers, drop_last=True)
-    return train_loader, test_loader
-
-
-def next_batch():
-    try:
-        return next(trainloader)
-    except StopIteration:
-        return None
 
 
 def final_activation(recurrent_net, inputs):
@@ -73,33 +59,33 @@ def gate_activation(recurrent_net, inputs):
     mask = (select > 0.5)
     return mask, score
 
+        
 
-def eval_genomes(genomes, config_):
+def eval_genome(genome, config_):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
     We tell what is the phenotype of a genome and how to calculate its fitness (same idea than a loss)
     :param config_: config from the config file
     :param genomes: list of all the genomes to get evaluated
+    this version is intented to use ParallelEvaluator and should be much faster
     """
     
-    global trainloader
-
-    for _, genome in tqdm(genomes):
-        net = neat.nn.RecurrentNetwork.create(genome, config_)
-        mse = 0
-        for data in trainloader:
-            inputs, output = data[0], data[1]
-            inputs = preprocessor(inputs)
-            net.reset()
-            mask, score = gate_activation(net, inputs[0])
-            selected_score = score[mask]
-            if selected_score.size == 0:
-                xo = 0.5
-            else:
-                xo = np.sum(selected_score) / selected_score.size
-            mse += (xo - output.item())**2
-        genome.fitness = 1 / (1 + mse)
-            
+    
+    net = neat.nn.RecurrentNetwork.create(genome, config_)
+    mse = 0
+    for data in trainloader:
+        inputs, output = data[0], data[1]
+        inputs = preprocessor(torch.tensor(inputs.reshape((1,-1))))
+        net.reset()
+        mask, score = gate_activation(net, inputs[0])
+        selected_score = score[mask]
+        if selected_score.size == 0:
+            xo = 0.5
+        else:
+            xo = np.sum(selected_score) / selected_score.size
+        mse += (xo - output)**2
+    return 1 / (1 + mse)
+    
         
 
 def evaluate(net, data_loader):
@@ -141,7 +127,10 @@ def run(config_file, n_gen):
     # p.add_reporter(neat.Checkpointer(5))
 
     # Run for up to n_gen generations.
-    winner_ = p.run(eval_genomes, n_gen)
+    # multi processing
+    pe = neat.ParallelEvaluator(n_processes, eval_genome)
+    winner_ = p.run(pe.evaluate, n_gen)
+
 
     # Display the winning genome.
     print('\nBest genome:\n{!s}'.format(winner_))
@@ -181,7 +170,6 @@ def make_visualize(winner_, config_, stats_):
 if __name__ == '__main__':
     model_name = 'neat__downsampling={}__n_seconds={}.torch'.format(downsampling, n_seconds)
 
-    trainloader, testloader = load_data()
     
 
     # Determine path to configuration file. This path manipulation is
