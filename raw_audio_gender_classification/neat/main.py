@@ -78,8 +78,8 @@ def load_data():
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
 
-    train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True)
+    train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=1, shuffle=True, drop_last=True)
+    test_loader = DataLoader(testset, batch_size=1, num_workers=1, drop_last=True)
 
     return train_loader, test_loader
 
@@ -260,7 +260,7 @@ def make_visualize(winner_, config_, stats_):
 
     node_names = {}
     # node_names = {0: names[0], 1: names[1], 2: names[2]}
-    
+
     visualize.plot_stats(stats_, ylog=False, view=True)
     visualize.plot_species(stats_, view=True)
     visualize.draw_net(config_, winner_, True, node_names=node_names)
