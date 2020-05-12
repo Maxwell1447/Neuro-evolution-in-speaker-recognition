@@ -136,6 +136,7 @@ class ASVDataset_stats(Dataset):
 if __name__ == '__main__':
     train_meta_data_loader = ASVDataset_stats(48000, is_train=True)
     eval_meta_data_loader = ASVDataset_stats(48000, is_train=False, is_eval=True)
+    dev_meta_data_loader = ASVDataset_stats(48000, is_train=False, is_eval=False)
     
     
     train_audio_length = np.array(train_meta_data_loader.data_x) / 16000
@@ -149,8 +150,13 @@ if __name__ == '__main__':
     bonafide_eval = eval_outputs[eval_outputs==1].size
     spoofed_eval = eval_outputs[eval_outputs==0].size
     
+    dev_audio_length = np.array(dev_meta_data_loader.data_x) / 16000
+    dev_outputs = np.array(dev_meta_data_loader.data_y)
+    bonafide_dev = train_outputs[devn_outputs==1].size
+    spoofed_dev = train_outputs[dev_outputs==0].size
+    
     #### outputs ####
-    outputs = pd.DataFrame({'bonafide': [bonafide_train, bonafide_eval], 'spoofed': [spoofed_train, spoofed_eval]},index=['train', 'eval'])
+    outputs = pd.DataFrame({'bonafide': [bonafide_train, bonafide_eval, bonafide_dev], 'spoofed': [spoofed_train, spoofed_eval, spoofed_dev]},index=['train', 'eval','dev'])
     plt.figure(figsize = (14,7))
     plt.title("Outputs ASVDataset 2019 Logical")
     ax = sns.heatmap( data = outputs, annot=True, fmt="d", center = None, linewidths=.5, cmap="RdBu")
@@ -160,12 +166,16 @@ if __name__ == '__main__':
     #### length inputs ####
     sns.set(style="darkgrid")
     plt.figure(figsize = (14,7))
-    df_train_length = pd.Series(train_audio_length, name="trainning audio files length")
+    df_train_length = pd.Series(train_audio_length, name="train audio files length")
     ax2 = sns.distplot(df_train_length, norm_hist=False)
     
     
     plt.figure(figsize = (14,7))
-    df_eval_length = pd.Series(eval_audio_length, name="evaluation audio files length")
+    df_eval_length = pd.Series(eval_audio_length, name="eval audio files length")
     ax3 = sns.distplot(df_eval_length, norm_hist=False)
+    
+    plt.figure(figsize = (14,7))
+    df_dev_length = pd.Series(dev_audio_length, name="dev audio files length")
+    ax4 = sns.distplot(df_train_length, norm_hist=False)
 
     

@@ -6,14 +6,12 @@ import neat_local.visualization.visualize as visualize
 import numpy as np
 from scipy.signal import resample
 
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
 
-SAMPLING_RATE = 16000
-DATA_ROOT = 'data'
+
 
 
 """
@@ -23,18 +21,42 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 100
 nb_samples_test = 10
 
-is_logic = True
 n_seconds = 3
+SAMPLING_RATE = 16000
 downsampling = 1
+index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
+
 n_processes = 8
-
-index_train = [k for k in range(5)] + [k for k in range(2590,2595)]
 batch_size = 1
+n_generation = 1
 
-n_generation = 1000
+class ASVEvaluator(neat.parallel.ParallelEvaluator):
+    def __init__(self, num_workers, eval_function, batch_num, data, timeout=None):
+        super().__init__(num_workers, eval_function, timeout)
+        self.batch_num = batch_num
+        self.data = data
+        self.data_iter = iter(data)
+        self.batch_count = 0
+
+    def evaluate(self, genomes, config):
+        batch = self.next()
+        jobs = []
+        for ignored_genome_id, genome in genomes:
+            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch)))
+
+        # assign the fitness back to each genome
+        for job, (ignored_genome_id, genome) in zip(jobs, genomes):
+            genome.fitness = job.get(timeout=self.timeout)
+
+    def next(self):
+        if self.batch_count > self.batch_num:
+            self.data_iter = iter(self.data)
+            self.batch_count = 0
+        self.batch_count += 1
+        return next(self.data_iter)
 
 trainloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
-testloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
+testloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=False, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
 
 
 def preprocessor(batch, batchsize=batch_size):
@@ -44,12 +66,16 @@ def preprocessor(batch, batchsize=batch_size):
     ).reshape(batchsize, -1)
     return batch
 
+def next_batch(conf=None):
+    global trainloader, batch_count
+    try:
+        if conf is not None:
+            return next(conf.trainloader)
+        else:
+            return next(trainloader)
+    except StopIteration:
+        return None
 
-def final_activation(recurrent_net, inputs):
-    xo = None
-    for xi in inputs:
-        xo = recurrent_net.activate([xi.item()])
-    return xo[0]
 
 
 def gate_activation(recurrent_net, inputs):
@@ -64,7 +90,8 @@ def gate_activation(recurrent_net, inputs):
 def eval_genome(genome, config_):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
-    We tell what is the phenotype of a genome and how to calculate its fitness (same idea than a loss)
+    We tell what is the phenotype of a genome and how to calculate its fitness 
+    (same idea than a loss)
     :param config_: config from the config file
     :param genomes: list of all the genomes to get evaluated
     this version is intented to use ParallelEvaluator and should be much faster
@@ -95,12 +122,12 @@ def evaluate(net, data_loader):
     net.reset()
     for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        inputs = preprocessor(inputs, batchsize=1)
+        inputs = preprocessor(torch.tensor(inputs.reshape((1,-1))))
         xo = None
         for xi in inputs[0]:
             xo = net.activate([xi.item()])
         total += 1
-        correct += ((xo[0] > 0.5) == output[0].item())
+        correct += ((xo[0] > 0.5) == output)
 
     return float(correct)/total
 
@@ -139,8 +166,10 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
+    training_accuracy = evaluate(winner_net, trainloader)
     accuracy = evaluate(winner_net, testloader)
 
+    print("**** training accuracy = {}  ****".format(training_accuracy))
     print("**** accuracy = {}  ****".format(accuracy))
 
     return winner_, config_, stats_, accuracy
@@ -157,7 +186,6 @@ def make_visualize(winner_, config_, stats_):
     :param stats_:
     :return:
     """
-    winner_net = neat.nn.FeedForwardNetwork.create(winner_, config_)
 
     node_names = {}
     # node_names = {0: names[0], 1: names[1], 2: names[2]}

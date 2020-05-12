@@ -110,8 +110,8 @@ class ASVDataset(Dataset):
     def __getitem__(self, idx):
         x = self.data_x[idx]
         y = self.data_y[idx]
-        return x, y 
-        # to add meta data
+        return x, y, self.files_meta[idx].sys_id
+        # to all of the meta data
         # self.files_meta[idx]
 
     def read_file(self, meta):
@@ -137,7 +137,7 @@ class ASVDataset(Dataset):
             for _ in range(nb_iter):
                 data_x = np.concatenate((data_x, data_x_copy))
         data_y = meta.key
-        return data_x[:self.fragment_length], float(data_y) 
+        return data_x[:self.fragment_length], float(data_y)
         # to add meta data    
         # meta.sys_id
 
