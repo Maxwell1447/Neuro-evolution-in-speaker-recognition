@@ -4,14 +4,11 @@ import os
 import neat
 import neat_local.visualization.visualize as visualize
 import numpy as np
-from scipy.signal import resample
 
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
-import neat_local.nn as nn
-from neat_local.nn import RecurrentNet
 
 
 
@@ -20,7 +17,7 @@ from neat_local.nn import RecurrentNet
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 100
+nb_samples_train = 10
 nb_samples_test = 10
 
 n_seconds = 3
@@ -28,22 +25,28 @@ SAMPLING_RATE = 16000
 downsampling = 1
 index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
 
-n_processes = 8
+
+n_processes = 1
 batch_size = 1
-n_generation = 1
+n_generation = 3
 
 
 
-trainloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
-testloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=False, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
+train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
+test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
 
 
-def preprocessor(batch, batchsize=batch_size):
-    batch = whiten(batch)
-    batch = torch.from_numpy(
-        resample(batch, int(SAMPLING_RATE * n_seconds / downsampling), axis=1)
-    ).reshape(batchsize, -1)
-    return batch
+trainloader = []
+for data in train_loader:
+    inputs, output = data[0], data[1]
+    inputs = whiten(torch.tensor(inputs.reshape((1,-1))))
+    trainloader.append((inputs, output))
+    
+testloader = []
+for data in test_loader:
+    inputs, output = data[0], data[1]
+    inputs = whiten(torch.tensor(inputs.reshape((1,-1))))
+    testloader.append((inputs, output))
 
 
 
@@ -56,6 +59,31 @@ def gate_activation(recurrent_net, inputs):
 
         
 
+def eval_genomes(genomes, config_):
+    """
+    Most important part of NEAT since it is here that we adapt NEAT to our problem.
+    We tell what is the phenotype of a genome and how to calculate its fitness (same idea than a loss)
+    :param config_: config from the config file
+    :param genomes: list of all the genomes to get evaluated
+    """
+
+    for _, genome in tqdm(genomes):
+        net = neat.nn.RecurrentNetwork.create(genome, config_)
+        mse = 0
+        for data in trainloader:
+            inputs, output = data[0], data[1]
+            net.reset()
+            mask, score = gate_activation(net, inputs[0])
+            selected_score = score[mask]
+            if selected_score.size == 0:
+                xo = 0.5
+            else:
+                xo = np.sum(selected_score) / selected_score.size
+            mse += (xo - output)**2
+        genome.fitness = 1 / (1 + mse)
+        
+        
+
 def eval_genome(genome, config_):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
@@ -66,13 +94,10 @@ def eval_genome(genome, config_):
     this version is intented to use ParallelEvaluator and should be much faster
     """
     
-    
-    # net = neat.nn.RecurrentNetwork.create(genome, config_)
-    net = RecurrentNet.create(genome, config_, device="cpu")
+    net = neat.nn.RecurrentNetwork.create(genome, config_)
     mse = 0
     for data in trainloader:
         inputs, output = data[0], data[1]
-        inputs = preprocessor(torch.tensor(inputs.reshape((1,-1))))
         net.reset()
         mask, score = gate_activation(net, inputs[0])
         selected_score = score[mask]
@@ -82,7 +107,6 @@ def eval_genome(genome, config_):
             xo = np.sum(selected_score) / selected_score.size
         mse += (xo - output)**2
     return 1 / (1 + mse)
-    
         
 
 def evaluate(net, data_loader):
@@ -92,12 +116,14 @@ def evaluate(net, data_loader):
     net.reset()
     for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        inputs = preprocessor(torch.tensor(inputs.reshape((1,-1))))
-        xo = None
-        for xi in inputs[0]:
-            xo = net.activate([xi.item()])
+        mask, score = gate_activation(net, inputs[0])
+        selected_score = score[mask]
+        if selected_score.size == 0:
+            xo = 0.5
+        else:
+            xo = np.sum(selected_score) / selected_score.size
         total += 1
-        correct += ((xo[0] > 0.5) == output)
+        correct += ((xo > 0.5) == output)
 
     return float(correct)/total
 
@@ -125,9 +151,11 @@ def run(config_file, n_gen):
 
     # Run for up to n_gen generations.
     # multi processing
-    pe = neat.ParallelEvaluator(n_processes, eval_genome)
-    winner_ = p.run(pe.evaluate, n_gen)
-
+    if n_processes > 1:
+        pe = neat.ParallelEvaluator(n_processes, eval_genome)
+        winner_ = p.run(pe.evaluate, n_gen)
+    else:
+        winner_ = p.run(eval_genomes, n_gen)
 
     # Display the winning genome.
     print('\nBest genome:\n{!s}'.format(winner_))
