@@ -10,6 +10,7 @@ from tqdm import tqdm
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
 from neat_local.nn import RecurrentNet
+from metrics_utils import rocch2eer, rocch
 
 
 
@@ -28,7 +29,7 @@ index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
 
 n_processes = 8
 batch_size = 1
-n_generation = 3
+n_generation = 1
 
 
 train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
@@ -48,7 +49,7 @@ for data in test_loader:
     testloader.append((inputs, output))
 
 
-def gate_activation_cpu(recurrent_net, inputs):
+def gate_activation(recurrent_net, inputs):
     score, select = torch.zeros(len(inputs)), torch.zeros(len(inputs))
     for (i, xi) in enumerate(inputs):
         out = recurrent_net.activate(xi.view(1, 1))
@@ -73,9 +74,8 @@ def eval_genomes(genomes, config_):
         mse = 0
         for data in trainloader:
             inputs, output = data[0], data[1]
-            inputs = preprocessor(torch.tensor(inputs.reshape((1,-1))))
             net.reset()
-            mask, score = gate_activation_cpu(net, inputs[0])
+            mask, score = gate_activation(net, inputs[0])
             selected_score = score[mask]
             if selected_score.size == 0:
                 xo = 0.5
@@ -101,9 +101,8 @@ def eval_genome(genome, config_):
     mse = 0
     for data in trainloader:
         inputs, output = data[0], data[1]
-        inputs = preprocessor(torch.tensor(inputs.reshape((1,-1))))
         net.reset()
-        mask, score = gate_activation_cpu(net, inputs[0])
+        mask, score = gate_activation(net, inputs[0])
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
@@ -118,9 +117,10 @@ def evaluate(net, data_loader):
     correct = 0
     total = 0
     net.reset()
+    target_scores = []
+    non_target_scores = []
     for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        inputs = preprocessor(torch.tensor(inputs.reshape((1,-1))))
         mask, score = gate_activation(net, inputs[0])
         selected_score = score[mask]
         if selected_score.size == 0:
@@ -129,8 +129,18 @@ def evaluate(net, data_loader):
             xo = np.sum(selected_score) / selected_score.size
         total += 1
         correct += ((xo > 0.5) == output)
-
-    return float(correct)/total
+        if output == 1:
+            target_scores.append(xo)
+        else:
+            non_target_scores.append(xo)
+        
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+    
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+    
+    return float(correct)/total, eer
 
 
 def run(config_file, n_gen):
@@ -169,13 +179,16 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    training_accuracy = evaluate(winner_net, trainloader)
-    accuracy = evaluate(winner_net, testloader)
+    training_accuracy, training_eer = evaluate(winner_net, trainloader)
+    accuracy, eer = evaluate(winner_net, testloader)
 
     print("**** training accuracy = {}  ****".format(training_accuracy))
+    print("**** training equal error rate = {}  ****".format(training_eer))
     print("**** accuracy = {}  ****".format(accuracy))
+    print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_, accuracy
+
 
 
 def make_visualize(winner_, config_, stats_):
