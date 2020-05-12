@@ -10,8 +10,6 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
-import neat_local.nn as nn
-from neat_local.nn import RecurrentNet
 
 
 
@@ -29,10 +27,35 @@ downsampling = 1
 index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
 
 n_processes = 8
-batch_size = 1
+1batch_size = 15
+batch_num = 100
 n_generation = 1
 
 
+class ASVEvaluator(neat.parallel.ParallelEvaluator):
+    def __init__(self, num_workers, eval_function, batch_num, data, timeout=None):
+        super().__init__(num_workers, eval_function, timeout)
+        self.batch_num = batch_num
+        self.data = data
+        self.data_iter = iter(data)
+        self.batch_count = 0
+
+    def evaluate(self, genomes, config):
+        batch = self.next()
+        jobs = []
+        for ignored_genome_id, genome in genomes:
+            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch)))
+
+        # assign the fitness back to each genome
+        for job, (ignored_genome_id, genome) in zip(jobs, genomes):
+            genome.fitness = job.get(timeout=self.timeout)
+
+    def next(self):
+        if self.batch_count > self.batch_num:
+            self.data_iter = iter(self.data)
+            self.batch_count = 0
+        self.batch_count += 1
+        return next(self.data_iter)
 
 trainloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
 testloader = ASVDataset(int(SAMPLING_RATE * n_seconds), is_train=False, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
@@ -44,6 +67,16 @@ def preprocessor(batch, batchsize=batch_size):
         resample(batch, int(SAMPLING_RATE * n_seconds / downsampling), axis=1)
     ).reshape(batchsize, -1)
     return batch
+
+def next_batch(conf=None):
+    global trainloader, batch_count
+    try:
+        if conf is not None:
+            return next(conf.trainloader)
+        else:
+            return next(trainloader)
+    except StopIteration:
+        return None
 
 
 
@@ -67,8 +100,7 @@ def eval_genome(genome, config_):
     """
     
     
-    # net = neat.nn.RecurrentNetwork.create(genome, config_)
-    net = RecurrentNet.create(genome, config_, device="cpu")
+    net = neat.nn.RecurrentNetwork.create(genome, config_)
     mse = 0
     for data in trainloader:
         inputs, output = data[0], data[1]
