@@ -152,8 +152,8 @@ if __name__ == '__main__':
     
     dev_audio_length = np.array(dev_meta_data_loader.data_x) / 16000
     dev_outputs = np.array(dev_meta_data_loader.data_y)
-    bonafide_dev = train_outputs[devn_outputs==1].size
-    spoofed_dev = train_outputs[dev_outputs==0].size
+    bonafide_dev = dev_outputs[dev_outputs==1].size
+    spoofed_dev = dev_outputs[dev_outputs==0].size
     
     #### outputs ####
     outputs = pd.DataFrame({'bonafide': [bonafide_train, bonafide_eval, bonafide_dev], 'spoofed': [spoofed_train, spoofed_eval, spoofed_dev]},index=['train', 'eval','dev'])
@@ -176,6 +176,6 @@ if __name__ == '__main__':
     
     plt.figure(figsize = (14,7))
     df_dev_length = pd.Series(dev_audio_length, name="dev audio files length")
-    ax4 = sns.distplot(df_train_length, norm_hist=False)
+    ax4 = sns.distplot(df_dev_length, norm_hist=False)
 
     

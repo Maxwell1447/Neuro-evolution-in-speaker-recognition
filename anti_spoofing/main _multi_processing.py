@@ -39,13 +39,13 @@ test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list = index
 trainloader = []
 for data in train_loader:
     inputs, output = data[0], data[1]
-    inputs = whiten(torch.tensor(inputs.reshape((1,-1))))
+    inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
     trainloader.append((inputs, output))
     
 testloader = []
 for data in test_loader:
     inputs, output = data[0], data[1]
-    inputs = whiten(torch.tensor(inputs.reshape((1,-1))))
+    inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
     testloader.append((inputs, output))
 
 
