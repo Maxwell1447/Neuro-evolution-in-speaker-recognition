@@ -20,11 +20,15 @@ INPUT_SIZE = 1000
 POPULATION = 100
 
 
-def fully_connect(genome, n_hidden):
+def fully_connect(genome, n_hidden, config, recurrent=True):
     for key_node in range(2, n_hidden + 2):
         genome.nodes[key_node] = genome.create_node(config.genome_config, key_node)
 
-    for key_in in config.genome_config.input_keys + list(genome.nodes.keys()):
+    if recurrent:
+        nodes = config.genome_config.input_keys + list(genome.nodes.keys())
+    else:
+        nodes = config.genome_config.input_keys
+    for key_in in nodes:
         for key_out in genome.nodes:
             key = (key_in, key_out)
             genome.connections[key] = genome.create_connection(config.genome_config, key_in, key_out)
