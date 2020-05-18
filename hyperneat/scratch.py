@@ -9,7 +9,7 @@ import os
 import soundfile as sf
 from torch.nn import BCELoss
 from neat.parallel import ParallelEvaluator
-from hyperneat.modules import AudioCNN
+from hyperneat.modules import AudioCNN, AudioCNNClassical
 from hyperneat.TEST import test
 
 
@@ -77,6 +77,21 @@ def eval_genomes(genomes, c):
         genome.fitness = eval_genome(genome, c)
 
 
+def run_classical(c):
+
+    cnn = AudioCNNClassical()
+    criterion = BCELoss()
+    optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
+    y_ = getattr(c, "y")
+
+    for _ in range(200):
+        optimizer.zero_grad()
+        out = cnn(c.data.view(getattr(c, "data").shape[0], 1, -1))
+        loss = criterion(out, y_)
+        loss.backward()
+        optimizer.step()
+
+
 if __name__ == "__main__":
     local_dir = os.path.dirname(__file__)
 
@@ -84,7 +99,6 @@ if __name__ == "__main__":
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
-
 
     # xx, yy = torch.meshgrid([torch.arange(50).float(), torch.arange(50).float()])
     #
@@ -95,22 +109,23 @@ if __name__ == "__main__":
     # plt.imshow(torch.tanh(cppn[1](x=xx, y=yy, d=dd)), cmap='Greys')
     # plt.show()
 
-
-
     data = load_audio()
     y = torch.tensor([0., 0., 0., 0., 0., 1., 1., 1., 1., 1.]).view(-1, 1)
     setattr(config, "y", y)
     setattr(config, "data", data)
 
-    pop = neat.Population(config)
+    run_classical(config)
 
-    stats = neat.StatisticsReporter()
-    pop.add_reporter(stats)
-    reporter = neat.StdOutReporter(True)
-    pop.add_reporter(reporter)
-
-    winner = pop.run(eval_genomes, 200)
-
-    visualize.draw_net(config, winner, True, filename="graph_hyperneat_test")
-    visualize.plot_stats(stats, ylog=False, view=True, filename="stats_hyperneat_test")
-    visualize.plot_species(stats, view=True, filename="species_hyperneat_test1")
+    # #### NEAT
+    # pop = neat.Population(config)
+    #
+    # stats = neat.StatisticsReporter()
+    # pop.add_reporter(stats)
+    # reporter = neat.StdOutReporter(True)
+    # pop.add_reporter(reporter)
+    #
+    # winner = pop.run(eval_genomes, 200)
+    #
+    # visualize.draw_net(config, winner, True, filename="graph_hyperneat_test")
+    # visualize.plot_stats(stats, ylog=False, view=True, filename="stats_hyperneat_test")
+    # visualize.plot_species(stats, view=True, filename="species_hyperneat_test1")
