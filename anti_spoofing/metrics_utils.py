@@ -1,6 +1,6 @@
 import numpy as np
 from collections import namedtuple
-from libmath import pavx
+from anti_spoofing.libmath import pavx
 
 __website__ = "https://gitlab.eurecom.fr/nautsch/pybosaris/tree/master/pybosaris"
 

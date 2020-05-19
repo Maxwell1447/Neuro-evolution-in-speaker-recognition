@@ -119,7 +119,7 @@ def evaluate(net, data_loader):
     net.reset()
     target_scores = []
     non_target_scores = []
-    for data in tqdm(data_loader):
+    for data in data_loader:
         inputs, output = data[0], data[1]
         mask, score = gate_activation(net, inputs[0])
         selected_score = score[mask]

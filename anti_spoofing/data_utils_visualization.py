@@ -27,7 +27,7 @@ ASVFile = collections.namedtuple('ASVFile',
 
 class ASVDataset_stats(Dataset):
     """ Utility class to load  train/dev datatsets """
-    def __init__(self, length, transform=None,
+    def __init__(self, transform=None,
         is_train=True, is_logical=True, is_eval=False):
         data_root = DATA_ROOT
         if is_logical:
@@ -36,7 +36,6 @@ class ASVDataset_stats(Dataset):
             track = 'PA'
         if is_eval:
             data_root = os.path.join('eval_data', data_root)
-        self.fragment_length = length
         self.track = track
         self.is_train = is_train
         self.is_logical = is_logical
@@ -94,7 +93,7 @@ class ASVDataset_stats(Dataset):
     def __getitem__(self, idx):
         x = self.data_x[idx]
         y = self.data_y[idx]
-        return x, y 
+        return x, y
         # to add meta data
         # self.files_meta[idx]
 
@@ -134,9 +133,9 @@ class ASVDataset_stats(Dataset):
         return list(files_meta)
 
 if __name__ == '__main__':
-    train_meta_data_loader = ASVDataset_stats(48000, is_train=True)
-    eval_meta_data_loader = ASVDataset_stats(48000, is_train=False, is_eval=True)
-    dev_meta_data_loader = ASVDataset_stats(48000, is_train=False, is_eval=False)
+    train_meta_data_loader = ASVDataset_stats(is_train=True)
+    eval_meta_data_loader = ASVDataset_stats(is_train=False, is_eval=True)
+    dev_meta_data_loader = ASVDataset_stats(is_train=False, is_eval=False)
     
     
     train_audio_length = np.array(train_meta_data_loader.data_x) / 16000
@@ -177,5 +176,3 @@ if __name__ == '__main__':
     plt.figure(figsize = (14,7))
     df_dev_length = pd.Series(dev_audio_length, name="dev audio files length")
     ax4 = sns.distplot(df_dev_length, norm_hist=False)
-
-    

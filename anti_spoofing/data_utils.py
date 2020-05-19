@@ -162,4 +162,4 @@ class ASVDataset(Dataset):
 
 if __name__ == '__main__':
     train_loader = ASVDataset(None, is_train=True, nb_samples=10)
-#    testset = ASVDataset(DATA_ROOT, is_train=False, is_eval=True, nb_samples=10)
+    testset = ASVDataset(None, is_train=False, is_eval=False, nb_samples=10)
