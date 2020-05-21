@@ -4,77 +4,65 @@ import os
 import neat
 import neat_local.visualization.visualize as visualize
 import numpy as np
-import random as rd
-import multiprocessing
 
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
-from anti_spoofing.data_utils_short import ASVDatasetshort
-from raw_audio_gender_classification.utils import whiten
 from anti_spoofing.metrics_utils import rocch2eer, rocch
+import multiprocessing
+
+
 
 
 """
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 2538
-nb_samples_test = 1000
+nb_samples_train = 10
+nb_samples_test = 10
 
-batch_size = 10
-batch_num = nb_samples_train // batch_size
+n_seconds = 3
+SAMPLING_RATE = 16000
+index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
 
-n_generation = 1
-pop_num = 50
+n_processes = multiprocessing.cpu_count()
+n_generation = 2
 
-dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
-index_test = []
-for i in range(len(dev_border)-1):
-    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i+1])], 100)
-
-
-train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
+train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train,
+                          nb_samples=nb_samples_train)
+test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
 
 
-class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
-    def __init__(self, num_workers, eval_function, batch_num, data, timeout=None):
-        super().__init__(num_workers, eval_function, timeout)
-        self.batch_num = batch_num
-        self.data = data
-        self.current_batch = []
-        self.batch_count = 0
+def whiten(single_input):
+    whiten_input = single_input - single_input.mean()
+    var = np.sqrt((whiten_input**2).mean())
+    whiten_input *= 1 / var
+    return whiten_input
 
-    def evaluate(self, genomes, config):
-        jobs = []
-        for ignored_genome_id, genome in genomes:
-            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, self.next())))
 
-        # assign the fitness back to each genome
-        for job, (ignored_genome_id, genome) in zip(jobs, genomes):
-            genome.fitness = job.get(timeout=self.timeout)
-
-    def next(self):
-        self.current_batch = []
-        if self.batch_count > self.batch_num:
-            self.batch_count = 0
-        for index_audio in range(batch_size * self.batch_count, batch_size * (1 + self.batch_count)):
-            self.current_batch.append(self.data.__getitem__(index_audio))
-        self.current_batch = np.array(self.current_batch)
-        self.batch_count += 1
-        return self.current_batch
+trainloader = []
+for data in train_loader:
+    inputs, output = data[0], data[1]
+    inputs = whiten(inputs)
+    trainloader.append((inputs, output))
+    
+testloader = []
+for data in test_loader:
+    inputs, output = data[0], data[1]
+    inputs = whiten(inputs)
+    testloader.append((inputs, output))
 
 
 def gate_activation(recurrent_net, inputs):
-    score, select = np.zeros(len(inputs)), np.zeros(len(inputs))
-    for (i, xi) in enumerate(inputs):
-        select[i], score[i] = recurrent_net.activate([xi.item()])
+    length = inputs.size
+    score, select = np.zeros(length), np.zeros(length)
+    for i in range(length):
+        select[i], score[i] = recurrent_net.activate([inputs[i]])
     mask = (select > 0.5)
     return mask, score
 
 
-def eval_genomes(genomes, config_, batch_data):
+def eval_genomes(genomes, config_):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
     We tell what is the phenotype of a genome and how to calculate its fitness (same idea than a loss)
@@ -83,40 +71,49 @@ def eval_genomes(genomes, config_, batch_data):
     """
 
     for _, genome in tqdm(genomes):
-        net = neat.nn.RecurrentNet.create(genome, config_)
+        net = neat.nn.RecurrentNetwork.create(genome, config_)
         mse = 0
-        for data in batch_data:
+        for data in trainloader:
             inputs, output = data[0], data[1]
-            inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
             net.reset()
-            mask, score = gate_activation(net, inputs[0])
+            mask, score = gate_activation(net, inputs)
             selected_score = score[mask]
             if selected_score.size == 0:
                 xo = 0.5
             else:
                 xo = np.sum(selected_score) / selected_score.size
-            mse += (xo - output) ** 2
+            mse += (xo - output)**2
         genome.fitness = 1 / (1 + mse)
+        
+        
 
-
-def eval_genome(g, config, batch_data):
-    net = neat.nn.RecurrentNetwork.create(g, config)
+def eval_genome(genome, config_):
+    """
+    Most important part of NEAT since it is here that we adapt NEAT to our problem.
+    We tell what is the phenotype of a genome and how to calculate its fitness 
+    (same idea than a loss)
+    :param config_: config from the config file
+    :param genomes: list of all the genomes to get evaluated
+    this version is intented to use ParallelEvaluator and should be much faster
+    """
+    
+    net = neat.nn.RecurrentNetwork.create(genome, config_)
     mse = 0
-    for data in batch_data:
+    for data in trainloader:
         inputs, output = data[0], data[1]
-        inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
         net.reset()
-        mask, score = gate_activation(net, inputs[0])
+        mask, score = gate_activation(net, inputs)
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
         else:
             xo = np.sum(selected_score) / selected_score.size
-        mse += (xo - output) ** 2
+        mse += (xo - output)**2
     return 1 / (1 + mse)
-
+        
 
 def evaluate(net, data_loader):
+
     correct = 0
     total = 0
     net.reset()
@@ -124,8 +121,7 @@ def evaluate(net, data_loader):
     non_target_scores = []
     for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
-        mask, score = gate_activation(net, inputs[0])
+        mask, score = gate_activation(net, inputs)
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
@@ -137,16 +133,14 @@ def evaluate(net, data_loader):
             target_scores.append(xo)
         else:
             non_target_scores.append(xo)
-
+        
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
-
+    
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
-
-    rejected_bonefide = (target_scores <= .5).sum()
-
-    return rejected_bonefide, float(correct) / total, eer
+    
+    return target_scores, non_target_scores, float(correct)/total, eer
 
 
 def run(config_file, n_gen):
@@ -168,11 +162,15 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(1000))
+    # p.add_reporter(neat.Checkpointer(5))
 
     # Run for up to n_gen generations.
-    multi_evaluator = Anti_spoofing_Evaluator(8, eval_genome, batch_num, train_loader)
-    winner_ = p.run(multi_evaluator.evaluate, n_gen)
+    # multi processing
+    if n_processes > 1:
+        pe = neat.ParallelEvaluator(n_processes, eval_genome)
+        winner_ = p.run(pe.evaluate, n_gen)
+    else:
+        winner_ = p.run(eval_genomes, n_gen)
 
     # Display the winning genome.
     print('\nBest genome:\n{!s}'.format(winner_))
@@ -181,14 +179,23 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    bonafide_rejected, accuracy, eer = evaluate(winner_net, test_loader)
+    training_target_scores, training_non_target_scores, training_accuracy, training_eer = evaluate(winner_net, trainloader)
+    target_scores, non_target_scores, accuracy, eer = evaluate(winner_net, testloader)
+
+    print("**** training accuracy = {}  ****".format(training_accuracy))
+    print("**** training target scores = {}  ****".format(training_target_scores))
+    print("**** training non target scores = {}  ****".format(training_non_target_scores))
+    print("**** training equal error rate = {}  ****".format(training_eer))
+
 
     print("\n")
     print("**** accuracy = {}  ****".format(accuracy))
-    print("**** number of bone fide rejected = {}  ****".format(bonafide_rejected))
+    print("**** testing target scores = {}  ****".format(target_scores))
+    print("**** testing non target scores = {}  ****".format(non_target_scores))
     print("**** equal error rate = {}  ****".format(eer))
 
-    return winner_, config_, stats_, accuracy
+
+    return winner_, config_, stats_
 
 
 def make_visualize(winner_, config_, stats_):
@@ -202,16 +209,16 @@ def make_visualize(winner_, config_, stats_):
     :param stats_:
     :return:
     """
-    winner_net = neat.nn.FeedForwardNetwork.create(winner_, config_)
 
     node_names = {-1: "input", 1: "score", 0: "gate"}
 
+    visualize.draw_net(config_, winner_, True, node_names=node_names)
     visualize.plot_stats(stats_, ylog=False, view=True)
     visualize.plot_species(stats_, view=True)
-    visualize.draw_net(config_, winner_, True, node_names=node_names)
 
 
 if __name__ == '__main__':
+
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.
