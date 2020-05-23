@@ -8,6 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
+from raw_audio_gender_classification.utils import whiten
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 import multiprocessing
 
@@ -25,42 +26,35 @@ n_seconds = 3
 SAMPLING_RATE = 16000
 index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
 
-n_processes = multiprocessing.cpu_count()
-n_generation = 600
+n_processes = 8 #multiprocessing.cpu_count()
+n_generation = 300
 
 train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train,
                           nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
-
-
-def whiten(single_input):
-    whiten_input = single_input - single_input.mean()
-    var = np.sqrt((whiten_input**2).mean())
-    whiten_input *= .0380 / var
-    return whiten_input
+test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_train)
 
 
 trainloader = []
 for data in train_loader:
     inputs, output = data[0], data[1]
-    inputs = whiten(inputs)
+    inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
     trainloader.append((inputs, output))
     
 testloader = []
 for data in test_loader:
     inputs, output = data[0], data[1]
-    inputs = whiten(inputs)
+    inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
     testloader.append((inputs, output))
 
 
 def gate_activation(recurrent_net, inputs):
-    length = inputs.size
-    score, select = np.zeros(length), np.zeros(length)
-    for i in range(length):
-        select[i], score[i] = recurrent_net.activate([inputs[i]])
+    score, select = np.zeros(len(inputs)), np.zeros(len(inputs))
+    for (i, xi) in enumerate(inputs):
+        select[i], score[i] = recurrent_net.activate([xi.item()])    
     mask = (select > 0.5)
     return mask, score
 
+        
 
 def eval_genomes(genomes, config_):
     """
@@ -76,7 +70,7 @@ def eval_genomes(genomes, config_):
         for data in trainloader:
             inputs, output = data[0], data[1]
             net.reset()
-            mask, score = gate_activation(net, inputs)
+            mask, score = gate_activation(net, inputs[0])
             selected_score = score[mask]
             if selected_score.size == 0:
                 xo = 0.5
@@ -102,7 +96,7 @@ def eval_genome(genome, config_):
     for data in trainloader:
         inputs, output = data[0], data[1]
         net.reset()
-        mask, score = gate_activation(net, inputs)
+        mask, score = gate_activation(net, inputs[0])
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
@@ -121,7 +115,7 @@ def evaluate(net, data_loader):
     non_target_scores = []
     for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        mask, score = gate_activation(net, inputs)
+        mask, score = gate_activation(net, inputs[0])
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
@@ -139,8 +133,10 @@ def evaluate(net, data_loader):
     
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
+
+    rejected_bonefide = (target_scores <= .5).sum()
     
-    return target_scores, non_target_scores, float(correct)/total, eer
+    return rejected_bonefide, float(correct)/total, eer
 
 
 def run(config_file, n_gen):
@@ -179,19 +175,17 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    training_target_scores, training_non_target_scores, training_accuracy, training_eer = evaluate(winner_net, trainloader)
-    target_scores, non_target_scores, accuracy, eer = evaluate(winner_net, testloader)
+    train_bonafide_rejected, training_accuracy, training_eer = evaluate(winner_net, trainloader)
+    bonafide_rejected, accuracy, eer = evaluate(winner_net, testloader)
 
     print("**** training accuracy = {}  ****".format(training_accuracy))
-    print("**** training target scores = {}  ****".format(training_target_scores))
-    print("**** training non target scores = {}  ****".format(training_non_target_scores))
+    print("**** number of bone fide rejected = {}  ****".format(bonafide_rejected))
     print("**** training equal error rate = {}  ****".format(training_eer))
 
 
     print("\n")
     print("**** accuracy = {}  ****".format(accuracy))
-    print("**** testing target scores = {}  ****".format(target_scores))
-    print("**** testing non target scores = {}  ****".format(non_target_scores))
+    print("**** number of bone fide rejected = {}  ****".format(bonafide_rejected))
     print("**** equal error rate = {}  ****".format(eer))
 
 

@@ -25,7 +25,6 @@ batch_size = 10
 
 n_processes = multiprocessing.cpu_count()
 n_generation = 300
-pop_num = 100
 
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
