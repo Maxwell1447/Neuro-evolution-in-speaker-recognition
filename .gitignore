@@ -17,3 +17,5 @@ anti_spoofing/data/
 *.svg
 
 *.gv
+
+anti_spoofing/neat-checkpoint*
