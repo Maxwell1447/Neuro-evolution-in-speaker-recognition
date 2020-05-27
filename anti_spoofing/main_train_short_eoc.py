@@ -24,8 +24,8 @@ nb_samples_test = 700
 
 batch_size = 10  # choose an even number
 
-n_processes = 12  # multiprocessing.cpu_count()
-n_generation = 20
+n_processes = multiprocessing.cpu_count()
+n_generation = 300
 pop_num = 150
 
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
@@ -140,7 +140,7 @@ def eval_genome(g, config, batch_data):
     non_target_scores = np.array(non_target_scores)
 
     for i in range(batch_size//2):
-        l_s_n[i] = (1 - (non_target_scores[non_target_scores > target_scores[i]]).sum()) / (batch_size // 2)
+        l_s_n[i] = (1 - (non_target_scores[non_target_scores > target_scores[i]]).size) / (batch_size // 2)
 
     return l_s_n
 
@@ -197,7 +197,7 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(1000))
+    p.add_reporter(neat.Checkpointer(generation_interval=100))
 
     # Run for up to n_gen generations.
     multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader)

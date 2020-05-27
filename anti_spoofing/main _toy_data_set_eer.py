@@ -24,8 +24,8 @@ n_seconds = 3
 SAMPLING_RATE = 16000
 index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
 
-n_processes = 5 #multiprocessing.cpu_count()
-n_generation = 3
+n_processes = multiprocessing.cpu_count()
+n_generation = 300
 
 train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train)
 test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
@@ -91,7 +91,7 @@ def eval_genomes(genomes, config_):
         
         pmiss, pfa = rocch(target_scores, non_target_scores)
         eer = rocch2eer(pmiss, pfa)
-        genome.fitness = .5 - eer
+        genome.fitness = 2 * (.5 - eer)
         
         
 
@@ -128,7 +128,7 @@ def eval_genome(genome, config_):
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    return eer
+    return 2 * (.5 - eer)
         
 
 def evaluate(net, data_loader):

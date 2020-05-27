@@ -108,27 +108,36 @@ def eval_genomes(genomes, config_, batch_data):
 
     for _, genome in tqdm(genomes):
         net = neat.nn.RecurrentNet.create(genome, config_)
-        mse = 0
+        target_scores = []
+        non_target_scores = []
         for data in batch_data:
             inputs, output = data[0], data[1]
-            inputs = whiten(inputs)
             net.reset()
-            mask, score = gate_activation(net, inputs[0])
+            mask, score = gate_activation(net, inputs)
             selected_score = score[mask]
             if selected_score.size == 0:
                 xo = 0.5
             else:
                 xo = np.sum(selected_score) / selected_score.size
-            mse += (xo - output) ** 2
-        genome.fitness = 1 / (1 + mse)
+            if output == 1:
+                target_scores.append(xo)
+            else:
+                non_target_scores.append(xo)
+
+        target_scores = np.array(target_scores)
+        non_target_scores = np.array(non_target_scores)
+        
+        pmiss, pfa = rocch(target_scores, non_target_scores)
+        eer = rocch2eer(pmiss, pfa)
+        genome.fitness = .5 - eer
 
 
 def eval_genome(g, config, batch_data):
     net = neat.nn.RecurrentNetwork.create(g, config)
-    mse = 0
+    target_scores = []
+    non_target_scores = []
     for data in batch_data:
         inputs, output = data[0], data[1]
-        inputs = whiten(inputs)
         net.reset()
         mask, score = gate_activation(net, inputs)
         selected_score = score[mask]
@@ -136,8 +145,18 @@ def eval_genome(g, config, batch_data):
             xo = 0.5
         else:
             xo = np.sum(selected_score) / selected_score.size
-        mse += (xo - output) ** 2
-    return 1 / (1 + mse)
+        if output == 1:
+            target_scores.append(xo)
+        else:
+            non_target_scores.append(xo)
+            
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+
+    return .5 - eer
 
 
 def evaluate(net, data_loader):
