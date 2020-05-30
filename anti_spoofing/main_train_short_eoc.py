@@ -22,11 +22,10 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538
 nb_samples_test = 700
 
-batch_size = 10  # choose an even number
+batch_size = 20 # choose an even number
 
-n_processes = multiprocessing.cpu_count()
+n_processes =  12 # multiprocessing.cpu_count()
 n_generation = 300
-pop_num = 150
 
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
@@ -39,7 +38,7 @@ test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_t
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
-    def __init__(self, num_workers, eval_function, data, batch_size=batch_size, pop=pop_num, timeout=None):
+    def __init__(self, num_workers, eval_function, data, pop, batch_size=batch_size,timeout=None):
         super().__init__(num_workers, eval_function, timeout)
         self.data = data
         self.current_batch = []  # contains current batch of audio files
@@ -60,7 +59,11 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         batch_data = self.current_batch
         for ignored_genome_id, genome in genomes:
             jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch_data)))
-
+        
+        self.G = len(genomes)
+        self.l_s_n = np.zeros((self.batch_size//2, self.G))
+        
+        
         pseudo_genome_id = 0
         # return ease of classification for each genome
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
@@ -70,6 +73,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         # compute the fitness
         p_s = np.sum(self.l_s_n, axis=1).reshape(-1, 1) / self.G
         F = np.sum(self.l_s_n * (1 - p_s), axis=0) / np.sum(1 - p_s)
+
 
         pseudo_genome_id = 0
         # assign the fitness back to each genome
@@ -140,9 +144,9 @@ def eval_genome(g, config, batch_data):
     non_target_scores = np.array(non_target_scores)
 
     for i in range(batch_size//2):
-        l_s_n[i] = (1 - (non_target_scores[non_target_scores > target_scores[i]]).size) / (batch_size // 2)
+        l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
 
-    return l_s_n
+    return 1- l_s_n
 
 
 def evaluate(net, data_loader):
@@ -197,10 +201,10 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=100))
+    #p.add_reporter(neat.Checkpointer(generation_interval=100))
 
     # Run for up to n_gen generations.
-    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader)
+    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, pop=config_.pop_size)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     # Display the winning genome.
@@ -210,7 +214,13 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
+    train_bonafide_rejected, train_accuracy, train_eer = evaluate(winner_net, train_loader)
     bonafide_rejected, accuracy, eer = evaluate(winner_net, test_loader)
+
+    print("\n")
+    print("**** accuracy = {}  ****".format(train_accuracy))
+    print("**** number of bone fide rejected = {}  ****".format(train_bonafide_rejected))
+    print("**** equal error rate = {}  ****".format(train_eer))
 
     print("\n")
     print("**** accuracy = {}  ****".format(accuracy))

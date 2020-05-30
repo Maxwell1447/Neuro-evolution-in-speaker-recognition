@@ -20,7 +20,7 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538
 nb_samples_test = 700
 
-batch_size = 10  # choose an even number
+batch_size = 20  # choose an even number
 
 n_processes = multiprocessing.cpu_count()
 n_generation = 300

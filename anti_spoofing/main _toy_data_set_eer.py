@@ -25,7 +25,7 @@ SAMPLING_RATE = 16000
 index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
 
 n_processes = multiprocessing.cpu_count()
-n_generation = 300
+n_generation = 100
 
 train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train)
 test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
