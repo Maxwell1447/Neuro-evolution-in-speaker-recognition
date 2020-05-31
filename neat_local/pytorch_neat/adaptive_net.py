@@ -36,7 +36,7 @@ class AdaptiveNet:
                  activation=tanh_activation,
 
                  batch_size=1,
-                 device='cuda:0'):
+                 device='cpu'):
 
         self.w_ih_node = w_ih_node
 
@@ -122,8 +122,7 @@ class AdaptiveNet:
         returns: (batch_size, n_outputs)
         '''
         with torch.no_grad():
-            inputs = torch.tensor(
-                inputs, dtype=torch.float32, device=self.device).unsqueeze(2)
+            inputs = inputs.float().to(self.device).unsqueeze(2)
 
             self.hidden = self.activation(self.input_to_hidden.matmul(inputs) +
                                           self.hidden_to_hidden.matmul(self.hidden) +
@@ -139,7 +138,7 @@ class AdaptiveNet:
 
             (x_out, y_out), (x_in, y_in) = self.batched_hidden_coords
 
-            self.hidden_to_hidden += self.delta_w_node(
+            self.hidden_to_hidden = self.hidden_to_hidden + self.delta_w_node(
                 x_out=x_out, y_out=y_out, x_in=x_in, y_in=y_in,
                 pre=hidden_inputs, post=hidden_outputs,
                 w=self.hidden_to_hidden)

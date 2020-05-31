@@ -105,7 +105,6 @@ class AudioCNN(torch.nn.Module):
         self.l1 = nn.Linear(72, 1)
 
     def forward(self, x):
-
         x = self.mp1(self.bn1(self.conv1(x)))
         x = self.mp2(self.bn2(self.conv2(x)))
         x = self.mp3(self.bn3(self.conv3(x)))
@@ -141,7 +140,6 @@ class AudioCNNClassical(torch.nn.Module):
         self.l1 = nn.Linear(72, 1)
 
     def forward(self, x):
-
         x = self.mp1(self.bn1(torch.relu(self.conv1(x))))
         x = self.mp2(self.bn2(torch.relu(self.conv2(x))))
         x = self.mp3(self.bn3(torch.relu(self.conv3(x))))
@@ -151,9 +149,33 @@ class AudioCNNClassical(torch.nn.Module):
         return x
 
 
+class MNISTCNNClassical(torch.nn.Module):
+
+    def __init__(self, cppn, device=torch.device("cpu")):
+        super().__init__()
+
+        self.conv1 = Conv2DCppn(1, 8, 5, cppn, z=0, device=device)
+        self.conv2 = Conv2DCppn(8, 8, 3, cppn, z=1, device=device)
+        self.conv3 = Conv2DCppn(8, 8, 2, cppn, z=2, device=device)
+        self.conv4 = Conv2DCppn(8, 20, 2, cppn, z=3, device=device)
+
+        self.mp = nn.MaxPool2d(2, stride=2)
+
+        self.l1 = LinearFromConv2DCppn(20, 10, cppn, device=device)
+
+    def forward(self, x):
+        x = self.mp(torch.relu(self.conv1(x)))
+        x = self.mp(torch.relu(self.conv2(x)))
+        x = self.mp(torch.relu(self.conv3(x)))
+        x = torch.relu(self.conv4(x))
+        x = torch.sigmoid(self.l1(x.view(-1, 20)))
+        return x
+
+
 class Conv2DCppn(torch.nn.Module):
 
-    def __init__(self, C_in, C_out, kernel_size: int, cppn, z=0, activation=torch.relu, padding=0, device=torch.device("cpu")):
+    def __init__(self, C_in, C_out, kernel_size: int, cppn, z=0, activation=torch.relu, padding=0,
+                 device=torch.device("cpu")):
         super().__init__()
 
         kernel_size = (kernel_size, kernel_size)
@@ -190,7 +212,8 @@ class Conv2DCppn(torch.nn.Module):
 
 class LinearFromConv2DCppn(torch.nn.Module):
 
-    def __init__(self, input_size, output_size, cppn, z=0, activation=torch.sigmoid, padding=0, device=torch.device("cpu")):
+    def __init__(self, input_size, output_size, cppn, z=0, activation=torch.sigmoid,
+                 device=torch.device("cpu")):
         super().__init__()
 
         self.activation = activation
@@ -200,15 +223,15 @@ class LinearFromConv2DCppn(torch.nn.Module):
 
         xx_in, xx_out = torch.meshgrid([x_in, x_out])
 
-        self.w = cppn[0](k_x=torch.zeros_like(xx_in), k_y=torch.zeros_like(xx_in),
+        self.w = cppn[2](k_x=torch.zeros_like(xx_in), k_y=torch.zeros_like(xx_in),
                          C_in=torch.zeros_like(xx_in), C_out=torch.zeros_like(xx_in),
                          x_in=xx_in, x_out=xx_out,
-                         z=torch.full(xx_in.shape, z)).to(device)
+                         z=torch.full(xx_in.shape, 0)).to(device)
 
-        self.b = cppn[1](k_x=torch.zeros_like(x_out), k_y=torch.zeros_like(x_out),
+        self.b = cppn[3](k_x=torch.zeros_like(x_out), k_y=torch.zeros_like(x_out),
                          C_in=torch.zeros_like(x_out), C_out=torch.zeros_like(x_out),
                          x_in=torch.zeros_like(x_out), x_out=x_out,
-                         z=torch.full(x_out.shape, z)).to(device)
+                         z=torch.full(x_out.shape, 0)).to(device)
 
     def forward(self, x):
         # x [N, input_size]
@@ -233,14 +256,100 @@ class LeNet5Cppn(torch.nn.Module):
         self.mp2 = nn.MaxPool2d(2, stride=2)
         self.mp3 = nn.MaxPool2d(2, stride=2)
 
-        self.l1 = LinearFromConv2DCppn(32, 10, cppn=cppn, z=5, device=device)
+        self.l1 = LinearFromConv2DCppn(32, 10, cppn=cppn, z=3, device=device)
 
     def forward(self, x):
-
         x = self.mp1(self.bn1(self.conv1(x)))
         x = self.mp2(self.bn2(self.conv2(x)))
         x = self.mp3(self.bn3(self.conv3(x)))
 
         x = torch.sigmoid(self.l1(x.view(-1, 32)))
+
+        return x
+
+
+class Conv2DMSS(torch.nn.Module):
+
+    def __init__(self, C_in, C_out, kernel_size: int, cppn, offset=0, activation=torch.relu,
+                 device=torch.device("cpu")):
+        super().__init__()
+
+        kernel_size = (kernel_size, kernel_size)
+        self.k_x = kernel_size[0]
+        self.k_y = kernel_size[1]
+        self.C_in = C_in
+        self.C_out = C_out
+        self.activation = activation
+        self.offset = offset + C_in * C_out
+
+        kx = torch.arange(self.k_x)
+        ky = torch.arange(self.k_y)
+
+        kk_x, kk_y = torch.meshgrid([kx, ky])
+
+        W = torch.empty(C_out * C_in, self.k_x, self.k_y).to(device)
+        for c in range(C_in * C_out):
+            W[c] = cppn[offset + c](k_x=kk_x, k_y=kk_y,
+                                    x_out=torch.zeros_like(kk_x))
+        self.w = W.reshape(C_out, C_in, self.k_x, self.k_y)
+
+    def forward(self, x):
+        # x [N, C_in, input_size]
+        assert x.shape[1] == self.C_in, "{} != {}".format(x.shape[1], self.C_in)
+
+        return self.activation(conv2d(x, self.w))
+
+
+class LinearFromConv2DMSS(torch.nn.Module):
+
+    def __init__(self, input_size, output_size, cppn, offset=0, activation=torch.sigmoid,
+                 device=torch.device("cpu")):
+        super().__init__()
+
+        self.activation = activation
+        self.offset = offset + 2
+
+        x_in = torch.arange(input_size)
+        x_out = torch.arange(output_size)
+
+        xx_in, xx_out = torch.meshgrid([x_in, x_out])
+
+        self.w = cppn[offset](k_x=xx_in, k_y=torch.zeros_like(xx_in),
+                              x_out=xx_out).to(device)
+
+        self.b = cppn[offset + 1](k_x=torch.zeros_like(x_out), k_y=torch.zeros_like(x_out),
+                                  x_out=x_out).to(device)
+
+    def forward(self, x):
+        # x [N, input_size]
+
+        return self.activation(torch.matmul(x, self.w) + self.b)
+
+
+class LeNet5MSS(torch.nn.Module):
+
+    def __init__(self, cppn, device=torch.device("cpu")):
+        super().__init__()
+
+        self.conv1 = Conv2DMSS(1, 4, 5, cppn, offset=0, device=device)
+        self.conv2 = Conv2DMSS(4, 4, 4, cppn, offset=self.conv1.offset, device=device)
+        self.conv3 = Conv2DMSS(4, 4, 2, cppn, offset=self.conv2.offset, device=device)
+
+        self.bn1 = nn.BatchNorm2d(4, affine=False)
+        self.bn2 = nn.BatchNorm2d(4, affine=False)
+        self.bn3 = nn.BatchNorm2d(4, affine=False)
+
+        self.mp1 = nn.MaxPool2d(2, stride=2)
+        self.mp2 = nn.MaxPool2d(2, stride=2)
+        self.mp3 = nn.MaxPool2d(2, stride=2)
+
+        self.l1 = LinearFromConv2DMSS(4, 10, cppn=cppn, offset=self.conv3.offset, device=device)
+
+    def forward(self, x):
+        x = self.mp1(self.bn1(self.conv1(x)))
+        x = self.mp2(self.bn2(self.conv2(x)))
+        x = self.mp3(self.bn3(self.conv3(x)))
+
+        x = torch.sigmoid(self.l1(x.view(x.shape[0], -1)))
 
         return x
