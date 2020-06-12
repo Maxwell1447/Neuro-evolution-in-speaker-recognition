@@ -1,5 +1,4 @@
 from __future__ import print_function
-import torch
 import os
 import neat
 import neat_local.visualization.visualize as visualize
@@ -22,10 +21,10 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538
 nb_samples_test = 700
 
-batch_size = 20 # choose an even number
+batch_size = 100  # choose an even number
 
-n_processes =  12 # multiprocessing.cpu_count()
-n_generation = 300
+n_processes = multiprocessing.cpu_count()
+n_generation = 40
 
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
@@ -38,7 +37,7 @@ test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_t
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
-    def __init__(self, num_workers, eval_function, data, pop, batch_size=batch_size,timeout=None):
+    def __init__(self, num_workers, eval_function, data, pop, batch_size=batch_size, timeout=None):
         super().__init__(num_workers, eval_function, timeout)
         self.data = data
         self.current_batch = []  # contains current batch of audio files
@@ -146,7 +145,7 @@ def eval_genome(g, config, batch_data):
     for i in range(batch_size//2):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
 
-    return 1- l_s_n
+    return 1 - l_s_n
 
 
 def evaluate(net, data_loader):
@@ -177,9 +176,9 @@ def evaluate(net, data_loader):
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    rejected_bonefide = (target_scores <= .5).sum()
+    rejected_bonafide = (target_scores <= .5).sum()
 
-    return rejected_bonefide, float(correct) / total, eer
+    return rejected_bonafide, float(correct) / total, eer
 
 
 def run(config_file, n_gen):
@@ -201,7 +200,7 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    #p.add_reporter(neat.Checkpointer(generation_interval=100))
+    p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, pop=config_.pop_size)
