@@ -40,8 +40,7 @@ This repository contains our work from our project on Neuro evolution. The aim f
 
 
 ## Code Examples
-Show examples of usage:
-`put-your-code-here`
+
 
 ## Features
 List of features ready and TODOs for future development
@@ -60,20 +59,20 @@ Project is currently in progress
 @misc{neat-python,
     Title = {neat-python},
     Author = {Alan McIntyre and Matt Kallada and Cesar G. Miguel and Carolina Feher da Silva},
-    howpublished = {\url{https://github.com/CodeReclaimers/neat-python}}   
+    howpublished = {\url{https://github.com/CodeReclaimers/neat-python }}   
   }
   
 @misc{PyTorch-NEAT,
 	Title = {PyTorch NEAT},
     Author = {Alex Gajewsky},
-    howpublished = {\url{https://github.com/uber-research/PyTorch-NEAT/}}   
+    howpublished = {\url{https://github.com/uber-research/PyTorch-NEAT/ }}   
   }
   
 @misc{raw-audio-gender-classification,
 	Title = {raw-audio-gender-classification},
     Author = {Oscar Knagg},
-    howpublished = {\url{https://github.com/oscarknagg/raw-audio-gender-classification}
-					\url{https://medium.com/@oknagg/gender-classification-from-raw-audio-with-1d-convolutions-969c82e6b3d1}}   
+    howpublished = {\url{https://github.com/oscarknagg/raw-audio-gender-classification }
+		    \url{https://medium.com/@oknagg/gender-classification-from-raw-audio-with-1d-convolutions-969c82e6b3d1 }}   
   }
 
 ## Authors
