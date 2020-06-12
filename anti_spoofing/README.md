@@ -1,33 +1,48 @@
-# Project Name
-> Here goes your awesome project description!
+# Anti spoofing
+This is the anti spoofing folder. Here are the scripts for running neat on the ASVspoof 2019 databse.
 
 ## Table of contents
 * [General info](#general-info)
 * [Screenshots](#screenshots)
 * [Technologies](#technologies)
-* [Setup](#setup)
 * [Features](#features)
-* [Status](#status)
-* [Inspiration](#inspiration)
-* [Contact](#contact)
 
 ## General info
-Add more general information about project. What the purpose of the project is? Motivation?
+We are using the ASVspoof 2019 logical (LA) database.
+The logical train audio files are used for training.
+The logical dev audio files are used for testing.
 
 ## Screenshots
-![Example screenshot](./img/screenshot.png)
+![Example screenshot](./img/Digraph.gv.svg)
+
+A topology of a genome obtained by running neat on the ASVspoof 2019 database.
 
 ## Technologies
-* Tech 1 - version 1.0
-* Tech 2 - version 2.0
-* Tech 3 - version 3.0
+* neat 0.92
 
-## Setup
-Describe how to install / setup your local environement / add link to demo version.
+
 
 ## Code Examples
 Show examples of usage:
-`put-your-code-here`
+```	
+	# Load configuration.
+    config_ = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                          config_file)
+
+    # Create the population, which is the top-level object for a NEAT run.
+    p = neat.Population(config_)
+
+    # Add a stdout reporter to show progress in the terminal.
+    p.add_reporter(neat.StdOutReporter(True))
+    stats_ = neat.StatisticsReporter()
+    p.add_reporter(stats_)
+    p.add_reporter(neat.Checkpointer(generation_interval=100))
+
+    # Run for up to n_gen generations.
+    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, batch_size, train_loader)
+    winner_ = p.run(multi_evaluator.evaluate, n_gen)
+```
 
 ## Features
 List of features ready and TODOs for future development
@@ -38,12 +53,3 @@ List of features ready and TODOs for future development
 To-do list:
 * Wow improvement to be done 1
 * Wow improvement to be done 2
-
-## Status
-Project is: _in progress_, _finished_, _no longer continue_ and why?
-
-## Inspiration
-Add here credits. Project inspired by..., based on...
-
-## Contact
-Created by [@flynerdpl](https://www.flynerd.pl/) - feel free to contact me!
