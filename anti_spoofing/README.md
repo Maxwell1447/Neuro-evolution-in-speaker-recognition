@@ -13,9 +13,9 @@ The logical train audio files are used for training.
 The logical dev audio files are used for testing.
 
 ## Screenshots
-![Example screenshot](./img/Digraph.gv.svg)
+![Example screenshot](./img/Digraph.jpg)
 
-A topology of a genome obtained by running neat on the ASVspoof 2019 database.
+Topology of a genome obtained by running neat on the ASVspoof 2019 database.
 
 ## Technologies
 * neat 0.92
