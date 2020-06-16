@@ -9,3 +9,13 @@ neat_local/pytorch_neat/__pycache__/
 *.json
 raw-audio-gender-classification/data/LibriSpeech
 raw-audio-gender-classification/notebooks/.ipynb_checkpoints/
+
+anti_spoofing/data/
+
+.pylint.d/
+
+*.svg
+
+*.gv
+
+anti_spoofing/neat-checkpoint*
