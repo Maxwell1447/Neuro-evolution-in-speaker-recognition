@@ -1,56 +1,47 @@
 # Neuro evolution applied to speaker recognition
-This repository contains our work on neuro evolution applied to speaker recognition.
+This repository contains our work on neuro evolution applied to speaker recognition and antispoofing.
 We tested neuro evolution implemented in python, in pytorch, hyperneat implemented in pytorch to the following tasks:
+- Iris database
+- MNIST database
 - audio gender classification with the Libri speech database
 - Anti spoofing with the ASVspoof 2019 databse
 
 
 ## Table of contents
 * [General info](#general-info)
-* [Screenshots](#screenshots)
-* [Technologies](#technologies)
 * [Setup](#setup)
-* [Features](#features)
+* [Aspect covered](#Aspect covered)
 * [Status](#status)
 * [Inspiration](#inspiration)
 * [Authors](#authors)
 
 ## General info
-Neuroevolution, or neuro-evolution, is a form of artificial intelligence that uses evolutionary algorithms to generate artificial neural networks (ANN), 
-parameters, topology and rules. It is most commonly applied in artificial life, general game playing and evolutionary robotics. 
-The main benefit is that neuroevolution can be applied more widely than supervised learning algorithms, which require a syllabus of correct input-output pairs. 
-In contrast, neuroevolution requires only a measure of a network's performance at a task. For example, the outcome of a game 
-(i.e. whether one player won or lost) can be easily measured without providing labeled examples of desired strategies. 
-Neuroevolution is commonly used as part of the reinforcement learning paradigm, and it can be contrasted with conventional deep learning techniques 
+Neuroevolution, or neuro-evolution, uses evolutionary algorithms to generate artificial neural networks (ANN), 
+parameters, topology and rules. It can be contrasted with conventional deep learning techniques 
 that use gradient descent on a neural network with a fixed topology. 
-
-quoted from the wikipedia article on neuro evolution: https://en.wikipedia.org/wiki/Neuroevolution
+The neuroevolution algorithm that is used in this project is NEAT (Neuroevolution of Augmenting Topology), a popular method that aims 
+to give ANN of minimalistic sizes. 
 
 We are two students from EURECOM ( http://www.eurecom.fr/en ) both following the data science track.
-This repository contains our work from our project on Neuro evolution. The aim for this project is to apply neuro evolution to speaker recognition.
+This repository contains our work from our project on Neuro evolution. 
+The aim for this project is to apply neuro evolution to speaker recognition.
 
-## Screenshots
-
-## Technologies
-* Tech 1 - version 1.0
-* Tech 2 - version 2.0
-* Tech 3 - version 3.0
+We covered various aspects of NEAT. You can find a README file for every folder in this project explaining 
+the aspect treated, and how to run the code.
 
 ## Setup
 
 
-## Code Examples
-
-
-## Features
-List of features ready and TODOs for future development
-* Awesome feature 1
-* Awesome feature 2
-* Awesome feature 3
+## Aspect covered
+List of aspects covered:
+* NEAT in classification tasks (IRIS)
+* NEAT in audio gender classification tasks
+* GPU vs CPU in NEAT evaluation
+* CNN-HyperNEAT applied on MNIST
+* NEAT applied on anti-spoofing
 
 To-do list:
-* Wow improvement to be done 1
-* Wow improvement to be done 2
+* ES-HyperNEAT
 
 ## Status
 Project is currently in progress
