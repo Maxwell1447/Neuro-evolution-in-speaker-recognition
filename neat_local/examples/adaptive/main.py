@@ -14,6 +14,7 @@
 
 import multiprocessing
 import os
+import torch
 
 import click
 import neat
@@ -55,13 +56,17 @@ def activate_net(net, states, debug=False, step_num=0):
         print("\n" + "=" * 20 + " DEBUG " + "=" * 20)
         print(net.delta_w_node)
         print("W init: ", net.input_to_output[0])
-    outputs = net.activate(states).numpy()
+    outputs = net.activate(states)
+    if net.device == "cpu":
+        outputs = outputs.numpy()
     if debug and (step_num - 1) % 100 == 0:
         print("\nStep {}".format(step_num - 1))
         print("Outputs: ", outputs[0])
         print("Delta W: ", net.delta_w[0])
         print("W: ", net.input_to_output[0])
-    return np.argmax(outputs, axis=1)
+    if net.device == "cpu":
+        return np.argmax(outputs, axis=1)
+    return torch.argmax(outputs, 1)
 
 
 '''
@@ -99,11 +104,11 @@ def run(n_generations, n_processes):
 
     else:
 
-        def eval_genomes(genomes, config):
+        def eval_genomes(genomes, config_):
             for i, (_, genome) in enumerate(genomes):
                 try:
                     genome.fitness = evaluator.eval_genome(
-                        genome, config, debug=DEBUG and i % 100 == 0
+                        genome, config_, debug=DEBUG and i % 100 == 0
                     )
                 except Exception as e:
                     print(genome)
