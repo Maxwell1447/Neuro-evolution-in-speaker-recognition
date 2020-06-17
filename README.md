@@ -6,7 +6,7 @@ and [Pytorch-NEAT](https://github.com/uber-research/PyTorch-NEAT),
 to deal with the following databases:
 - Iris
 - MNIST
-- audio gender classification with the Libri speech
+- audio gender classification with the Libri speech (helped with [this repository](https://github.com/oscarknagg/raw-audio-gender-classification))
 - Anti spoofing with the ASVspoof 2019
 
 Our goal was to understand the ability of NEAT and its variants to deal with classification tasks.
@@ -55,24 +55,11 @@ To-do list:
 Project is currently in progress
 
 ## References
-@misc{neat-python,
-    Title = {neat-python},
-    Author = {Alan McIntyre and Matt Kallada and Cesar G. Miguel and Carolina Feher da Silva},
-    howpublished = {\url{https://github.com/CodeReclaimers/neat-python }}   
-  }
-  
-@misc{PyTorch-NEAT,
-	Title = {PyTorch NEAT},
-    Author = {Alex Gajewsky},
-    howpublished = {\url{https://github.com/uber-research/PyTorch-NEAT/ }}   
-  }
-  
-@misc{raw-audio-gender-classification,
-	Title = {raw-audio-gender-classification},
-    Author = {Oscar Knagg},
-    howpublished = {\url{https://github.com/oscarknagg/raw-audio-gender-classification }
-		    \url{https://medium.com/@oknagg/gender-classification-from-raw-audio-with-1d-convolutions-969c82e6b3d1 }}   
-  }
+
+[Valenti, Giacomo and  Delgado, Héctor and  Todisco, Massimiliano and  Evans, Nicholas and  Pilati, Laurent, 
+(2018),
+*An end-to-end spoofing countermeasure for automatic speaker verification using evolving recurrent neural networks*
+](http://www.eurecom.fr/fr/publication/5523/detail/an-end-to-end-spoofing-countermeasure-for-automatic-speaker-verification-using-evolving-recurrent-neural-networks)
 
 ## Authors
 Created by Maxime BOUTHORS and Arnaud BARRAL
