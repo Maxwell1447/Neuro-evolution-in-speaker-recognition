@@ -6,6 +6,10 @@ a classification task.
 Here is the only file that you can execute:
 [iris_neat.py](https://github.com/Maxwell1447/Neuro-evolution-in-speaker-recognition/tree/master/iris/iris_neat.py)
 
+You can also check the images and graphs of some results in 
+[this folder](https://github.com/Maxwell1447/Neuro-evolution-in-speaker-recognition/tree/master/iris/result%20varieties).
+
+
 In the main part of the script (at the very bottom), you can change various parameters:
 
 * **Features**: To change the features taken into account, choose a subset of ```[0, 1, 2, 3]```. 
@@ -22,7 +26,8 @@ data, labels, names = load_iris(features, wrong_labelling=15)
 ```
 
 * **Run NEAT once**: Uncomment these lines to run NEAT once. You should be able to visualize the fitness evolution,
-the winner's topology, and the surface plot (provided you chose 2 features exactly).
+the winner's topology, and the surface plot (provided you chose 2 features exactly). You can control the 
+max number of generation that is here set to 50.
 ```python
 random.seed(0)
 winner, config, stats, acc = run(config_path, 50)
@@ -39,5 +44,37 @@ general_stats(25, config_path)
 
 ## Results
 
-<img src="https://github.com/Maxwell1447/Neuro-evolution-in-speaker-recognition/tree/master/iris/result varieties/decision_surface 2.svg"  alt="image"/> 
+### Simple run + no wrong labelling
+When plotting the decision surface, we can see that NEAT correctly classifies the IRIS data points.
+
+![](./result varieties/decision_surface 2.svg)
+
+The kind of topology obtained can be very simple:
+
+![](./result varieties/topology.JPG)
+
+### Simple run + 10 wrong labelling
+We can observe that NEAT still manages to correctly separate the clusters. 
+
+![](./result varieties/decision_surface noisy 2 features.svg)
+
+### General stats + no wrong labelling
+
+Number of generation before reaching fitness threshold:
+
+![](./result varieties/generation histogram 4 features.svg)
+
+![](./result varieties/accuracy repartition 4 features.png)
+
+# Details about the code
+
+The most important part of the code is probably the function ```eval_genomes()``` in which we calculate 
+the fitness of each genome. The fitness is chosen to be *30 - MSE* so that the threshold of 0 can be reached.
+
+We chose to use the tensorial evaluation provided by PytorchNEAT for the sake of speed. 
+
+The [config file](https://github.com/Maxwell1447/Neuro-evolution-in-speaker-recognition/tree/master/iris/config_iris)
+can be modified manually to see the influence of the parameters. We empirically experienced that 
+*node_add_prob* was one of the most important parameters, along with *conn_add_prob*, *weight_mutate_power* and *bias_mutate_power*.
+More global statistics should be done (with Optuna for instance) to assess the contribution of all the parameters.s
 

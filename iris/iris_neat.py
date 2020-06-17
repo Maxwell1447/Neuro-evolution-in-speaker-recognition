@@ -234,7 +234,7 @@ def general_stats(n, config_path):
 if __name__ == '__main__':
 
     features = [0, 2]         # features indices we choose to keep (subset of [0, 1, 2, 3])
-    data, labels, names = load_iris(features, wrong_labelling=15)
+    data, labels, names = load_iris(features, wrong_labelling=0)
     inputs, outputs = data["X_train"], data['y_train']
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
@@ -247,5 +247,5 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats, acc = run(config_path, 100)
+    winner, config, stats, acc = run(config_path, 20)
     make_visualize(winner, config, stats, decision_surface=(len(features) == 2))
