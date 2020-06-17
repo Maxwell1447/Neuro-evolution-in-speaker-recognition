@@ -5,7 +5,7 @@ neat-python-master
 .spyproject
 *.pyc
 *.log
-neat_local/pytorch_neat/__pycache__/
+neat_local/pytorch_neat/__pycache__/*
 *.json
 raw-audio-gender-classification/data/LibriSpeech
 raw-audio-gender-classification/notebooks/.ipynb_checkpoints/
