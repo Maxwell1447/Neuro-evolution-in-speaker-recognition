@@ -51,3 +51,13 @@ CNN-HyperNEAT remains around 0.3.
 modular network phenotypes.
 
 * Consider the LEO extension that can easily make the connections of a fixed substrate modular.
+
+## Notes
+
+> The [scratch.py](scratch.py) file is an attempt to run CNN-HyperNEAT on audio. It is noted
+> as scratch since it is an aborted work.
+
+> There are different config files done, one for each HyperNEAT paradigm done.
+> For example, if you wish to test MSS-CNN-HyperNEAT, you must link to the corresponding 
+> config file. You should also change the ```eval_genome()``` to match the 
+> CPPN and the phenotype.

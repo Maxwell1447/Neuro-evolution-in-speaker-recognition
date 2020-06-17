@@ -114,7 +114,7 @@ def eval_genome(g, c, batch, acc=False):
 
     cnn = MNISTCNNClassical(cppn, device).to(device)
 
-    # print("offset =", cnn.l1.offset)zqsdqszdqqzzzzz
+    # print("offset =", cnn.l1.offset)
 
     out = cnn(batch[0])
 
