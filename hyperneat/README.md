@@ -55,7 +55,7 @@ modular network phenotypes.
 ## Notes
 
 > The [scratch.py](scratch.py) file is an attempt to run CNN-HyperNEAT on audio. It is noted
-> as scratch since it is an aborted work.
+> as scratch since it is an aborted work for now.
 
 > There are different config files done, one for each HyperNEAT paradigm done.
 > For example, if you wish to test MSS-CNN-HyperNEAT, you must link to the corresponding 
