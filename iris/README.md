@@ -47,24 +47,24 @@ general_stats(25, config_path)
 ### Simple run + no wrong labelling
 When plotting the decision surface, we can see that NEAT correctly classifies the IRIS data points.
 
-![](./result varieties/decision_surface 2.svg)
+![](./result%20varieties/decision_surface.svg)
 
 The kind of topology obtained can be very simple:
 
-![](./result varieties/topology.JPG)
+![](./result%20varieties/topology.JPG)
 
 ### Simple run + 10 wrong labelling
 We can observe that NEAT still manages to correctly separate the clusters. 
 
-![](./result varieties/decision_surface noisy 2 features.svg)
+![](./result%20varieties/decision_surface%20noisy%202%20features.svg)
 
 ### General stats + no wrong labelling
 
 Number of generation before reaching fitness threshold:
 
-![](./result varieties/generation histogram 4 features.svg)
+![](./result%20varieties/generation%20histogram%204%20features.svg)
 
-![](./result varieties/accuracy repartition 4 features.png)
+![](./result%20varieties/accuracy%20repartition%204%20features.png)
 
 # Details about the code
 
