@@ -14,9 +14,9 @@ Our goal was to understand the ability of NEAT and its variants to deal with cla
 ## Table of contents
 * [General info](#general-info)
 * [Setup](#setup)
-* [Aspect covered](#Aspect covered)
+* [Aspect covered](#aspect-covered)
 * [Status](#status)
-* [Inspiration](#inspiration)
+* [Inspiration](#references)
 * [Authors](#authors)
 
 ## General info
