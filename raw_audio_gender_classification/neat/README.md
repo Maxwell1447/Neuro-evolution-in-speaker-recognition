@@ -30,7 +30,9 @@ You can run [this script (main.py)](main.py) to see the results (change the numb
 execution time is it is too long). You can also change different parameters in the 
 [config file](neat.cfg) if necessary.
 
-##### Remarks about the code
+Once again, we will most likely obtain poor results with fitness stagnation.
+
+#### Remarks about the code
 
 The evaluation is parallelized by default with ```GenderEvaluator```. If you want to see the difference of execution time
 by yourself, change the following line in ```run()``` by the next one:
