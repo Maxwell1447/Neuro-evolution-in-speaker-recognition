@@ -33,8 +33,8 @@ batch_size = 1
 n_generation = 1
 
 
-train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
+train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train,  nb_samples=nb_samples_train)
+test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_train,  nb_samples=nb_samples_train)
 
 
 trainloader = []

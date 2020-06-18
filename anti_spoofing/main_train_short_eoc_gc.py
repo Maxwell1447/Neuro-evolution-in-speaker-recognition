@@ -97,7 +97,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
 
         grand_champion = genomes[champion_indexes[np.argmax(champions_eer)]]
         self.gc.append(grand_champion)
-        
 
     def next(self):
         self.current_batch = []

@@ -19,6 +19,13 @@ def whiten(input):
 
 
 def gate_average(recurrent_net, input):
+    """
+    compute mask and the scores for a given input (audio file)
+    the mask tells by how the corresponding score should be taken into account
+    :param recurrent_net: network
+    :param input: one audio file in a numpy format
+    :return mask, score
+    """
     length = input.size
     score, select = np.zeros(length), np.zeros(length)
     for i in range(length):
@@ -31,7 +38,7 @@ def gate_activation(recurrent_net, input):
     compute mask and the scores for a given input (audio file)
     the mask tells if the corresponding score should be taken into account
     :param recurrent_net: network
-    :param input: one audio file in a numpy format
+    :param input: one audio file in a numpy array format
     :return mask, score
     """
     length = input.size
@@ -46,7 +53,7 @@ def evaluate(net, data_loader):
     """
     compute the eer equal error rate
     :param net: network
-    :param data_loader: test dataset, contains audio files
+    :param data_loader: test dataset, contains audio files in a numpy array format
     :return eer
     """
     net.reset()

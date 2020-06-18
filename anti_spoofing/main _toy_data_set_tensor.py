@@ -55,7 +55,6 @@ def gate_activation(recurrent_net, inputs):
     mask = (select > 0.5)
     return mask, score
 
-        
 
 def eval_genomes(genomes, config_):
     """
