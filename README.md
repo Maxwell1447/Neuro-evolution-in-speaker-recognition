@@ -41,7 +41,7 @@ Run ```pip install -r requirement.txt``` to install the required packages.
 To generate the graphics of the topologies of the genomes, you need to install [graphviz](https://www.graphviz.org/download/).
 Make sure that the directory containing the *dot* executable is on your systems’ path.
 
-## Aspect covered
+## Aspects covered
 List of aspects covered:
 * [NEAT in classification tasks (IRIS)](iris)
 * [NEAT in audio gender classification tasks](raw_audio_gender_classification)
