@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.metrics_utils import rocch2eer, rocch
+from anti_spoofing.utils import make_visualize
 import multiprocessing
 
 
@@ -194,25 +195,6 @@ def run(config_file, n_gen):
 
 
     return winner_, config_, stats_
-
-
-def make_visualize(winner_, config_, stats_):
-    """
-    Plot and draw:
-        - the graph of the topology
-        - the fitness evolution over generations
-        - the speciation evolution over generations
-    :param winner_:
-    :param config_:
-    :param stats_:
-    :return:
-    """
-
-    node_names = {-1: "input", 1: "score", 0: "gate"}
-
-    visualize.draw_net(config_, winner_, True, node_names=node_names)
-    visualize.plot_stats(stats_, ylog=False, view=True)
-    visualize.plot_species(stats_, view=True)
 
 
 if __name__ == '__main__':

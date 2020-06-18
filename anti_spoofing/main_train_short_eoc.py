@@ -1,16 +1,13 @@
 from __future__ import print_function
 import os
 import neat
-import neat_local.visualization.visualize as visualize
 import numpy as np
 import random as rd
 import multiprocessing
 
-from tqdm import tqdm
-
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.metrics_utils import rocch2eer, rocch
+from anti_spoofing.utils import whiten, gate_activation, evaluate, make_visualize
 
 
 
@@ -51,7 +48,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.G = pop
         self.l_s_n = np.zeros((self.batch_size//2, self.G))
 
-
     def evaluate(self, genomes, config):
         jobs = []
         self.next()
@@ -61,8 +57,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         
         self.G = len(genomes)
         self.l_s_n = np.zeros((self.batch_size//2, self.G))
-        
-        
+
         pseudo_genome_id = 0
         # return ease of classification for each genome
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
@@ -72,7 +67,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         # compute the fitness
         p_s = np.sum(self.l_s_n, axis=1).reshape(-1, 1) / self.G
         F = np.sum(self.l_s_n * (1 - p_s), axis=0) / np.sum(1 - p_s)
-
 
         pseudo_genome_id = 0
         # assign the fitness back to each genome
@@ -103,22 +97,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.current_batch = np.array(self.current_batch)
 
 
-def whiten(single_input):
-    whiten_input = single_input - single_input.mean()
-    var = np.sqrt((whiten_input**2).mean())
-    whiten_input *= 1 / var
-    return whiten_input
-
-
-def gate_activation(recurrent_net, inputs):
-    length = inputs.size
-    score, select = np.zeros(length), np.zeros(length)
-    for i in range(length):
-        select[i], score[i] = recurrent_net.activate([inputs[i]])
-    mask = (select > 0.5)
-    return mask, score
-
-
 def eval_genome(g, config, batch_data):
     net = neat.nn.RecurrentNetwork.create(g, config)
     target_scores = []
@@ -146,39 +124,6 @@ def eval_genome(g, config, batch_data):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
 
     return 1 - l_s_n
-
-
-def evaluate(net, data_loader):
-    correct = 0
-    total = 0
-    net.reset()
-    target_scores = []
-    non_target_scores = []
-    for data in tqdm(data_loader):
-        inputs, output = data[0], data[1]
-        inputs = whiten(inputs)
-        mask, score = gate_activation(net, inputs)
-        selected_score = score[mask]
-        if selected_score.size == 0:
-            xo = 0.5
-        else:
-            xo = np.sum(selected_score) / selected_score.size
-        total += 1
-        correct += ((xo > 0.5) == output)
-        if output == 1:
-            target_scores.append(xo)
-        else:
-            non_target_scores.append(xo)
-
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    rejected_bonafide = (target_scores <= .5).sum()
-
-    return rejected_bonafide, float(correct) / total, eer
 
 
 def run(config_file, n_gen):
@@ -227,26 +172,6 @@ def run(config_file, n_gen):
     print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_
-
-
-def make_visualize(winner_, config_, stats_):
-    """
-    Plot and draw:
-        - the graph of the topology
-        - the fitness evolution over generations
-        - the speciation evolution over generations
-    :param winner_:
-    :param config_:
-    :param stats_:
-    :return:
-    """
-    winner_net = neat.nn.FeedForwardNetwork.create(winner_, config_)
-
-    node_names = {-1: "input", 1: "score", 0: "gate"}
-
-    visualize.plot_stats(stats_, ylog=False, view=True)
-    visualize.plot_species(stats_, view=True)
-    visualize.draw_net(config_, winner_, True, node_names=node_names)
 
 
 if __name__ == '__main__':

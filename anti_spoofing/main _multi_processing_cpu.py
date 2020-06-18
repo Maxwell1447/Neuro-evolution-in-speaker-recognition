@@ -9,8 +9,9 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
+from anti_spoofing.utils import make_visualize
 from neat_local.nn import RecurrentNet
-from metrics_utils import rocch2eer, rocch
+from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
 
@@ -32,8 +33,8 @@ batch_size = 1
 n_generation = 1
 
 
-train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list = index_train,  nb_samples=nb_samples_train)
+train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train,  nb_samples=nb_samples_train)
+test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_train,  nb_samples=nb_samples_train)
 
 
 trainloader = []
@@ -188,27 +189,6 @@ def run(config_file, n_gen):
     print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_, accuracy
-
-
-
-def make_visualize(winner_, config_, stats_):
-    """
-    Plot and draw:
-        - the graph of the topology
-        - the fitness evolution over generations
-        - the speciation evolution over generations
-    :param winner_:
-    :param config_:
-    :param stats_:
-    :return:
-    """
-
-    node_names = {}
-    # node_names = {0: names[0], 1: names[1], 2: names[2]}
-
-    visualize.draw_net(config_, winner_, True, node_names=node_names)
-    visualize.plot_stats(stats_, ylog=False, view=True)
-    visualize.plot_species(stats_, view=True)
 
 
 if __name__ == '__main__':

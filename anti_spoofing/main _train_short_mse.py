@@ -1,7 +1,6 @@
 from __future__ import print_function
 import os
 import neat
-import neat_local.visualization.visualize as visualize
 import numpy as np
 import random as rd
 import multiprocessing
@@ -10,6 +9,7 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
+from anti_spoofing.utils import whiten, gate_activation, evaluate, make_visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
@@ -80,22 +80,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.spoofed_index += batch_size//2
 
         self.current_batch = np.array(self.current_batch)
-
-
-def whiten(single_input):
-    whiten_input = single_input - single_input.mean()
-    var = np.sqrt((whiten_input**2).mean())
-    whiten_input *= 1 / var
-    return whiten_input
-
-
-def gate_activation(recurrent_net, inputs):
-    length = inputs.size
-    score, select = np.zeros(length), np.zeros(length)
-    for i in range(length):
-        select[i], score[i] = recurrent_net.activate([inputs[i]])
-    mask = (select > 0.5)
-    return mask, score
 
 
 def eval_genomes(genomes, config_, batch_data):
@@ -219,26 +203,6 @@ def run(config_file, n_gen):
     print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_
-
-
-def make_visualize(winner_, config_, stats_):
-    """
-    Plot and draw:
-        - the graph of the topology
-        - the fitness evolution over generations
-        - the speciation evolution over generations
-    :param winner_:
-    :param config_:
-    :param stats_:
-    :return:
-    """
-    winner_net = neat.nn.FeedForwardNetwork.create(winner_, config_)
-
-    node_names = {-1: "input", 1: "score", 0: "gate"}
-
-    visualize.plot_stats(stats_, ylog=False, view=True)
-    visualize.plot_species(stats_, view=True)
-    visualize.draw_net(config_, winner_, True, node_names=node_names)
 
 
 if __name__ == '__main__':
