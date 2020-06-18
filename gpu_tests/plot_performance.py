@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
+# PARAMETERS MANUALLY DEDUCED
 a_v = 1.3 * 10**-7
 b_v = 1.0 * 10**-6
 
@@ -19,18 +20,33 @@ cmap_light = ListedColormap(['#FF7777', '#77FF77', '#7777FF'])
 
 
 def time_v(C, I):
+    """
+    Feed time of "vanilla"
+    """
     return a_v * C * I + b_v * C
 
 
 def time_c(C, I):
+    """
+    Feed time of "cpu"
+    """
     return (a_c * C + c_c) * I + (b_c1 + b_c2 * C) * C
 
 
 def time_g(C, I):
+    """
+    Feed time of "cuda"
+    """
     return c_g * I + (b_g1 + b_g2 * C) * C
 
 
 def evaluate(ravel):
+    """
+    Meshgrid evaluation with:
+    * 0 --> "vanilla" is best
+    * 1 --> "cpu" is best
+    * 2 --> "cuda" is best
+    """
     Z = np.zeros(ravel.shape[0])
     for i, (C, I) in enumerate(ravel):
         TV, TC, TG = time_v(C, I), time_c(C, I), time_g(C, I)
