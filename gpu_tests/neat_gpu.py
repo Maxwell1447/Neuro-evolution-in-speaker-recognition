@@ -21,6 +21,22 @@ POPULATION = 100
 
 
 def fully_connect(genome, n_hidden, config, recurrent=True):
+    """
+    Fully connects the nodes of a genome, allowing recurrency.
+    
+    I = Input nodes
+    H = Hidden nodes
+    O = Output nodes
+    
+    I -> H
+    I -> O
+    H -> H
+    H -> O
+    O -> H
+    O -> O
+    """
+    
+    # Create hidden nodes
     for key_node in range(2, n_hidden + 2):
         genome.nodes[key_node] = genome.create_node(config.genome_config, key_node)
 
@@ -37,6 +53,10 @@ def fully_connect(genome, n_hidden, config, recurrent=True):
 
 
 def dropout(genome, num_drop):
+    """
+    Drops num_drop connection (to create sparse connections)
+    """
+    
     drop_keys = random.sample(list(genome.connections), num_drop)
     for key in drop_keys:
         del genome.connections[key]
@@ -45,15 +65,26 @@ def dropout(genome, num_drop):
 
 
 def eval_genomes(population, conf):
+    """
+    Evaluate all the genomes of the population.
+    Note: The evaluation just feeds the nets with the input sequence, there is no fitness calculation here.
+    """
     for (_, g) in population:
         eval_genome(g, conf)
 
 
 def eval_genome(g, conf):
+    """
+    Evaluate a single genome (just feed, no fitness calculation)
+    """
     test_performance(g, conf, input_size=None, verbose=False)
 
 
 def test_performance(g, conf, input_size=None, verbose=True):
+    """
+    Feed a phenotype describe by conf.device
+    conf.device can be "vanilla", "cpu" or "cuda"
+    """
     if input_size is None:
         input_size = conf.input_size
     if verbose:
@@ -120,6 +151,9 @@ def create_genome(conf, key):
 
 
 def create_population(conf, verbose=False):
+    """
+    Creates a population of genomes.
+    """
     if verbose:
         print("number of connections: ", int((N_HIDDEN + 3) * (N_HIDDEN + 1) * (1 - DROPOUT)))
     population = {}
@@ -151,7 +185,7 @@ if __name__ == '__main__':
     devices = ["vanilla", "cpu", "cuda"]
     df = pd.DataFrame(columns=["N", "D", "I", "P", "device", "M", "S"])
     df.to_csv("time_stats_local.csv")
-    prod = product(N, D, I, P, devices)
+    prod = product(N, D, I, P, devices) # list of every possible combination (cartesian product)
     for (n, d, i, p, device) in tqdm(prod, total=len(N)*len(D)*len(I)*len(P)*len(devices)):
 
         N_HIDDEN = n
