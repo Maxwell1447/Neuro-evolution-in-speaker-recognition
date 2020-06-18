@@ -281,6 +281,6 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats, acc = run(config_path, 10000, trainloader_)
+    winner, config, stats, acc = run(config_path, 1000, trainloader_)
 
     make_visualize(winner, config, stats)

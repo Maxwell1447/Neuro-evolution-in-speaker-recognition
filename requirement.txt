@@ -1,0 +1,17 @@
+torch===1.5.0
+torchvision===0.6.0
+neat-python==0.92
+numpy==1.18.2
+scipy==1.4.1
+matplotlib==3.2.1
+tensorboard==1.15.0
+scikit-learn==0.23.1
+seaborn==0.10.1
+opencv-python==4.2.0.32
+Pillow==7.0.0
+gym==0.17.1
+SoundFile==0.10.3.post1
+pandas==1.0.3
+tqdm==4.44.0
+graphviz==0.13.2
+optuna==1.5.0

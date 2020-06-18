@@ -114,7 +114,7 @@ def eval_genome(g, c, batch, acc=False):
 
     cnn = MNISTCNNClassical(cppn, device).to(device)
 
-    # print("offset =", cnn.l1.offset)zqsdqszdqqzzzzz
+    # print("offset =", cnn.l1.offset)
 
     out = cnn(batch[0])
 
@@ -178,25 +178,25 @@ def objective(trial):
                          config_path)
 
     conn_add_prob = trial.suggest_uniform("conn_add_prob", 0.01, 0.2)  # 0.01, 0.2
-    # conn_delete_prob = trial.suggest_uniform("conn_delete_prob", 0.005, 0.1)  # 0.005, 0.1
-    #
-    # node_add_prob = trial.suggest_uniform("node_add_prob", 0.001, 0.2)  # 0.001, 0.2
-    # node_delete_prob = trial.suggest_uniform("node_delete_prob", 0.001, 0.1)  # 0.001, 0.1
-    #
-    # bias_mutate_power = trial.suggest_uniform("bias_mutate_power", 0.01, 1.)  # 0.01, 1.
-    # weight_mutate_power = trial.suggest_uniform("weight_mutate_power", 0.01, 1.)  # 0.01, 1.
-    #
-    # compatibility_disjoint_coefficient = trial.suggest_uniform("compatibility_disjoint_coefficient", 0.8, 1.2)  # 0.8, 1.2
-    # compatibility_weight_coefficient = trial.suggest_uniform("compatibility_weight_coefficient", 0.3, 0.7)  # 0.3, 0.7
+    conn_delete_prob = trial.suggest_uniform("conn_delete_prob", 0.005, 0.1)  # 0.005, 0.1
 
-    conn_add_prob = 0.01
-    conn_delete_prob = 0.03
-    node_add_prob = 0.066
-    node_delete_prob = 0.05
-    bias_mutate_power = 0.6
-    weight_mutate_power = 0.5
-    compatibility_disjoint_coefficient = 1.15
-    compatibility_weight_coefficient = 0.5
+    node_add_prob = trial.suggest_uniform("node_add_prob", 0.001, 0.2)  # 0.001, 0.2
+    node_delete_prob = trial.suggest_uniform("node_delete_prob", 0.001, 0.1)  # 0.001, 0.1
+
+    bias_mutate_power = trial.suggest_uniform("bias_mutate_power", 0.01, 1.)  # 0.01, 1.
+    weight_mutate_power = trial.suggest_uniform("weight_mutate_power", 0.01, 1.)  # 0.01, 1.
+
+    compatibility_disjoint_coefficient = trial.suggest_uniform("compatibility_disjoint_coefficient", 0.8, 1.2)  # 0.8, 1.2
+    compatibility_weight_coefficient = trial.suggest_uniform("compatibility_weight_coefficient", 0.3, 0.7)  # 0.3, 0.7
+
+    # conn_add_prob = 0.01
+    # conn_delete_prob = 0.03
+    # node_add_prob = 0.066
+    # node_delete_prob = 0.05
+    # bias_mutate_power = 0.6
+    # weight_mutate_power = 0.5
+    # compatibility_disjoint_coefficient = 1.15
+    # compatibility_weight_coefficient = 0.5
 
     params = {"conn_add_prob": conn_add_prob,
               "conn_delete_prob": conn_delete_prob,
@@ -221,7 +221,7 @@ def objective(trial):
 if __name__ == "__main__":
 
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=100)
 
     df = study.trials_dataframe()
 

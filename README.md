@@ -1,18 +1,22 @@
 # Neuro evolution applied to speaker recognition
-This repository contains our work on neuro evolution applied to speaker recognition and antispoofing.
-We tested neuro evolution implemented in python, in pytorch, hyperneat implemented in pytorch to the following tasks:
-- Iris database
-- MNIST database
-- audio gender classification with the Libri speech database
-- Anti spoofing with the ASVspoof 2019 databse
+The goal of this project is to apply NEAT rather than usual deep learning models to speaker recognition and anti-spoofing 
+to tackle the inconveniences of a large pre-trained model on embedded systems.
+We used libraries available in python, [NEAT-Python](https://github.com/neat-python/neat-python) 
+and [Pytorch-NEAT](https://github.com/uber-research/PyTorch-NEAT),
+to deal with the following databases:
+- Iris
+- MNIST
+- audio gender classification with the Libri speech (helped with [this repository](https://github.com/oscarknagg/raw-audio-gender-classification))
+- Anti spoofing with the ASVspoof 2019
 
+Our goal was to understand the ability of NEAT and its variants to deal with classification tasks.
 
 ## Table of contents
 * [General info](#general-info)
 * [Setup](#setup)
-* [Aspect covered](#Aspect covered)
+* [Aspect covered](#aspect-covered)
 * [Status](#status)
-* [Inspiration](#inspiration)
+* [Inspiration](#references)
 * [Authors](#authors)
 
 ## General info
@@ -20,7 +24,8 @@ Neuroevolution, or neuro-evolution, uses evolutionary algorithms to generate art
 parameters, topology and rules. It can be contrasted with conventional deep learning techniques 
 that use gradient descent on a neural network with a fixed topology. 
 The neuroevolution algorithm that is used in this project is NEAT (Neuroevolution of Augmenting Topology), a popular method that aims 
-to give ANN of minimalistic sizes. 
+to give ANN of minimalistic sizes. For further information about NEAT and its algorithm, please consult the 
+[user's page](https://www.cs.ucf.edu/~kstanley/neat.html) associated.
 
 We are two students from EURECOM ( http://www.eurecom.fr/en ) both following the data science track.
 This repository contains our work from our project on Neuro evolution. 
@@ -31,14 +36,18 @@ the aspect treated, and how to run the code.
 
 ## Setup
 
+Run ```pip install -r requirement.txt``` to install the required packages.
 
-## Aspect covered
+To generate the graphics of the topologies of the genomes, you need to install [graphviz](https://www.graphviz.org/download/).
+Make sure that the directory containing the *dot* executable is on your systems’ path.
+
+## Aspects covered
 List of aspects covered:
-* NEAT in classification tasks (IRIS)
-* NEAT in audio gender classification tasks
-* GPU vs CPU in NEAT evaluation
-* CNN-HyperNEAT applied on MNIST
-* NEAT applied on anti-spoofing
+* [NEAT in classification tasks (IRIS)](iris)
+* [NEAT in audio gender classification tasks](raw_audio_gender_classification)
+* [GPU vs CPU in NEAT evaluation](gpu_tests)
+* [CNN-HyperNEAT applied on MNIST](hyperneat)
+* [NEAT applied on anti-spoofing](anti_spoofing)
 
 To-do list:
 * ES-HyperNEAT
@@ -46,25 +55,12 @@ To-do list:
 ## Status
 Project is currently in progress
 
-## Inspiration
-@misc{neat-python,
-    Title = {neat-python},
-    Author = {Alan McIntyre and Matt Kallada and Cesar G. Miguel and Carolina Feher da Silva},
-    howpublished = {\url{https://github.com/CodeReclaimers/neat-python }}   
-  }
-  
-@misc{PyTorch-NEAT,
-	Title = {PyTorch NEAT},
-    Author = {Alex Gajewsky},
-    howpublished = {\url{https://github.com/uber-research/PyTorch-NEAT/ }}   
-  }
-  
-@misc{raw-audio-gender-classification,
-	Title = {raw-audio-gender-classification},
-    Author = {Oscar Knagg},
-    howpublished = {\url{https://github.com/oscarknagg/raw-audio-gender-classification }
-		    \url{https://medium.com/@oknagg/gender-classification-from-raw-audio-with-1d-convolutions-969c82e6b3d1 }}   
-  }
+## References
+
+[Valenti, Giacomo and  Delgado, Héctor and  Todisco, Massimiliano and  Evans, Nicholas and  Pilati, Laurent, 
+(2018),
+*An end-to-end spoofing countermeasure for automatic speaker verification using evolving recurrent neural networks*
+](http://www.eurecom.fr/fr/publication/5523/detail/an-end-to-end-spoofing-countermeasure-for-automatic-speaker-verification-using-evolving-recurrent-neural-networks)
 
 ## Authors
 Created by Maxime BOUTHORS and Arnaud BARRAL

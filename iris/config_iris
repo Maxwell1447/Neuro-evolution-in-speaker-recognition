@@ -2,7 +2,7 @@
 
 [NEAT]
 fitness_criterion     = max
-fitness_threshold     = 0.
+fitness_threshold     = 0
 pop_size              = 400
 reset_on_extinction   = False
 
@@ -33,7 +33,7 @@ feed_forward            = True
 initial_connection      = full_direct
 
 # node add/remove rates
-node_add_prob           = 0.03
+node_add_prob           = 0.1
 node_delete_prob        = 0.03
 
 # network parameters

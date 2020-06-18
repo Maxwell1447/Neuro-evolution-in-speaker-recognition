@@ -96,6 +96,11 @@ def test_performance(g, conf, input_size=None, verbose=True):
 
 
 def create_genome(conf, key):
+    """
+    :param conf: config parameter
+    :param key: key uniquely identifying the genome
+    :return: the built genome according to parameters N_HIDDEN and DROPOUT
+    """
     # create genome
     genome = conf.genome_type(key)
     # initialize the genome with no connection, only input/output nodes

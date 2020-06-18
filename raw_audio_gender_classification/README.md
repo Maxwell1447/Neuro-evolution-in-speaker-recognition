@@ -1,3 +1,9 @@
+## /!\ 
+
+This is the original README file from 
+[this github repository](https://github.com/oscarknagg/raw-audio-gender-classification).
+To see the NEAT add-on README file, check [this sub-folder](neat).
+
 # raw-audio-gender-classification
 
 This project contains the code to train a gender classification model that takes raw audio as inputs.

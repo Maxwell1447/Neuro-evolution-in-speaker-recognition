@@ -5,11 +5,20 @@ neat-python-master
 .spyproject
 *.pyc
 *.log
+*/__pycache__/*
 neat_local/pytorch_neat/__pycache__/*
+neat_local/visualization/__pycache__/*
+raw_audio_gender_classification/neat/runs/
+hyperneat/TEST.py
+hyperneat/graph_hyperneat_test
+hyperneat/species_hyperneat_test1.png
+hyperneat/stats_hyperneat_test.png
+
 *.json
 raw-audio-gender-classification/data/LibriSpeech
 raw-audio-gender-classification/notebooks/.ipynb_checkpoints/
-
+raw_audio_gender_classification/neat/neat-checkpoint*
+raw_audio_gender_classification/models/*
 anti_spoofing/data/
 
 .pylint.d/
