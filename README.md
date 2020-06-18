@@ -24,7 +24,8 @@ Neuroevolution, or neuro-evolution, uses evolutionary algorithms to generate art
 parameters, topology and rules. It can be contrasted with conventional deep learning techniques 
 that use gradient descent on a neural network with a fixed topology. 
 The neuroevolution algorithm that is used in this project is NEAT (Neuroevolution of Augmenting Topology), a popular method that aims 
-to give ANN of minimalistic sizes. 
+to give ANN of minimalistic sizes. For further information about NEAT and its algorithm, please consult the 
+[user's page](https://www.cs.ucf.edu/~kstanley/neat.html) associated.
 
 We are two students from EURECOM ( http://www.eurecom.fr/en ) both following the data science track.
 This repository contains our work from our project on Neuro evolution. 
