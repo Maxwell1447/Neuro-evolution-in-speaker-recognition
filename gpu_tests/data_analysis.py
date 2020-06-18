@@ -13,6 +13,9 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 class GradientSolver(nn.Module):
+    """
+    Uses PyTorch autograd to optimize parameters.
+    """
     def __init__(self, specs):
         super().__init__()
         self.a = torch.nn.Parameter(torch.tensor(1e-2), requires_grad=True)
@@ -43,6 +46,9 @@ class GradientSolver(nn.Module):
 
 
 def optimize_params(df, device="vanilla", multiproc=False):
+    """
+    Tries to optimize the params I and N for a given trained model, and with fixed P and D values
+    """
     df = df.loc[df["P"] == 100]
     df = df.loc[df["D"] == 0.5]
     df = df.loc[df["device"] == device]
@@ -87,6 +93,9 @@ def optimize_params(df, device="vanilla", multiproc=False):
 
 
 def evaluate(xy, models):
+    """
+    Evaluate models given the xy meshgrid.
+    """
     Z = np.zeros(xy.shape[0], dtype=np.int32)
     for i, x in tqdm(enumerate(xy), total=len(Z)):
         res = []
@@ -101,6 +110,9 @@ def evaluate(xy, models):
 
 
 def evaluate_single(x, y, model):
+    """
+    Evaluate a model at the meshgrid given by x and y arrays.
+    """
     Z = np.zeros(len(x) * len(y), dtype=np.float32)
     for i, x in enumerate(product(x, y)):
         with torch.no_grad():
@@ -110,6 +122,9 @@ def evaluate_single(x, y, model):
 
 
 def plot_decision(df):
+    """
+    Plots the best device/proc w.r.t. I, N
+    """
     devices = ["vanilla", "cpu", "cuda"]
     procs = ["S", "M"]
 
@@ -171,10 +186,20 @@ def plot_decision(df):
 
 
 def load_data():
+    """
+    loads the data produced by neat_gpu.py
+    """
     return pd.read_csv("time_stats_local.csv")
 
 
 def plot_3D(df, device=("vanilla",), fixed_values=None, proc=("M", "S"), show_model=False):
+    """
+    Fixing P and D, plots the execution time w.r.t. I and N, for each couple of device/proc
+    
+    - device can be "vanilla", "cpu" or "cuda"
+    - proc can be "M" or "S" standing for "Multiprocessing" and "Simple processing" respectively.
+    """
+    
     if fixed_values is None:
         fixed_values = {"P": 100, "D": 0.5}
     fig = plt.figure()
@@ -216,6 +241,10 @@ def plot_3D(df, device=("vanilla",), fixed_values=None, proc=("M", "S"), show_mo
 
 
 def plot_marginal(df, feature, other_features, device="vanilla"):
+    """
+    Plot the execution time w.r.t. a given feature, marginalized over the other features
+    """
+    
     # feature = "N"
 
     for f in other_features:
