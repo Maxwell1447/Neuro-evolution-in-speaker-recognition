@@ -4,26 +4,27 @@ import neat
 import numpy as np
 import random as rd
 import multiprocessing
-
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils import whiten, gate_activation, evaluate, make_visualize
+from anti_spoofing.utils import whiten, gate_activation, evaluate_acc_eer, make_visualize
 
 
 """
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 2538
-nb_samples_test = 700
+nb_samples_train = 2538  # number of audio files used for training
+nb_samples_test = 700  # number of audio files used for testing
 
-batch_size = 10  # choose an even number
+batch_size = 10  # size of the batch used for training, choose an even number
 
-n_processes = multiprocessing.cpu_count()
-n_generation = 300
+n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+n_generation = 300  # number of generations
 
+# boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
+# for testing
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 for i in range(len(dev_border)-1):
@@ -36,6 +37,18 @@ test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_t
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
     def __init__(self, num_workers, eval_function, batch_size, data, timeout=None):
+        """
+        :param num_workers: int
+        number of workers to use for evaluating the fitness
+        :param eval_function: function
+        function to be used to calculate fitness
+        :param batch_size: int
+        size of the batch used for training, choose an even number
+        :param data: ASVDatasetshort
+        training data
+        :param timeout: int
+        how long (in seconds) each subprocess will be given before an exception is raised (unlimited if None).
+        """
         super().__init__(num_workers, eval_function, timeout)
         self.data = data
         self.current_batch = []  # contains current batch of audio files
@@ -48,6 +61,13 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.spoofed_index = 0
 
     def evaluate(self, genomes, config):
+        """
+        Assigns workers to the genomes that will return fitness before assigning it.
+        :param genomes: list
+        list of all the genomes to get evaluated
+        :param config: file
+        configuration file
+        """
         jobs = []
         self.next()
         batch_data = self.current_batch
@@ -59,6 +79,9 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             genome.fitness = job.get(timeout=self.timeout)
 
     def next(self):
+        """
+        change the current_batch attribute of the class to the next batch
+        """
         self.current_batch = []
 
         # adding bona fida index for training
@@ -90,7 +113,6 @@ def eval_genomes(genomes, config_, batch_data):
     :param genomes: list of all the genomes to get evaluated
     :param batch_data: data to use to evaluate the genomes
     """
-
     for _, genome in tqdm(genomes):
         net = neat.nn.RecurrentNet.create(genome, config_)
         mse = 0
@@ -110,10 +132,14 @@ def eval_genomes(genomes, config_, batch_data):
 
 def eval_genome(genome, config, batch_data):
     """
-    Used for multi processing
+    Most important part of NEAT since it is here that we adapt NEAT to our problem.
+    We tell what is the phenotype of a genome and how to calculate its fitness
+    (same idea than a loss)
     :param config: config from the config file
-    :param genome: one genome
+    :param genome: one genome to get evaluated
     :param batch_data: data to use to evaluate the genomes
+    :return fitness: returns the fitness of the genome
+    this version is intented to use ParallelEvaluator and should be much faster
     """
     net = neat.nn.RecurrentNetwork.create(genome, config)
     mse = 0
@@ -163,17 +189,15 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    train_bonafide_rejected, train_accuracy, train_eer = evaluate(winner_net, train_loader)
-    bonafide_rejected, accuracy, eer = evaluate(winner_net, test_loader)
+    train_accuracy, train_eer = evaluate_acc_eer(winner_net, train_loader)
+    accuracy, eer = evaluate_acc_eer(winner_net, test_loader)
 
     print("\n")
-    print("**** accuracy = {}  ****".format(train_accuracy))
-    print("**** number of bone fide rejected = {}  ****".format(train_bonafide_rejected))
-    print("**** equal error rate = {}  ****".format(train_eer))
+    print("**** training accuracy = {}  ****".format(train_accuracy))
+    print("**** training equal error rate = {}  ****".format(train_eer))
 
     print("\n")
     print("**** accuracy = {}  ****".format(accuracy))
-    print("**** number of bone fide rejected = {}  ****".format(bonafide_rejected))
     print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_
