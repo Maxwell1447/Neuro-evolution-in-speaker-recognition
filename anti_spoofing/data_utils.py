@@ -16,19 +16,46 @@ from torch.utils.data import Dataset
 import numpy as np
 import platform
 
+# tells us if one is using a linux or a windows machine
 current_os = platform.system()
 
+# the audio files should be located in anti_spoofing/data, change this parameter according to your needs
 DATA_ROOT = 'data'
 
 ASVFile = collections.namedtuple('ASVFile',
     ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
 
 class ASVDataset(Dataset):
-    """ Utility class to load  train/dev datatsets """
+    """
+    Utility class to load  train/dev/eval data set
+    """
     def __init__(self, length, nb_samples=10000,
         is_train=True, sample_size=None,
         is_logical=True, is_eval=False,
-        save_cache=False, index_list = None):
+        save_cache=False, index_list=None):
+        """
+        :param length: int
+        Length of the audio files in number of elements in a numpy array format. It will set
+        the audio files to the correspond length by removing the end or adding duplicate parts of the file.
+        If set to None, it will return the audio files without changing their length.
+        :param nb_samples: int
+        Number of files to use.
+        :param is_train: bool
+        If True, will use the files from the train folder.
+        :param sample_size: int
+        Number of files to use. Difference between this one and nb_samples, is that, nb_samples will only load the
+        correct number of files required, whereas sample_size will load all files from the folder considered and then
+        randomly choose which files to keep.
+        :param is_logical: bool
+        If True, will use the logical folder, if False the physical one.
+        :param is_eval: bool
+        If True, will use the files from the eval folder.
+        If is_train and is_eval are False, will use the files of the dev folder.
+        :param save_cache: bool
+        If True, will save the cache with torch.
+        :param index_list: list
+        If set to a non empty list, will only use the audio files whose index is in the list
+        """
         data_root = DATA_ROOT
         if is_logical:
             track = 'LA'

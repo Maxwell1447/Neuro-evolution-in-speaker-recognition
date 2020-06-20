@@ -10,7 +10,6 @@ from tqdm import tqdm
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
 from anti_spoofing.utils import whiten, gate_activation, evaluate, make_visualize
-from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
 """
@@ -86,8 +85,10 @@ def eval_genomes(genomes, config_, batch_data):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
     We tell what is the phenotype of a genome and how to calculate its fitness (same idea than a loss)
+    Used for single processing
     :param config_: config from the config file
     :param genomes: list of all the genomes to get evaluated
+    :param batch_data: data to use to evaluate the genomes
     """
 
     for _, genome in tqdm(genomes):
@@ -107,8 +108,14 @@ def eval_genomes(genomes, config_, batch_data):
         genome.fitness = 1 / (1 + mse)
 
 
-def eval_genome(g, config, batch_data):
-    net = neat.nn.RecurrentNetwork.create(g, config)
+def eval_genome(genome, config, batch_data):
+    """
+    Used for multi processing
+    :param config: config from the config file
+    :param genome: one genome
+    :param batch_data: data to use to evaluate the genomes
+    """
+    net = neat.nn.RecurrentNetwork.create(genome, config)
     mse = 0
     for data in batch_data:
         inputs, output = data[0], data[1]
@@ -122,39 +129,6 @@ def eval_genome(g, config, batch_data):
             xo = np.sum(selected_score) / selected_score.size
         mse += (xo - output) ** 2
     return 1 / (1 + mse)
-
-
-def evaluate(net, data_loader):
-    correct = 0
-    total = 0
-    net.reset()
-    target_scores = []
-    non_target_scores = []
-    for data in tqdm(data_loader):
-        inputs, output = data[0], data[1]
-        inputs = whiten(inputs)
-        mask, score = gate_activation(net, inputs)
-        selected_score = score[mask]
-        if selected_score.size == 0:
-            xo = 0.5
-        else:
-            xo = np.sum(selected_score) / selected_score.size
-        total += 1
-        correct += ((xo > 0.5) == output)
-        if output == 1:
-            target_scores.append(xo)
-        else:
-            non_target_scores.append(xo)
-
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    rejected_bonefide = (target_scores <= .5).sum()
-
-    return rejected_bonefide, float(correct) / total, eer
 
 
 def run(config_file, n_gen):

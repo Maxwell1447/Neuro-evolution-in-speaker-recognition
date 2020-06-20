@@ -59,10 +59,10 @@ def run(config_file, n_gen):
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 ```
 
-## Features
+## Files
 
 * Python files for running neat are named like the following:
-    * main_\[ dataset ]\_[ fitness function ]\_([ use of tensor ]).py
+    * main_\[ dataset for training ]\_[ fitness function ]\_([ use of tensor ]).py
      
      * For example: main_toy_data_set_mse_tensor means that
         * The dataset used is the toy dataset
@@ -77,8 +77,8 @@ def run(config_file, n_gen):
     *  Inside the main files, you can find: 
         * run function 
         * eval genome(s) for computing the fitness
-            * eval genome is used for single processing
-            * eval genomes is used for multi processing
+            * eval_genome is used for single processing
+            * eval_genomes is used for multi processing
      
 * utils.py contains auxiliary code to normalize audio files, use gates, ...
 
