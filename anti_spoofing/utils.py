@@ -5,6 +5,9 @@ import neat_local.visualization.visualize as visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
+SAMPLING_RATE = 16000
+
+
 def whiten(input):
     """
     normalize the input (expectancy is equal to 0, standard deviation to 1)
@@ -49,6 +52,21 @@ def gate_activation(recurrent_net, input):
     return mask, score
 
 
+def gate_activation_tensor(recurrent_net, input):
+    """
+    compute mask and the scores for a given input (audio file)
+    the mask tells if the corresponding score should be taken into account
+    :param recurrent_net: network
+    :param input: one audio file in a tensor format
+    :return mask, score
+    """
+    score, select = np.zeros(len(input)), np.zeros(len(input))
+    for (i, xi) in enumerate(input):
+        select[i], score[i] = recurrent_net.activate([xi.item()])
+    mask = (select > 0.5)
+    return mask, score
+
+
 def evaluate(net, data_loader):
     """
     compute the eer equal error rate
@@ -80,6 +98,42 @@ def evaluate(net, data_loader):
     eer = rocch2eer(pmiss, pfa)
 
     return eer
+
+
+def evaluate_acc_eer(net, data_loader):
+    """
+    compute the eer equal error rate and the accuracy
+    :param net: network
+    :param data_loader: test dataset, contains audio files in a numpy array format
+    :return eer and accuracy
+    """
+    correct = 0
+    total = 0
+    net.reset()
+    target_scores = []
+    non_target_scores = []
+    for data in tqdm(data_loader):
+        inputs, output = data[0], data[1]
+        mask, score = gate_activation(net, inputs)
+        selected_score = score[mask]
+        if selected_score.size == 0:
+            xo = 0.5
+        else:
+            xo = np.sum(selected_score) / selected_score.size
+        total += 1
+        correct += ((xo > 0.5) == output)
+        if output == 1:
+            target_scores.append(xo)
+        else:
+            non_target_scores.append(xo)
+
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+
+    return float(correct) / total, eer
 
 
 def make_visualize(winner_, config_, stats_):

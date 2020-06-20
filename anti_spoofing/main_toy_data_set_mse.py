@@ -1,32 +1,26 @@
 from __future__ import print_function
 import os
 import neat
-import neat_local.visualization.visualize as visualize
 import numpy as np
-
+import multiprocessing
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.utils import make_visualize
-import multiprocessing
-
-
 
 
 """
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 10
-nb_samples_test = 10
+nb_samples_train = 10  # number of audio files used for training
+nb_samples_test = 10  # number of audio files used for testing
 
-n_seconds = 3
-SAMPLING_RATE = 16000
-index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
+index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]  # index of audio files to use for training
 
-n_processes = multiprocessing.cpu_count()
-n_generation = 100
+n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+n_generation = 2  # number of generations
 
 train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train)
 test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
@@ -71,8 +65,7 @@ def eval_genomes(genomes, config_):
 
     for _, genome in tqdm(genomes):
         net = neat.nn.RecurrentNetwork.create(genome, config_)
-        target_scores = []
-        non_target_scores = []
+        mse = 0
         for data in trainloader:
             inputs, output = data[0], data[1]
             net.reset()
@@ -82,33 +75,19 @@ def eval_genomes(genomes, config_):
                 xo = 0.5
             else:
                 xo = np.sum(selected_score) / selected_score.size
-            if output == 1:
-                target_scores.append(xo)
-            else:
-                non_target_scores.append(xo)
-
-        target_scores = np.array(target_scores)
-        non_target_scores = np.array(non_target_scores)
-        
-        pmiss, pfa = rocch(target_scores, non_target_scores)
-        eer = rocch2eer(pmiss, pfa)
-        genome.fitness = 2 * (.5 - eer)
-        
+            mse += (xo - output)**2
+        genome.fitness = 1 / (1 + mse)
         
 
 def eval_genome(genome, config_):
     """
-    Most important part of NEAT since it is here that we adapt NEAT to our problem.
-    We tell what is the phenotype of a genome and how to calculate its fitness 
-    (same idea than a loss)
+    Used for multi processing
     :param config_: config from the config file
-    :param genomes: list of all the genomes to get evaluated
+    :param genome: one genome to get evaluated
     this version is intented to use ParallelEvaluator and should be much faster
     """
-    
     net = neat.nn.RecurrentNetwork.create(genome, config_)
-    target_scores = []
-    non_target_scores = []
+    mse = 0
     for data in trainloader:
         inputs, output = data[0], data[1]
         net.reset()
@@ -118,18 +97,8 @@ def eval_genome(genome, config_):
             xo = 0.5
         else:
             xo = np.sum(selected_score) / selected_score.size
-        if output == 1:
-            target_scores.append(xo)
-        else:
-            non_target_scores.append(xo)
-            
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    return 2 * (.5 - eer)
+        mse += (xo - output)**2
+    return 1 / (1 + mse)
         
 
 def evaluate(net, data_loader):

@@ -26,7 +26,9 @@ ASVFile = collections.namedtuple('ASVFile',
     ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
 
 class ASVDataset_stats(Dataset):
-    """ Utility class to load  train/dev datatsets """
+    """
+    Utility class to load length and type of audio files of the train/dev/eval data set
+    """
     def __init__(self, transform=None,
         is_train=True, is_logical=True, is_eval=False):
         data_root = DATA_ROOT

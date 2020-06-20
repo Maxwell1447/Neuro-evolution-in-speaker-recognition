@@ -1,65 +1,46 @@
 from __future__ import print_function
-import torch
 import os
+import torch
 import neat
-import neat_local.visualization.visualize as visualize
 import numpy as np
-
+import multiprocessing
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
-from anti_spoofing.utils import make_visualize
-from neat_local.nn import RecurrentNet
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-
-
+from anti_spoofing.utils import make_visualize, gate_activation_tensor
 
 
 """
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 10
-nb_samples_test = 10
+nb_samples_train = 10  # number of audio files used for training
+nb_samples_test = 10  # number of audio files used for testing
 
-n_seconds = 3
-SAMPLING_RATE = 16000
-downsampling = 1
-index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]
+index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]  # index of audio files to use for training
 
-n_processes = 8
-batch_size = 1
-n_generation = 1
+n_processes = 8  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+n_generation = 300  # number of generations
 
-
-train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train,  nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_train,  nb_samples=nb_samples_train)
+train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train,
+                          nb_samples=nb_samples_train)
+test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_train)
 
 
 trainloader = []
 for data in train_loader:
     inputs, output = data[0], data[1]
-    inputs = whiten(torch.tensor(inputs.reshape((1,-1))))
+    inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
     trainloader.append((inputs, output))
     
 testloader = []
 for data in test_loader:
     inputs, output = data[0], data[1]
-    inputs = whiten(torch.tensor(inputs.reshape((1,-1))))
+    inputs = whiten(torch.tensor(inputs.reshape((1, -1))))
     testloader.append((inputs, output))
 
-
-def gate_activation(recurrent_net, inputs):
-    score, select = torch.zeros(len(inputs)), torch.zeros(len(inputs))
-    for (i, xi) in enumerate(inputs):
-        out = recurrent_net.activate(xi.view(1, 1))
-        select[i], score[i] = out.view(2)
-    score, select = score.numpy(), select.numpy()
-    mask = (select > 0.5)
-    return mask, score
-
-        
 
 def eval_genomes(genomes, config_):
     """
@@ -68,15 +49,13 @@ def eval_genomes(genomes, config_):
     :param config_: config from the config file
     :param genomes: list of all the genomes to get evaluated
     """
-    
-  
     for _, genome in tqdm(genomes):
-        net = RecurrentNet.create(genome, config_, device="cpu")
+        net = neat.nn.RecurrentNetwork.create(genome, config_)
         mse = 0
         for data in trainloader:
             inputs, output = data[0], data[1]
             net.reset()
-            mask, score = gate_activation(net, inputs[0])
+            mask, score = gate_activation_tensor(net, inputs[0])
             selected_score = score[mask]
             if selected_score.size == 0:
                 xo = 0.5
@@ -85,7 +64,6 @@ def eval_genomes(genomes, config_):
             mse += (xo - output)**2
         genome.fitness = 1 / (1 + mse)
         
-        
 
 def eval_genome(genome, config_):
     """
@@ -93,17 +71,16 @@ def eval_genome(genome, config_):
     We tell what is the phenotype of a genome and how to calculate its fitness 
     (same idea than a loss)
     :param config_: config from the config file
-    :param genomes: list of all the genomes to get evaluated
+    :param genome: one genome to get evaluated
+    :return fitness: returns the fitness of the genome
     this version is intented to use ParallelEvaluator and should be much faster
     """
-    
-    
-    net = RecurrentNet.create(genome, config_, device="cpu")
+    net = neat.nn.RecurrentNetwork.create(genome, config_)
     mse = 0
     for data in trainloader:
         inputs, output = data[0], data[1]
         net.reset()
-        mask, score = gate_activation(net, inputs[0])
+        mask, score = gate_activation_tensor(net, inputs[0])
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
@@ -120,9 +97,9 @@ def evaluate(net, data_loader):
     net.reset()
     target_scores = []
     non_target_scores = []
-    for data in data_loader:
+    for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        mask, score = gate_activation(net, inputs[0])
+        mask, score = gate_activation_tensor(net, inputs[0])
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
@@ -140,8 +117,10 @@ def evaluate(net, data_loader):
     
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
+
+    rejected_bonefide = (target_scores <= .5).sum()
     
-    return float(correct)/total, eer
+    return rejected_bonefide, float(correct)/total, eer
 
 
 def run(config_file, n_gen):
@@ -180,19 +159,23 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    training_accuracy, training_eer = evaluate(winner_net, trainloader)
-    accuracy, eer = evaluate(winner_net, testloader)
+    train_bonafide_rejected, training_accuracy, training_eer = evaluate(winner_net, trainloader)
+    bonafide_rejected, accuracy, eer = evaluate(winner_net, testloader)
 
     print("**** training accuracy = {}  ****".format(training_accuracy))
+    print("**** number of bone fide rejected = {}  ****".format(bonafide_rejected))
     print("**** training equal error rate = {}  ****".format(training_eer))
+
+
+    print("\n")
     print("**** accuracy = {}  ****".format(accuracy))
+    print("**** number of bone fide rejected = {}  ****".format(bonafide_rejected))
     print("**** equal error rate = {}  ****".format(eer))
 
-    return winner_, config_, stats_, accuracy
+    return winner_, config_, stats_
 
 
 if __name__ == '__main__':
-    
 
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
@@ -200,5 +183,5 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    winner, config, stats, acc = run(config_path, n_generation)
+    winner, config, stats = run(config_path, n_generation)
     make_visualize(winner, config, stats)

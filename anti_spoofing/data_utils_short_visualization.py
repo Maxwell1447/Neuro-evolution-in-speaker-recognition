@@ -27,7 +27,9 @@ ASVFile = collections.namedtuple('ASVFile',
     ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
 
 class ASVDatasetshort_stats(Dataset):
-    """ Utility class to load  train/dev datatsets """
+    """
+    Utility class to load length and type of audio files of the train short data set
+    """
     def __init__(self, nb_samples=10000,
         sample_size=None,
         save_cache=False, index_list = None):
