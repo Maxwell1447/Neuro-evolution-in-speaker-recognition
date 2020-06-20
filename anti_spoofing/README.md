@@ -1,10 +1,10 @@
 # Anti spoofing
-This is the anti spoofing folder. Here are the scripts for running neat on the ASVspoof 2019 databse.
+This is the anti spoofing folder. Here are the scripts for running neat on the ASVspoof 2019 database.
 
 ## Table of contents
 * [General info](#general-info)
 * [Screenshots](#screenshots)
-* [Files](#files)
+* [Files description](#files-description)
 * [Note](#note)
 * [Future work](#future-work)
 
@@ -59,7 +59,7 @@ def run(config_file, n_gen):
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 ```
 
-## Files
+## Files description
 
 * Python files for running neat are named like the following:
     * main_\[ dataset for training ]\_[ fitness function ]\_([ use of tensor ]).py
