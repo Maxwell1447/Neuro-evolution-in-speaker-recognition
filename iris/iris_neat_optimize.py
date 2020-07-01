@@ -1,7 +1,8 @@
 from __future__ import print_function
+
+import multiprocessing
 import os
 import neat
-import neat_local.nn.feed_forward as feed_forward
 from sklearn import datasets
 import numpy as np
 import random
@@ -25,7 +26,25 @@ class NumGenReporter(neat.reporting.BaseReporter):
         self.fail = False
 
     def end_generation(self, config, population, species_set):
+        print("-", end='')
         self.n += 1
+
+
+class IRISMultiEvaluator(neat.ParallelEvaluator):
+
+    def __init__(self, num_workers, eval_function, inputs, outputs):
+        super().__init__(num_workers, eval_function)
+        self.inputs = inputs
+        self.outputs = outputs
+
+    def evaluate(self, genomes, config):
+        jobs = []
+        for ignored_genome_id, genome in genomes:
+            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, self.inputs, self.outputs)))
+
+        # assign the fitness back to each genome
+        for job, (ignored_genome_id, genome) in zip(jobs, genomes):
+            genome.fitness = job.get(timeout=self.timeout)
 
 
 def load_iris(features, wrong_labelling=0):
@@ -75,13 +94,21 @@ def eval_genomes(genomes, config):
     :param config: config from the config file
     """
     for genome_id, genome in genomes:
-        genome.fitness = 30.
-        net = feed_forward.FeedForwardNetwork.create(genome, config)
-        for xi, xo in zip(inputs, outputs):
-            output = np.array(net.activate(xi))
-            # update the fitness of each individual:
-            # fitness = 30 - MSE_all_data
-            genome.fitness -= np.sum((output - xo) ** 2)
+        genome.fitness = eval_genome(genome, config, inputs, outputs)
+
+
+def eval_genome(genome, config, inputs, outputs):
+
+    fitness = 30.
+
+    net = neat.nn.FeedForwardNetwork.create(genome, config)
+    for xi, xo in zip(inputs, outputs):
+        output = np.array(net.activate(xi))
+        # update the fitness of each individual:
+        # fitness = 30 - MSE_all_data
+        fitness -= np.sum((output - xo) ** 2)
+
+    return fitness
 
 
 def run(config, n_gen=200, params=None):
@@ -103,8 +130,10 @@ def run(config, n_gen=200, params=None):
     num_gen_reporter = NumGenReporter()
     p.add_reporter(num_gen_reporter)
 
+    evaluator = IRISMultiEvaluator(multiprocessing.cpu_count(), eval_genome, inputs, outputs)
+
     # Run for up to n_gen generations.
-    winner = p.run(eval_genomes, n_gen)
+    winner = p.run(evaluator.evaluate, n_gen)
 
     if num_gen_reporter.fail:
         num_gen = n_gen + 1
@@ -123,20 +152,20 @@ def objective(trial):
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    conn_add_prob = trial.suggest_uniform("conn_add_prob", 0.001, 0.8)
-    conn_delete_prob = trial.suggest_uniform("conn_delete_prob", 0.001, 0.8)
+    conn_add_prob = trial.suggest_uniform("conn_add_prob", 0.001, 0.6)
+    conn_delete_prob = trial.suggest_uniform("conn_delete_prob", 0.001, 0.6)
 
-    node_add_prob = trial.suggest_uniform("node_add_prob", 0.001, 0.8)
-    node_delete_prob = trial.suggest_uniform("node_delete_prob", 0.001, 0.8)
+    node_add_prob = trial.suggest_uniform("node_add_prob", 0.001, 0.6)
+    node_delete_prob = trial.suggest_uniform("node_delete_prob", 0.001, 0.6)
 
     bias_mutate_power = trial.suggest_loguniform("bias_mutate_power", 0.001, 10.)  # 0.01, 1.
     weight_mutate_power = trial.suggest_loguniform("weight_mutate_power", 0.001, 10.)  # 0.01, 1.
 
-    compatibility_disjoint_coefficient = trial.suggest_uniform("compatibility_disjoint_coefficient", 0.2, 1.2)  # 0.8, 1.2
-    compatibility_weight_coefficient = trial.suggest_uniform("compatibility_weight_coefficient", 0.3, 1.)  # 0.3, 0.7
+    # compatibility_disjoint_coefficient = trial.suggest_uniform("compatibility_disjoint_coefficient", 0.5, 1.2)  # 0.8, 1.2
+    # compatibility_weight_coefficient = trial.suggest_uniform("compatibility_weight_coefficient", 0.3, 0.8)  # 0.3, 0.7
 
     single_structural_mutation = trial.suggest_categorical('single_structural_mutation', [True, False])
-    num_hidden = trial.suggest_int("num_hidden", 0, 5)
+    num_hidden = trial.suggest_int("num_hidden", 0, 0)
 
     # conn_add_prob = 0.01
     # conn_delete_prob = 0.03
@@ -144,8 +173,8 @@ def objective(trial):
     # node_delete_prob = 0.05
     # bias_mutate_power = 0.6
     # weight_mutate_power = 0.5
-    # compatibility_disjoint_coefficient = 1.15
-    # compatibility_weight_coefficient = 0.5
+    compatibility_disjoint_coefficient = 1.
+    compatibility_weight_coefficient = 0.5
 
     setattr(config, "pop_size", trial.suggest_int("pop_size", 20, 100))
 
@@ -162,6 +191,7 @@ def objective(trial):
               }
 
     winner, num_gen = run(config, params=params)
+    print()
 
     return num_gen
 
@@ -171,26 +201,25 @@ if __name__ == '__main__':
     features = [0, 2]         # features indices we choose to keep (subset of [0, 1, 2, 3])
     data, labels, names = load_iris(features, wrong_labelling=0)
     inputs, outputs = data["X_train"], data['y_train']
+
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config_iris')
 
-    # for general stats over several runs
-    # general_stats(25, config_path)
-
-    # for the result of just one run
     random.seed(0)
-    study = optuna.create_study()
-    study.optimize(objective, n_trials=1000)
 
-    df = study.trials_dataframe()
+    for i in range(20):
+        study = optuna.create_study()
+        study.optimize(objective, n_trials=10)
 
-    if os.path.isfile(os.path.join(local_dir, 'params_runs.csv')):
-        header = False
-        mode = 'a'
-    else:
-        header = True
-        mode = 'w'
-    df.to_csv("params_runs.csv", index=False, mode=mode, header=header)
+        df = study.trials_dataframe()
+
+        if os.path.isfile(os.path.join(local_dir, 'params_runs.csv')):
+            header = False
+            mode = 'a'
+        else:
+            header = True
+            mode = 'w'
+        df.to_csv("params_runs.csv", index=False, mode=mode, header=header)
