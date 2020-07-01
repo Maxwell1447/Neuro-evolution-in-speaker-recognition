@@ -101,16 +101,12 @@ class BasicRNN(nn.Module):
     def forward(self, x: torch.Tensor):
         x = x.float()
 
-        # xt = x.transpose(0, 1)
-        # print("x_t", xt.shape)
+        xt = x.transpose(0, 1).view(-1, self.batch_size, 1) # seq_len x batch_size x 1
 
         # Passing in the input and hidden state into the model and obtaining outputs
-        out, h_n = self.rnn(x.view(self.batch_size, -1, 1))
+        out, h_n = self.rnn(xt) # out: seq_len x batch_size x hidden_size
 
-        # Reshaping the outputs such that it can be fit into the fully connected layer
-        out = out.contiguous().view(-1, self.hidden_size)
-
-        out = torch.sigmoid(self.fc(out)).view(self.batch_size, -1, 2)
+        out = torch.sigmoid(self.fc(out)).transpose(0, 1)  # batch_size x seq_len x 2
 
         score = out[:, :, 1]
         selectivity = out[:, :, 0]

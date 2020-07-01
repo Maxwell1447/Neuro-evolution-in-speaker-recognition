@@ -18,7 +18,9 @@ device = torch.device("cuda")
 
 
 class SampleIterator(Iterator):
-
+    """
+    Iterator to access the batches with next(). It automatically shuffles the data when reaching the end.
+    """
     def __init__(self, data, batch_size=1):
         self.data = data
         self.batch_size = batch_size
@@ -45,7 +47,9 @@ class SampleIterator(Iterator):
 
 
 class MNISTParallelEvaluator(neat.ParallelEvaluator):
-
+    """
+    Parallel evaluator. Sometimes creates memory overflow...
+    """
     def __init__(self, num_workers, eval_function, data_iter, timeout=None):
         super().__init__(num_workers, eval_function, timeout)
         self.data_iter = data_iter
@@ -62,7 +66,9 @@ class MNISTParallelEvaluator(neat.ParallelEvaluator):
 
 
 class MNISTEvaluator:
-
+    """
+    Simple evaluator, to use when parallel evaluation creates memory overflow.
+    """
     def __init__(self, eval_function, data_iter):
         self.data_iter = data_iter
         self.eval_function = eval_function
@@ -80,7 +86,9 @@ class MNISTEvaluator:
 
 
 class AccuracyReporter(neat.reporting.BaseReporter):
-
+    """
+    Reporter that calculates the accuracy of the best genome at each generation.
+    """
     def __init__(self, evaluator):
         self.accuracy = []
         self.evaluator = evaluator
@@ -90,6 +98,9 @@ class AccuracyReporter(neat.reporting.BaseReporter):
 
 
 def load_MNIST(train=True, batch_size=10):
+    """
+    Loads MNIST and puts it in a SampleIterator.
+    """
     data = torchvision.datasets.MNIST('/TESTS/files/', train=train, download=True,
                                       transform=torchvision.transforms.Compose([
                                           torchvision.transforms.ToTensor(),
@@ -103,6 +114,17 @@ def load_MNIST(train=True, batch_size=10):
 
 
 def eval_genome(g, c, batch, acc=False):
+    """
+    Evaluation function that calculates the fitness.
+    
+    Step 1: create CPPN directly encoded by the genome
+    Step 2: create network (with fixed topology) encoded by the CPPN
+    Step 3: calculates the result of the feed forward
+    Step 4:
+        if acc is True: return accuracy
+        else: return fitness = 1/(1+MSE)
+    """
+    
     # cppn = create_cppn(
     #     g, c,
     #     ['k_x', 'k_y', 'x_out'],
@@ -131,7 +153,12 @@ def eval_genome(g, c, batch, acc=False):
 
 
 def run(c, num_gen=100, params=None, display=False):
+    """
+    Runs NEAT for num_gen generations
+    and with custom config parameters params.
+    """
 
+    # Manually sets some parameters with custom values
     if params is None:
         params = {}
     for p in params:
@@ -169,14 +196,19 @@ def run(c, num_gen=100, params=None, display=False):
 
 
 def objective(trial):
+    """
+    Function used in Optuma to optimize paramters. 
+    Returns the fitness of the best genome obtained for a trial with a given set of parameters.
+    """
 
+    # GET THE DEFAULT PARAMS
     local_dir = os.path.dirname(__file__)
-
     config_path = os.path.join(local_dir, 'mnist_neat.cfg')
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
+    # SET CUSTOM PARAMS RANDOMLY (indicating the range of a uniform distribution)
     conn_add_prob = trial.suggest_uniform("conn_add_prob", 0.01, 0.2)  # 0.01, 0.2
     conn_delete_prob = trial.suggest_uniform("conn_delete_prob", 0.005, 0.1)  # 0.005, 0.1
 
@@ -208,6 +240,7 @@ def objective(trial):
               "compatibility_weight_coefficient": compatibility_weight_coefficient
               }
 
+    # RUN NEAT WITH CUSTOM RANDOM PARAMS
     winner = run(config, num_gen=2500, params=params)
 
     data_iter = load_MNIST(train=True, batch_size=10)
@@ -220,9 +253,11 @@ def objective(trial):
 
 if __name__ == "__main__":
 
+    # RUN WITH n_trials TRIALS
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=100)
 
     df = study.trials_dataframe()
 
+    # STORE RESULTS IN A .CSV FILE
     df.to_csv("best_params_runs.csv", index=False)

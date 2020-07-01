@@ -1,31 +1,29 @@
 from __future__ import print_function
 import os
 import neat
-import neat_local.visualization.visualize as visualize
 import numpy as np
 import random as rd
 import multiprocessing
 
-from tqdm import tqdm
-
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.metrics_utils import rocch2eer, rocch
-
+from anti_spoofing.utils import whiten, gate_activation, evaluate, make_visualize
 
 
 """
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 2538
-nb_samples_test = 700
+nb_samples_train = 2538  # number of audio files used for training
+nb_samples_test = 700  # number of audio files used for testing
 
-batch_size = 100  # choose an even number
+batch_size = 100  # size of the batch used for training, choose an even number
 
-n_processes = multiprocessing.cpu_count()
-n_generation = 40
+n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+n_generation = 40  # number of generations
 
+# boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
+# for testing
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 for i in range(len(dev_border)-1):
@@ -38,6 +36,18 @@ test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_t
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
     def __init__(self, num_workers, eval_function, data, pop, batch_size=batch_size, timeout=None):
+        """
+        :param num_workers: int
+        number of workers to use for evaluating the fitness
+        :param eval_function: function
+        function to be used to calculate fitness
+        :param batch_size: int
+        size of the batch used for training, choose an even number
+        :param data: ASVDatasetshort
+        training data
+        :param timeout: int
+        how long (in seconds) each subprocess will be given before an exception is raised (unlimited if None).
+        """
         super().__init__(num_workers, eval_function, timeout)
         self.data = data
         self.current_batch = []  # contains current batch of audio files
@@ -51,8 +61,15 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.G = pop
         self.l_s_n = np.zeros((self.batch_size//2, self.G))
 
-
     def evaluate(self, genomes, config):
+        """
+        Assigns workers to the genomes that will return the false acceptance rate before computing it
+        the ease of classification fitness.
+        :param genomes: list
+        list of all the genomes to get evaluated
+        :param config: file
+        configuration file
+        """
         jobs = []
         self.next()
         batch_data = self.current_batch
@@ -61,8 +78,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         
         self.G = len(genomes)
         self.l_s_n = np.zeros((self.batch_size//2, self.G))
-        
-        
+
         pseudo_genome_id = 0
         # return ease of classification for each genome
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
@@ -73,7 +89,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         p_s = np.sum(self.l_s_n, axis=1).reshape(-1, 1) / self.G
         F = np.sum(self.l_s_n * (1 - p_s), axis=0) / np.sum(1 - p_s)
 
-
         pseudo_genome_id = 0
         # assign the fitness back to each genome
         for ignored_genome_id, genome in genomes:
@@ -81,6 +96,9 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             pseudo_genome_id += 1
 
     def next(self):
+        """
+        change the current_batch attribute of the class to the next batch
+        """
         self.current_batch = []
 
         # adding bona fida index for training
@@ -103,24 +121,18 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.current_batch = np.array(self.current_batch)
 
 
-def whiten(single_input):
-    whiten_input = single_input - single_input.mean()
-    var = np.sqrt((whiten_input**2).mean())
-    whiten_input *= 1 / var
-    return whiten_input
-
-
-def gate_activation(recurrent_net, inputs):
-    length = inputs.size
-    score, select = np.zeros(length), np.zeros(length)
-    for i in range(length):
-        select[i], score[i] = recurrent_net.activate([inputs[i]])
-    mask = (select > 0.5)
-    return mask, score
-
-
-def eval_genome(g, config, batch_data):
-    net = neat.nn.RecurrentNetwork.create(g, config)
+def eval_genome(genome, config, batch_data):
+    """
+    Most important part of NEAT since it is here that we adapt NEAT to our problem.
+    We tell what is the phenotype of a genome and how to calculate its fitness
+    (same idea than a loss)
+    :param config: config from the config file
+    :param genome: one genome to get evaluated
+    :param batch_data: data to use to evaluate the genomes
+    :return fitness: returns the fitness of the genome
+    this version is intented to use ParallelEvaluator and should be much faster
+    """
+    net = neat.nn.RecurrentNetwork.create(genome, config)
     target_scores = []
     non_target_scores = []
     l_s_n = np.zeros(batch_size // 2)
@@ -146,39 +158,6 @@ def eval_genome(g, config, batch_data):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
 
     return 1 - l_s_n
-
-
-def evaluate(net, data_loader):
-    correct = 0
-    total = 0
-    net.reset()
-    target_scores = []
-    non_target_scores = []
-    for data in tqdm(data_loader):
-        inputs, output = data[0], data[1]
-        inputs = whiten(inputs)
-        mask, score = gate_activation(net, inputs)
-        selected_score = score[mask]
-        if selected_score.size == 0:
-            xo = 0.5
-        else:
-            xo = np.sum(selected_score) / selected_score.size
-        total += 1
-        correct += ((xo > 0.5) == output)
-        if output == 1:
-            target_scores.append(xo)
-        else:
-            non_target_scores.append(xo)
-
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    rejected_bonafide = (target_scores <= .5).sum()
-
-    return rejected_bonafide, float(correct) / total, eer
 
 
 def run(config_file, n_gen):
@@ -213,40 +192,16 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    train_bonafide_rejected, train_accuracy, train_eer = evaluate(winner_net, train_loader)
-    bonafide_rejected, accuracy, eer = evaluate(winner_net, test_loader)
+    train_eer = evaluate(winner_net, train_loader)
+    eer = evaluate(winner_net, test_loader)
 
     print("\n")
-    print("**** accuracy = {}  ****".format(train_accuracy))
-    print("**** number of bone fide rejected = {}  ****".format(train_bonafide_rejected))
-    print("**** equal error rate = {}  ****".format(train_eer))
+    print("**** training equal error rate = {}  ****".format(train_eer))
 
     print("\n")
-    print("**** accuracy = {}  ****".format(accuracy))
-    print("**** number of bone fide rejected = {}  ****".format(bonafide_rejected))
     print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_
-
-
-def make_visualize(winner_, config_, stats_):
-    """
-    Plot and draw:
-        - the graph of the topology
-        - the fitness evolution over generations
-        - the speciation evolution over generations
-    :param winner_:
-    :param config_:
-    :param stats_:
-    :return:
-    """
-    winner_net = neat.nn.FeedForwardNetwork.create(winner_, config_)
-
-    node_names = {-1: "input", 1: "score", 0: "gate"}
-
-    visualize.plot_stats(stats_, ylog=False, view=True)
-    visualize.plot_species(stats_, view=True)
-    visualize.draw_net(config_, winner_, True, node_names=node_names)
 
 
 if __name__ == '__main__':

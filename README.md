@@ -14,9 +14,9 @@ Our goal was to understand the ability of NEAT and its variants to deal with cla
 ## Table of contents
 * [General info](#general-info)
 * [Setup](#setup)
-* [Aspect covered](#Aspect covered)
+* [Aspect covered](#aspect-covered)
 * [Status](#status)
-* [Inspiration](#inspiration)
+* [Inspiration](#references)
 * [Authors](#authors)
 
 ## General info
@@ -24,7 +24,8 @@ Neuroevolution, or neuro-evolution, uses evolutionary algorithms to generate art
 parameters, topology and rules. It can be contrasted with conventional deep learning techniques 
 that use gradient descent on a neural network with a fixed topology. 
 The neuroevolution algorithm that is used in this project is NEAT (Neuroevolution of Augmenting Topology), a popular method that aims 
-to give ANN of minimalistic sizes. 
+to give ANN of minimalistic sizes. For further information about NEAT and its algorithm, please consult the 
+[user's page](https://www.cs.ucf.edu/~kstanley/neat.html) associated.
 
 We are two students from EURECOM ( http://www.eurecom.fr/en ) both following the data science track.
 This repository contains our work from our project on Neuro evolution. 
@@ -40,7 +41,7 @@ Run ```pip install -r requirement.txt``` to install the required packages.
 To generate the graphics of the topologies of the genomes, you need to install [graphviz](https://www.graphviz.org/download/).
 Make sure that the directory containing the *dot* executable is on your systems’ path.
 
-## Aspect covered
+## Aspects covered
 List of aspects covered:
 * [NEAT in classification tasks (IRIS)](iris)
 * [NEAT in audio gender classification tasks](raw_audio_gender_classification)

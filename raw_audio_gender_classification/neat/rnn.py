@@ -30,6 +30,10 @@ batch_size = 15
 
 
 def load_data():
+    """
+    loads the data and puts it in PyTorch DataLoader.
+    Librispeech uses Index caching to access the data more rapidly.
+    """
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
 
@@ -40,6 +44,10 @@ def load_data():
 
 
 def get_partial_data(x, keep=200):
+    """
+    Keeps a subsample of the 3 seconds sequence.
+    To be used in test phase only.
+    """
     range_x = x.size(1)
     range_p = range_x - keep - 50
     n = random.randint(25, range_p)
@@ -50,7 +58,7 @@ if __name__ == '__main__':
 
     trainloader, testloader = load_data()
 
-    model = "GRU"
+    model = "LSTM"
 
     if model == "LSTM":
         rnn = LSTM(1, 300, batch_size, device="cpu")

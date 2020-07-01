@@ -41,6 +41,10 @@ pop_num = 0
 
 
 class GenderEvaluator(neat.parallel.ParallelEvaluator):
+    """
+    Allows parallel batch evaluation using an Iterator model with next().
+    The eval function itself is not defined here.
+    """
     def __init__(self, num_workers, eval_function, batch_num, data, timeout=None):
         super().__init__(num_workers, eval_function, timeout)
         self.batch_num = batch_num
@@ -67,6 +71,9 @@ class GenderEvaluator(neat.parallel.ParallelEvaluator):
 
 
 def preprocessor(batch, batchsize=batch_size):
+    """
+    Normalizes, then resamples the audio signal.
+    """
     batch = whiten(batch)
     batch = torch.from_numpy(
         resample(batch, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
@@ -75,6 +82,10 @@ def preprocessor(batch, batchsize=batch_size):
 
 
 def load_data():
+    """
+    Loads the train/test datasets and puts them in PyTorch dataloaders.
+    LibriSpeechDataset uses index caching to access more rapidly the data.
+    """
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
 
@@ -85,6 +96,9 @@ def load_data():
 
 
 def next_batch(conf=None):
+    """
+    trick using the config variable to contain the train dataloader
+    """
     global trainloader, batch_count
     try:
         if conf is not None:
@@ -96,6 +110,9 @@ def next_batch(conf=None):
 
 
 def final_activation(recurrent_net, inputs):
+    """
+    Returns the last activation of the recurrent net.
+    """
     xo = None
     for xi in inputs:
         xo = recurrent_net.activate([xi.item()])
@@ -103,6 +120,9 @@ def final_activation(recurrent_net, inputs):
 
 
 def gate_activation(recurrent_net, inputs):
+    """
+    Returns the average along the parts of the signal outputs selected by the gate.
+    """
     score, select = torch.zeros(len(inputs)), torch.zeros(len(inputs))
     for (i, xi) in enumerate(inputs):
         out = recurrent_net.activate(xi.view(1, 1))
@@ -115,7 +135,9 @@ def gate_activation(recurrent_net, inputs):
 def eval_genomes(genomes, config_):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
-    We tell what is the phenotype of a genome and how to calculate its fitness (same idea than a loss)
+    We tell what is the phenotype of a genome and how to calculate its fitness (same idea than a loss).
+    The fitness here is 1/(1+MSE).
+    
     :param config_: config from the config file
     :param genomes: list of all the genomes to get evaluated
     """
@@ -139,6 +161,9 @@ def eval_genomes(genomes, config_):
 
 
 def eval_genome(g, conf, batch):
+    """
+    Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
+    """
 
     inputs, outputs = batch
     inputs = preprocessor(inputs)
@@ -158,7 +183,9 @@ def eval_genome(g, conf, batch):
 
 
 def evaluate(net, data_loader):
-
+    """
+    Calculates the accuracy of the net.
+    """
     correct = 0
     total = 0
     net.reset()
@@ -182,6 +209,10 @@ def evaluate(net, data_loader):
 
 
 def get_partial_data(x, keep=200):
+    """
+    Trick to work with subsamples of the 3 seconds of fixed length.
+    Should be used to fasten the algo in test steps only.
+    """
     range_x = x.size(1)
     print("rangex", range_x)
 
