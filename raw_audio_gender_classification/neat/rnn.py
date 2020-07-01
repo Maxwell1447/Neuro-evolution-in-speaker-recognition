@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     trainloader, testloader = load_data()
 
-    model = "GRU"
+    model = "LSTM"
 
     if model == "LSTM":
         rnn = LSTM(1, 300, batch_size, device="cpu")
