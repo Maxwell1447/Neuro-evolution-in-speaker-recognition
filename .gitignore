@@ -21,6 +21,8 @@ raw_audio_gender_classification/neat/neat-checkpoint*
 raw_audio_gender_classification/models/*
 anti_spoofing/data/
 
+.ipynb_checkpoints
+
 .pylint.d/
 
 *.svg
