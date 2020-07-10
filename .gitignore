@@ -28,3 +28,5 @@ anti_spoofing/data/
 *.gv
 
 anti_spoofing/neat-checkpoint*
+
+*.wav

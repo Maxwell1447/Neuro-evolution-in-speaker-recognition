@@ -1,24 +1,32 @@
-from __future__ import print_function
 import os
 import neat
-import neat_local.visualization.visualize as visualize
 import numpy as np
 import random as rd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
+import webrtcvad
 
 from tqdm import tqdm
 
+from anti_spoofing.utils import SAMPLING_RATE
 from anti_spoofing.data_utils import ASVDataset
-from anti_spoofing.metrics_utils import rocch2eer, rocch
+from anti_spoofing.silence_detection import detect_speech
 
 path = "neat-checkpoint-39"
 
-
-n_processes = 6  # multiprocessing.cpu_count()
+nb_samples = 1
 
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 for i in range(len(dev_border) - 1):
-    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i + 1])], 1)
+    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i + 1])], nb_samples)
+
+vad = webrtcvad.Vad()
+vad.set_mode(1)
+frame_duration = 10  # ms
+frame = b'\x00\x00' * int(SAMPLING_RATE * frame_duration / 1000)
+print('Contains speech: %s' % (vad.is_speech(frame, SAMPLING_RATE)))
 
 test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
 
@@ -41,31 +49,16 @@ def gate_activation(recurrent_net, inputs):
 
 def evaluate(net, data_loader):
     net.reset()
-    target_scores = []
-    non_target_scores = []
     gates = []
+    scores = []
     for data in data_loader:
         inputs, output = data[0], data[1]
         inputs = whiten(inputs)
         mask, score = gate_activation(net, inputs)
-        selected_score = score[mask]
         gates.append(mask)
-        if selected_score.size == 0:
-            xo = 0.5
-        else:
-            xo = np.sum(selected_score) / selected_score.size
-        if output == 1:
-            target_scores.append(xo)
-        else:
-            non_target_scores.append(xo)
+        scores.append(score)
 
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    return np.array(gates), eer
+    return np.array(gates), np.array(scores)
 
 
 def run(config_file, path):
@@ -84,15 +77,18 @@ def run(config_file, path):
     p = neat.Checkpointer.restore_checkpoint(path)
 
     genomes = p.population
+    nb_genomes = len(genomes)
 
     gates = []
+    scores = []
 
     for genome_id in tqdm(genomes):
         net = neat.nn.RecurrentNetwork.create(genomes[genome_id], config_)
-        gate, eer = evaluate(net, test_loader)
+        gate, score = evaluate(net, test_loader)
         gates.append(gate)
+        scores.append(score)
 
-    return np.array(gates)
+    return np.array(gates), np.array(scores), nb_genomes
 
 
 if __name__ == '__main__':
@@ -101,4 +97,51 @@ if __name__ == '__main__':
     # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
-    gates = run(config_path, path)
+    gates, scores, nb_genomes = run(config_path, path)
+
+    audio_samples_using = []
+    score_audio_samples_using = []
+    speech_detection = []
+    speech_detection_time = []
+    for audio_sample in range(nb_samples * 7):
+        audio_samples_using.append(gates[0][audio_sample].astype('int'))
+        score_audio_samples_using.append(scores[0][audio_sample])
+
+        # sum gates dans scores over nb_genomes genomes
+        for genome in range(1, nb_genomes):
+            audio_samples_using[audio_sample] += gates[genome][audio_sample].astype('int')
+            score_audio_samples_using[audio_sample] += scores[genome][audio_sample]
+
+        # to smooth gates
+        audio_samples_using[audio_sample] = audio_samples_using[audio_sample] / nb_genomes
+        audio_samples_using[audio_sample] = savgol_filter(audio_samples_using[audio_sample], 201, 3)
+
+        # to smooth scores
+        score_audio_samples_using[audio_sample] = score_audio_samples_using[audio_sample] / nb_genomes
+        score_audio_samples_using[audio_sample] = savgol_filter(score_audio_samples_using[audio_sample], 201, 3)
+
+        # to retrieve detection of speech
+        raw_audio_sample = test_loader.__getitem__(audio_sample)
+        name = str(raw_audio_sample[2]) + ".wav"
+        silence, nb_frames, nb_elements = detect_speech(raw_audio_sample[0], name)
+        speech_detection.append(silence)
+        speech_detection_time.append((nb_frames, nb_elements))
+
+
+
+    sns.set(style="darkgrid")
+    for audio_sample in range(nb_samples * 7):
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+
+        # plot gates
+        ax1.plot(audio_samples_using[audio_sample], 'b', label="average gates")
+
+        # plot scores
+        ax2.plot(score_audio_samples_using[audio_sample], 'r', label="average scores")
+
+        # plot detection of speech
+        nb_frames, nb_elements = speech_detection_time[audio_sample]
+        t = np.linspace(0, nb_frames * nb_elements, nb_frames)
+        ax3.plot(t, speech_detection[audio_sample], 'g', label="speech detection")
+        fig.legend()
+        plt.show()

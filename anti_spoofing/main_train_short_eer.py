@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils import whiten, gate_activation, evaluate, make_visualize
+from anti_spoofing.utils import whiten, gate_activation, gate_average, make_visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
@@ -19,10 +19,10 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 700  # number of audio files used for testing
 
-batch_size = 10  # size of the batch used for training, choose an even number
+batch_size = 40  # size of the batch used for training, choose an even number
 
-n_processes = 6  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
-n_generation = 5  # number of generations
+n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+n_generation = 100  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
 # for testing
@@ -156,12 +156,17 @@ def eval_genome(genome, config, batch_data):
         inputs, output = data[0], data[1]
         inputs = whiten(inputs)
         net.reset()
-        mask, score = gate_activation(net, inputs)
+        """
+        score_weight, score = gate_activation(net, inputs)
         selected_score = score[mask]
+        selected_score = gate_activation(net, inputs)
         if selected_score.size == 0:
             xo = 0.5
         else:
             xo = np.sum(selected_score) / selected_score.size
+        """
+        selected_score = gate_average(net, inputs)
+        xo = np.sum(selected_score) / selected_score.size
         if output == 1:
             target_scores.append(xo)
         else:
@@ -195,7 +200,7 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=100))
+    p.add_reporter(neat.Checkpointer(generation_interval=100, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, batch_size, train_loader)
@@ -218,6 +223,41 @@ def run(config_file, n_gen):
     print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_
+
+
+def evaluate(net, data_loader):
+    correct = 0
+    total = 0
+    net.reset()
+    target_scores = []
+    non_target_scores = []
+    for data in tqdm(data_loader):
+        inputs, output = data[0], data[1]
+        """
+        score_weight, score = gate_activation(net, inputs)
+        selected_score = score[mask]
+        selected_score = gate_activation(net, inputs)
+        if selected_score.size == 0:
+            xo = 0.5
+        else:
+            xo = np.sum(selected_score) / selected_score.size
+        """
+        selected_score = gate_average(net, inputs)
+        xo = np.sum(selected_score) / selected_score.size
+        total += 1
+        correct += ((xo > 0.5) == output)
+        if output == 1:
+            target_scores.append(xo)
+        else:
+            non_target_scores.append(xo)
+
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+
+    return target_scores, non_target_scores, float(correct) / total, eer
 
 
 if __name__ == '__main__':
