@@ -203,9 +203,9 @@ def preprocess_function(s):
 
 class PreprocessedLibriSpeechDataset(torch.utils.data.Dataset):
 
-    def __init__(self, dataset: LibriSpeechDataset, option="mfcc", bins=24):
+    def __init__(self, dataset: LibriSpeechDataset):
         self.len = len(dataset)
-        self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, bins, dtype=torch.float32)
+        self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
 
         with Pool(multiprocessing.cpu_count()) as pool:
@@ -218,8 +218,6 @@ class PreprocessedLibriSpeechDataset(torch.utils.data.Dataset):
 
             for i, job in enumerate(jobs):
                 self.X[i] = job.get(timeout=None)
-
-            # pool.join()
 
     def __getitem__(self, index):
         return self.X[index], self.t[index]
