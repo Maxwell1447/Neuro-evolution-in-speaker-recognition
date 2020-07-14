@@ -62,6 +62,8 @@ class GenderEvaluator(neat.parallel.ParallelEvaluator):
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
             genome.fitness = job.get(timeout=self.timeout)
 
+        print("evaluation over")
+
     def next(self):
         if self.batch_count > self.batch_num:
             self.data_iter = iter(self.data)

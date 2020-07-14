@@ -1,2 +1,2 @@
 BINS = 24
-OPTION = "stft"
+OPTION = "mfcc"

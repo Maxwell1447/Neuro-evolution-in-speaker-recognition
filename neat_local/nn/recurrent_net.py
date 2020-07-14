@@ -120,7 +120,7 @@ class RecurrentNet:
     @staticmethod
     def create(genome, config, batch_size=1, activation=sigmoid_activation,
                prune_empty=False, use_current_activs=False, n_internal_steps=1,
-               device="cpu"):
+               device="cpu", dtype=torch.float64):
         from neat.graphs import required_for_output
 
         genome_config = config.genome_config
@@ -211,4 +211,5 @@ class RecurrentNet:
                             activation=activation,
                             use_current_activs=use_current_activs,
                             n_internal_steps=n_internal_steps,
-                            device=device)
+                            device=device,
+                            dtype=dtype)
