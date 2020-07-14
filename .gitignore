@@ -16,6 +16,7 @@ hyperneat/stats_hyperneat_test.png
 
 *.json
 raw-audio-gender-classification/data/LibriSpeech
+raw-audio-gender-classification/neat/data*
 raw-audio-gender-classification/notebooks/.ipynb_checkpoints/
 raw_audio_gender_classification/neat/neat-checkpoint*
 raw_audio_gender_classification/models/*
