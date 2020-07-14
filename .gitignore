@@ -9,6 +9,7 @@ neat-python-master
 neat_local/pytorch_neat/__pycache__/*
 neat_local/visualization/__pycache__/*
 raw_audio_gender_classification/neat/runs/
+raw_audio_gender_classification/neat/data/preprocessed/*
 hyperneat/TEST.py
 hyperneat/graph_hyperneat_test
 hyperneat/species_hyperneat_test1.png

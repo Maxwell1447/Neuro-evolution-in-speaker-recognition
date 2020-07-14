@@ -16,9 +16,10 @@ import torch.optim as optim
 from tqdm import tqdm
 
 from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RATE
-from raw_audio_gender_classification.data import LibriSpeechDataset
+from raw_audio_gender_classification.data import LibriSpeechDataset, PreprocessedLibriSpeechDataset
 from raw_audio_gender_classification.models import *
 from raw_audio_gender_classification.utils import whiten
+from raw_audio_gender_classification.neat.constants import BINS, OPTION
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
@@ -29,16 +30,35 @@ downsampling = 1
 batch_size = 15
 
 
-def load_data():
+def load_data(preprocessing=True):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
     """
+    option = OPTION
+
+    if os.path.exists("./data/preprocessed/train_{}".format(option)) and \
+            os.path.exists("./data/preprocessed/test_{}".format(option)):
+        train_loader = torch.load("./data/preprocessed/train_{}".format(option))
+        test_loader = torch.load("./data/preprocessed/test_{}".format(option))
+        return train_loader, test_loader
+
+    if not os.path.isdir('./data/preprocessed'):
+        local_dir = os.path.dirname(__file__)
+        os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
+
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
+    if preprocessing:
+        trainset = PreprocessedLibriSpeechDataset(trainset, bins=BINS, option=option)
+        testset = PreprocessedLibriSpeechDataset(testset, bins=BINS, option=option)
 
     train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=True, drop_last=True)
     test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True)
+
+    if preprocessing:
+        torch.save(train_loader, "./data/preprocessed/train_{}".format(option))
+        torch.save(test_loader, "./data/preprocessed/test_{}".format(option))
 
     return train_loader, test_loader
 
@@ -61,11 +81,11 @@ if __name__ == '__main__':
     model = "LSTM"
 
     if model == "LSTM":
-        rnn = LSTM(1, 300, batch_size, device="cpu")
+        rnn = LSTM(BINS, 300, batch_size, device="cpu")
     elif model == "RNN":
-        rnn = RNN(1, 300, batch_size, device="cpu")
+        rnn = RNN(BINS, 300, batch_size, device="cpu")
     elif model == "GRU":
-        rnn = GRU(1, 300, batch_size, device="cpu")
+        rnn = GRU(BINS, 300, batch_size, device="cpu")
     elif model == "ConvNet":
         rnn = ConvNet(64, 4)
         rnn.double().cuda()
@@ -98,19 +118,19 @@ if __name__ == '__main__':
 
             # get the inputs
             inputs, labels = data
-            inputs = whiten(inputs)
-            inputs = torch.from_numpy(
-                resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
-            ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
-            labels = labels.view(batch_size, 1)  # .cuda()
-            inputs = inputs.view(-1, 48000)  # .cuda()
-            inputs = get_partial_data(inputs, keep=1000)
+            # inputs = whiten(inputs)
+            # inputs = torch.from_numpy(
+            #     resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
+            # ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
+            # labels = labels.view(batch_size, 1)  # .cuda()
+            # inputs = inputs.view(-1, 48000)  # .cuda()
+            # inputs = get_partial_data(inputs, keep=1000)
 
             if model == "ConvNet":
                 inputs = inputs.view(batch_size, 1, -1).double()
                 labels = labels.cuda().double()
             else:
-                labels = labels.float()
+                labels = labels.float().reshape(-1, 1)
 
             # forward + backward + optimize
             outputs = rnn(inputs).view(batch_size, 1)
@@ -119,7 +139,7 @@ if __name__ == '__main__':
             optimizer.step()
             current_loss = loss.detach().item()
             train_running_loss += current_loss
-            writer.add_scalar('training loss - {}'.format(model), current_loss)
+            writer.add_scalar('training loss {} MFCC'.format(model), current_loss)
             train_acc += get_accuracy(outputs, labels)
 
         rnn.eval()

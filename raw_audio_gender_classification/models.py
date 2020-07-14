@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+from raw_audio_gender_classification.neat.constants import BINS
 
 
 class DilatedNet(nn.Module):
@@ -95,16 +96,15 @@ class BasicRNN(nn.Module):
         self.hidden_size = hidden_size
         self.device = torch.device(device)
         self.batch_size = batch_size
-        self.hx = torch.randn(1, batch_size, hidden_size, device=device)  # initialize hidden state
+        self.hx = torch.randn(BINS, batch_size, hidden_size, device=device)  # initialize hidden state
         self.fc = nn.Linear(self.hidden_size, 2)
 
     def forward(self, x: torch.Tensor):
-        x = x.float()
-
-        xt = x.transpose(0, 1).view(-1, self.batch_size, 1) # seq_len x batch_size x 1
+        x = x.float()  # batch_size x seq_len x bins
+        xt = x.transpose(0, 1)  # seq_len x batch_size x bins
 
         # Passing in the input and hidden state into the model and obtaining outputs
-        out, h_n = self.rnn(xt) # out: seq_len x batch_size x hidden_size
+        out, h_n = self.rnn(xt)  # out: seq_len x batch_size x hidden_size
 
         out = torch.sigmoid(self.fc(out)).transpose(0, 1)  # batch_size x seq_len x 2
 
@@ -119,17 +119,17 @@ class BasicRNN(nn.Module):
 
 class RNN(BasicRNN):
     def __init__(self, n_inputs, hidden_size, batch_size, device="cuda"):
-        super(RNN, self).__init__(hidden_size, batch_size, device="cuda")
+        super(RNN, self).__init__(hidden_size, batch_size, device=device)
         self.rnn = nn.RNN(input_size=n_inputs, hidden_size=self.hidden_size, batch_first=True)
 
 
 class LSTM(BasicRNN):
     def __init__(self, n_inputs, hidden_size, batch_size, device="cuda"):
-        super(LSTM, self).__init__(hidden_size, batch_size, device="cuda")
+        super(LSTM, self).__init__(hidden_size, batch_size, device=device)
         self.rnn = nn.LSTM(input_size=n_inputs, hidden_size=self.hidden_size, batch_first=True)
 
 
 class GRU(BasicRNN):
     def __init__(self, n_inputs, hidden_size, batch_size, device="cuda"):
-        super(GRU, self).__init__(hidden_size, batch_size, device="cuda")
+        super(GRU, self).__init__(hidden_size, batch_size, device=device)
         self.rnn = nn.GRU(input_size=n_inputs, hidden_size=self.hidden_size, batch_first=True)

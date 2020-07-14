@@ -7,6 +7,10 @@ import numpy as np
 import json
 import os
 import platform
+from preprocessing.preprocessing import preprocess
+import multiprocessing
+from multiprocessing import Pool
+from raw_audio_gender_classification.neat.constants import BINS, OPTION
 
 current_os = platform.system()
 
@@ -125,7 +129,7 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
                     subset_len += len([f for f in files if f.endswith('.flac')])
             else:
                 libri_path = '/speechmaterials/databases/LibriSpeech/{}/'.format(s)
-                print("******"+libri_path.format(s), os.path.isdir(libri_path.format(s)))
+                print("******" + libri_path.format(s), os.path.isdir(libri_path.format(s)))
 
                 for root, folders, files in os.walk(libri_path.format(s)):
                     subset_len += len([f for f in files if f.endswith('.flac')])
@@ -191,3 +195,34 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.n_files
+
+
+def preprocess_function(s):
+    return torch.from_numpy(preprocess(s, option=OPTION, bins=BINS, sr=16000))
+
+
+class PreprocessedLibriSpeechDataset(torch.utils.data.Dataset):
+
+    def __init__(self, dataset: LibriSpeechDataset, option="mfcc", bins=24):
+        self.len = len(dataset)
+        self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, bins, dtype=torch.float32)
+        self.t = torch.empty(self.len, dtype=torch.float32)
+
+        with Pool(multiprocessing.cpu_count()) as pool:
+            jobs = []
+
+            for i in tqdm(range(self.len)):
+                x, t = dataset[i]
+                jobs.append(pool.apply_async(preprocess_function, [x.astype(np.float32)]))
+                self.t[i] = float(t)
+
+            for i, job in enumerate(jobs):
+                self.X[i] = job.get(timeout=None)
+
+            # pool.join()
+
+    def __getitem__(self, index):
+        return self.X[index], self.t[index]
+
+    def __len__(self):
+        return self.len
