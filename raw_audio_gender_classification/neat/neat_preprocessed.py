@@ -17,6 +17,7 @@ from raw_audio_gender_classification.neat.rnn import load_data
 import neat
 from neat.reporting import BaseReporter
 from tqdm import tqdm
+from utils import smooth
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\Graphviz2.38\\bin"
 
@@ -28,7 +29,7 @@ training_set = ['train-clean-100']
 validation_set = 'dev-clean'
 n_seconds = 3
 downsampling = 1
-batch_size = 15
+batch_size = 50
 batch_num = 100
 
 pop_num = 0
@@ -40,6 +41,7 @@ class TestAccReporter(BaseReporter):
         self.test_set = test_set
         self.cpt = 0
         self.acc = []
+        self.complexity = []
 
     def start_generation(self, generation):
         pass
@@ -58,7 +60,11 @@ class TestAccReporter(BaseReporter):
             print()
             print(">> Test Accuracy: {:.2f}%".format(float(acc)/float(n)*100))
             print("------------------------")
-            self.acc.append(float(acc)/float(n)*100)
+            print()
+            self.acc.append(float(acc) / float(n) * 100)
+
+        connections = best_genome.connections
+        self.complexity.append(len(list(connections)))
 
     def post_reproduction(self, conf, population, species):
         pass
@@ -131,11 +137,19 @@ def run(config_file, n_gen, data):
     # p.add_reporter(neat.Checkpointer(1000))
 
     # Run for up to n_gen generations.
-    multi_evaluator = GenderEvaluator(multiprocessing.cpu_count(), eval_genome, batch_num, data)
+    multi_evaluator = GenderEvaluator(multiprocessing.cpu_count(), eval_genome, len(trainloader)-1, data)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     print("test accuracy every 100 generation:")
     print(test_acc_reporter.acc)
+
+    plt.figure()
+    plt.plot(np.arange(len(test_acc_reporter.acc))*100, smooth(test_acc_reporter.acc, momentum=0.8))
+    plt.show()
+
+    plt.figure()
+    plt.plot(np.arange(len(test_acc_reporter.complexity)), smooth(test_acc_reporter.complexity, momentum=0.99))
+    plt.show()
 
     print('\n')
     winner_net = RecurrentNet.create(winner_, config_)
@@ -165,7 +179,7 @@ def make_visualize(winner_, config_, stats_):
 
 if __name__ == '__main__':
 
-    trainloader, testloader = load_data()
+    trainloader, testloader = load_data(batch_size=batch_size)
 
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
@@ -175,6 +189,8 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats = run(config_path, 1000, trainloader)
+    winner, config, stats = run(config_path, 2000, trainloader)
+
+    torch.save(winner, 'best_genome_save')
 
     make_visualize(winner, config, stats)

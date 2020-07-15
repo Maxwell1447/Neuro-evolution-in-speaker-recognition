@@ -30,22 +30,23 @@ downsampling = 1
 batch_size = 15
 
 
-def load_data(preprocessing=True):
+def load_data(preprocessing=True, batch_size=batch_size):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
     """
     option = OPTION
 
-    if os.path.exists("./data/preprocessed/train_{}".format(option)) and \
-            os.path.exists("./data/preprocessed/test_{}".format(option)):
-        train_loader = torch.load("./data/preprocessed/train_{}".format(option))
-        test_loader = torch.load("./data/preprocessed/test_{}".format(option))
-        return train_loader, test_loader
+    if preprocessing:
+        if os.path.exists("./data/preprocessed/train_{}_{}".format(option, batch_size)) and \
+                os.path.exists("./data/preprocessed/test_{}_{}".format(option, batch_size)):
+            train_loader = torch.load("./data/preprocessed/train_{}_{}".format(option, batch_size))
+            test_loader = torch.load("./data/preprocessed/test_{}_{}".format(option, batch_size))
+            return train_loader, test_loader
 
-    if not os.path.isdir('./data/preprocessed'):
-        local_dir = os.path.dirname(__file__)
-        os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
+        if not os.path.isdir('./data/preprocessed'):
+            local_dir = os.path.dirname(__file__)
+            os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
@@ -57,8 +58,8 @@ def load_data(preprocessing=True):
     test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True)
 
     if preprocessing:
-        torch.save(train_loader, "./data/preprocessed/train_{}".format(option))
-        torch.save(test_loader, "./data/preprocessed/test_{}".format(option))
+        torch.save(train_loader, "./data/preprocessed/train_{}_{}".format(option, batch_size))
+        torch.save(test_loader, "./data/preprocessed/test_{}_{}".format(option, batch_size))
 
     return train_loader, test_loader
 
