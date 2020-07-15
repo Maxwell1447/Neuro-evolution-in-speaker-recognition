@@ -4,28 +4,19 @@ import multiprocessing
 
 import torch
 import os
-import neat
 
 import neat_local.visualization.visualize as visualize
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-from scipy.signal import resample
-import time
-
-from torch.utils.data import DataLoader
-import torch.optim as optim
-from tqdm import tqdm
 
 from neat_local.nn import RecurrentNet
-from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RATE
-from raw_audio_gender_classification.data import LibriSpeechDataset, PreprocessedLibriSpeechDataset
 from raw_audio_gender_classification.models import *
-from raw_audio_gender_classification.neat.constants import *
-from raw_audio_gender_classification.utils import whiten
-import neat_local.nn as nn
 from raw_audio_gender_classification.neat.main import GenderEvaluator
 from raw_audio_gender_classification.neat.rnn import load_data
+import neat
+from neat.reporting import BaseReporter
+from tqdm import tqdm
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\Graphviz2.38\\bin"
 
@@ -43,7 +34,49 @@ batch_num = 100
 pop_num = 0
 
 
-def eval_genome(g, conf, batch):
+class TestAccReporter(BaseReporter):
+
+    def __init__(self, test_set):
+        self.test_set = test_set
+        self.cpt = 0
+        self.acc = []
+
+    def start_generation(self, generation):
+        pass
+
+    def end_generation(self, conf, population, species_set):
+        self.cpt += 1
+
+    def post_evaluate(self, conf, population, species, best_genome):
+        if self.cpt % 100 == 0:
+            acc = 0
+            n = 0
+            for e in tqdm(iter(self.test_set), total=len(self.test_set)):
+                y = eval_genome(best_genome, conf, e, return_correct=True)
+                acc += y.sum()
+                n += len(y)
+            print()
+            print(">> Test Accuracy: {:.2f}%".format(float(acc)/float(n)*100))
+            print("------------------------")
+            self.acc.append(float(acc)/float(n)*100)
+
+    def post_reproduction(self, conf, population, species):
+        pass
+
+    def complete_extinction(self):
+        pass
+
+    def found_solution(self, conf, generation, best):
+        pass
+
+    def species_stagnant(self, sid, species):
+        pass
+
+    def info(self, msg):
+        pass
+
+
+def eval_genome(g, conf, batch, return_correct=False):
     """
     Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
     """
@@ -68,6 +101,8 @@ def eval_genome(g, conf, batch):
 
     jitter = 1e-8
     prediction = (contribution / (norm + jitter))
+    if return_correct:
+        return (prediction - outputs).abs() < 0.5
     with torch.no_grad():
         return (1 / (1 + torch.nn.BCELoss()(prediction, outputs))).item()
 
@@ -91,11 +126,16 @@ def run(config_file, n_gen, data):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
+    test_acc_reporter = TestAccReporter(testloader)
+    p.add_reporter(test_acc_reporter)
     # p.add_reporter(neat.Checkpointer(1000))
 
     # Run for up to n_gen generations.
     multi_evaluator = GenderEvaluator(multiprocessing.cpu_count(), eval_genome, batch_num, data)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
+
+    print("test accuracy every 100 generation:")
+    print(test_acc_reporter.acc)
 
     print('\n')
     winner_net = RecurrentNet.create(winner_, config_)
@@ -135,6 +175,6 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats = run(config_path, 10000, trainloader)
+    winner, config, stats = run(config_path, 1000, trainloader)
 
     make_visualize(winner, config, stats)
