@@ -16,9 +16,10 @@ import torch.optim as optim
 from tqdm import tqdm
 
 from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RATE
-from raw_audio_gender_classification.data import LibriSpeechDataset
+from raw_audio_gender_classification.data import LibriSpeechDataset, PreprocessedLibriSpeechDataset
 from raw_audio_gender_classification.models import *
 from raw_audio_gender_classification.utils import whiten
+from raw_audio_gender_classification.neat.constants import BINS, OPTION
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
@@ -27,18 +28,42 @@ validation_set = 'dev-clean'
 n_seconds = 3
 downsampling = 1
 batch_size = 15
+pre_processing = True
 
 
-def load_data():
+def load_data(preprocessing=True, batch_size=batch_size):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
+
+    If preprocessing=True and if a data loader has not been saved already,
+    a data loader is created, then saved for train and test sets.
     """
+    option = OPTION
+
+    if preprocessing:
+        if os.path.exists("./data/preprocessed/train_{}_{}".format(option, batch_size)) and \
+                os.path.exists("./data/preprocessed/test_{}_{}".format(option, batch_size)):
+            train_loader = torch.load("./data/preprocessed/train_{}_{}".format(option, batch_size))
+            test_loader = torch.load("./data/preprocessed/test_{}_{}".format(option, batch_size))
+            return train_loader, test_loader
+
+        if not os.path.isdir('./data/preprocessed'):
+            local_dir = os.path.dirname(__file__)
+            os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
+
     trainset = LibriSpeechDataset(training_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds))
     testset = LibriSpeechDataset(validation_set, int(LIBRISPEECH_SAMPLING_RATE * n_seconds), stochastic=False)
+    if preprocessing:
+        trainset = PreprocessedLibriSpeechDataset(trainset)
+        testset = PreprocessedLibriSpeechDataset(testset)
 
     train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True)
+    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True, shuffle=False)
+
+    if preprocessing:
+        torch.save(train_loader, "./data/preprocessed/train_{}_{}".format(option, batch_size))
+        torch.save(test_loader, "./data/preprocessed/test_{}_{}".format(option, batch_size))
 
     return train_loader, test_loader
 
@@ -56,16 +81,17 @@ def get_partial_data(x, keep=200):
 
 if __name__ == '__main__':
 
-    trainloader, testloader = load_data()
+    trainloader, testloader = load_data(preprocessing=pre_processing)
 
+    # CHOICE OF THE MODEL USED
     model = "LSTM"
 
     if model == "LSTM":
-        rnn = LSTM(1, 300, batch_size, device="cpu")
+        rnn = LSTM(BINS, 300, batch_size, device="cpu")
     elif model == "RNN":
-        rnn = RNN(1, 300, batch_size, device="cpu")
+        rnn = RNN(BINS, 300, batch_size, device="cpu")
     elif model == "GRU":
-        rnn = GRU(1, 300, batch_size, device="cpu")
+        rnn = GRU(BINS, 300, batch_size, device="cpu")
     elif model == "ConvNet":
         rnn = ConvNet(64, 4)
         rnn.double().cuda()
@@ -86,7 +112,7 @@ if __name__ == '__main__':
         return accuracy.item()
 
 
-    for epoch in range(2):  # loop over the dataset multiple times
+    for epoch in range(10):  # loop over the dataset multiple times
         train_running_loss = 0.0
         train_acc = 0.0
         rnn.train()
@@ -98,19 +124,21 @@ if __name__ == '__main__':
 
             # get the inputs
             inputs, labels = data
-            inputs = whiten(inputs)
-            inputs = torch.from_numpy(
-                resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
-            ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
-            labels = labels.view(batch_size, 1)  # .cuda()
-            inputs = inputs.view(-1, 48000)  # .cuda()
-            inputs = get_partial_data(inputs, keep=1000)
+
+            if pre_processing:
+                inputs = whiten(inputs)
+                inputs = torch.from_numpy(
+                    resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
+                ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
+                labels = labels.view(batch_size, 1)  # .cuda()
+                inputs = inputs.view(-1, 48000)  # .cuda()
+                inputs = get_partial_data(inputs, keep=1000)
 
             if model == "ConvNet":
                 inputs = inputs.view(batch_size, 1, -1).double()
                 labels = labels.cuda().double()
             else:
-                labels = labels.float()
+                labels = labels.float().reshape(-1, 1)
 
             # forward + backward + optimize
             outputs = rnn(inputs).view(batch_size, 1)
@@ -119,9 +147,26 @@ if __name__ == '__main__':
             optimizer.step()
             current_loss = loss.detach().item()
             train_running_loss += current_loss
-            writer.add_scalar('training loss - {}'.format(model), current_loss)
+            writer.add_scalar('training loss {} {}'.format(model, OPTION), current_loss)
             train_acc += get_accuracy(outputs, labels)
 
         rnn.eval()
-        print('Epoch:  %d | Loss: %.4f | Train Accuracy: %.2f'
-              % (epoch, train_running_loss / len(trainloader), train_acc / len(trainloader)))
+        with torch.no_grad():
+            tes_acc = 0
+            for i, data in tqdm(enumerate(testloader), total=len(testloader)):
+
+                # get the inputs
+                inputs, labels = data
+
+                if model == "ConvNet":
+                    inputs = inputs.view(1, 1, -1).double()
+                    labels = labels.cuda().double()
+                else:
+                    labels = labels.float().reshape(-1, 1)
+
+                # forward + backward + optimize
+                outputs = rnn(inputs).view(1, 1)
+                tes_acc += get_accuracy(outputs, labels) * batch_size
+
+        print('Epoch:  %d | Loss: %.4f | Train Accuracy: %.2f | Test Accuracy: %.2f'
+              % (epoch, train_running_loss / len(trainloader), train_acc / len(trainloader), tes_acc/len(testloader)))

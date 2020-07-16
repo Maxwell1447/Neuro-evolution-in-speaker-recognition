@@ -62,6 +62,8 @@ class GenderEvaluator(neat.parallel.ParallelEvaluator):
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
             genome.fitness = job.get(timeout=self.timeout)
 
+        print("evaluation over")
+
     def next(self):
         if self.batch_count > self.batch_num:
             self.data_iter = iter(self.data)
@@ -81,7 +83,7 @@ def preprocessor(batch, batchsize=batch_size):
     return batch
 
 
-def load_data():
+def load_data(batch_size=batch_size):
     """
     Loads the train/test datasets and puts them in PyTorch dataloaders.
     LibriSpeechDataset uses index caching to access more rapidly the data.
