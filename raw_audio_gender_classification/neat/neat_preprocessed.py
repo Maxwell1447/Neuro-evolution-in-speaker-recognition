@@ -18,6 +18,7 @@ import neat
 from neat.reporting import BaseReporter
 from tqdm import tqdm
 from utils import smooth
+from neat_local.scheduler import ExponentialScheduler
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\Graphviz2.38\\bin"
 
@@ -132,6 +133,13 @@ def run(config_file, n_gen, data):
     p.add_reporter(stats_)
     test_acc_reporter = TestAccReporter(testloader)
     p.add_reporter(test_acc_reporter)
+    p.add_reporter(ExponentialScheduler(semi_gen=500,
+                                        final_values={"node_add_prob": 0.0,
+                                                      "node_delete_prob": 0.0,
+                                                      "conn_add_prob": 0.0,
+                                                      "conn_delete_prob": 0.0,
+                                                      "bias_mutate_power": 0.001,
+                                                      "weight_mutate_power": 0.001}))
     # p.add_reporter(neat.Checkpointer(1000))
 
     # Run for up to n_gen generations.
@@ -187,7 +195,7 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats = run(config_path, 2000, trainloader)
+    winner, config, stats = run(config_path, 3000, trainloader)
 
     # Usable for "visualize_behavior.py" afterward
     torch.save(winner, 'best_genome_save')
