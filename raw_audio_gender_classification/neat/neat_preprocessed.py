@@ -22,7 +22,7 @@ from utils import smooth
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\Graphviz2.38\\bin"
 
 """
-NEAT APPLIED TO RAW GENDER AUDIO CLASSIFICATION
+NEAT APPLIED TO RAW GENDER AUDIO CLASSIFICATION WITH PRE-PROCESSING
 """
 
 training_set = ['train-clean-100']
@@ -30,18 +30,21 @@ validation_set = 'dev-clean'
 n_seconds = 3
 downsampling = 1
 batch_size = 50
-batch_num = 100
 
 pop_num = 0
 
 
 class TestAccReporter(BaseReporter):
+    """
+    Reports testing accuracy of best genome every 100 steps.
+    Reports complexity of best genome (number of connections) every step.
+    """
 
     def __init__(self, test_set):
         self.test_set = test_set
         self.cpt = 0
-        self.acc = []
-        self.complexity = []
+        self.acc = []  # accuracy
+        self.complexity = []  # complexity
 
     def start_generation(self, generation):
         pass
@@ -53,6 +56,7 @@ class TestAccReporter(BaseReporter):
         if self.cpt % 100 == 0:
             acc = 0
             n = 0
+            # Compute accuracy over the whole test set
             for e in tqdm(iter(self.test_set), total=len(self.test_set)):
                 y = eval_genome(best_genome, conf, e, return_correct=True)
                 acc += y.sum()
@@ -66,25 +70,13 @@ class TestAccReporter(BaseReporter):
         connections = best_genome.connections
         self.complexity.append(len(list(connections)))
 
-    def post_reproduction(self, conf, population, species):
-        pass
-
-    def complete_extinction(self):
-        pass
-
-    def found_solution(self, conf, generation, best):
-        pass
-
-    def species_stagnant(self, sid, species):
-        pass
-
-    def info(self, msg):
-        pass
-
 
 def eval_genome(g, conf, batch, return_correct=False):
     """
     Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
+    The input is already preprocessed with shape batch_size x t x bins
+    t: index of the windows used for the pre-processing
+    bins: number of features extracted --> corresponds to the number of input neurons of the recurrent net
     """
 
     # inputs: batch_size x t x bins
@@ -98,7 +90,9 @@ def eval_genome(g, conf, batch, return_correct=False):
     contribution = torch.zeros(len(outputs))
     norm = torch.zeros(len(outputs))
     for input_t in inputs:
+        # input_t: batch_size x bins
 
+        # Usage of batch evaluation provided by PyTorch-NEAT
         xo = net.activate(input_t)  # batch_size x 2
         score = xo[:, 1]
         confidence = xo[:, 0]
@@ -107,8 +101,12 @@ def eval_genome(g, conf, batch, return_correct=False):
 
     jitter = 1e-8
     prediction = (contribution / (norm + jitter))
+
+    # return an array of True/False according to the correctness of the prediction
     if return_correct:
         return (prediction - outputs).abs() < 0.5
+
+    # return the fitness computed from the BCE loss
     with torch.no_grad():
         return (1 / (1 + torch.nn.BCELoss()(prediction, outputs))).item()
 
@@ -118,7 +116,7 @@ def run(config_file, n_gen, data):
     Launches a run until convergence or max number of generation reached
     :param config_file: path to the config file
     :param n_gen: lax number of generation
-    :return: the best genontype (winner), the configs, the stats of the run and the accuracy on the testing set
+    :return: the best genotype (winner), the configs, the stats of the run
     """
     # Load configuration.
     config_ = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -140,15 +138,15 @@ def run(config_file, n_gen, data):
     multi_evaluator = GenderEvaluator(multiprocessing.cpu_count(), eval_genome, len(trainloader)-1, data)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
-    print("test accuracy every 100 generation:")
-    print(test_acc_reporter.acc)
-
+    # plot test accuracy
     plt.figure()
-    plt.plot(np.arange(len(test_acc_reporter.acc))*100, smooth(test_acc_reporter.acc, momentum=0.8))
+    plt.plot(np.arange(len(test_acc_reporter.acc))*100, smooth(test_acc_reporter.acc, momentum=0.8),
+             label="testing accuracy over the generations")
     plt.show()
 
     plt.figure()
-    plt.plot(np.arange(len(test_acc_reporter.complexity)), smooth(test_acc_reporter.complexity, momentum=0.99))
+    plt.plot(np.arange(len(test_acc_reporter.complexity)), smooth(test_acc_reporter.complexity, momentum=0.99),
+             label="complexity over the generations")
     plt.show()
 
     print('\n')
@@ -174,7 +172,7 @@ def make_visualize(winner_, config_, stats_):
 
     visualize.plot_stats(stats_, ylog=False, view=True)
     visualize.plot_species(stats_, view=True)
-    # visualize.draw_net(config_, winner_, True, node_names=node_names)
+    visualize.draw_net(config_, winner_, True, node_names=node_names)
 
 
 if __name__ == '__main__':
@@ -191,6 +189,7 @@ if __name__ == '__main__':
     random.seed(0)
     winner, config, stats = run(config_path, 2000, trainloader)
 
+    # Usable for "visualize_behavior.py" afterward
     torch.save(winner, 'best_genome_save')
 
     make_visualize(winner, config, stats)

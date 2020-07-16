@@ -28,12 +28,16 @@ validation_set = 'dev-clean'
 n_seconds = 3
 downsampling = 1
 batch_size = 15
+pre_processing = True
 
 
 def load_data(preprocessing=True, batch_size=batch_size):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
+
+    If preprocessing=True and if a data loader has not been saved already,
+    a data loader is created, then saved for train and test sets.
     """
     option = OPTION
 
@@ -55,7 +59,7 @@ def load_data(preprocessing=True, batch_size=batch_size):
         testset = PreprocessedLibriSpeechDataset(testset)
 
     train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True)
+    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True, shuffle=False)
 
     if preprocessing:
         torch.save(train_loader, "./data/preprocessed/train_{}_{}".format(option, batch_size))
@@ -77,8 +81,9 @@ def get_partial_data(x, keep=200):
 
 if __name__ == '__main__':
 
-    trainloader, testloader = load_data()
+    trainloader, testloader = load_data(preprocessing=pre_processing)
 
+    # CHOICE OF THE MODEL USED
     model = "LSTM"
 
     if model == "LSTM":
@@ -119,13 +124,15 @@ if __name__ == '__main__':
 
             # get the inputs
             inputs, labels = data
-            # inputs = whiten(inputs)
-            # inputs = torch.from_numpy(
-            #     resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
-            # ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
-            # labels = labels.view(batch_size, 1)  # .cuda()
-            # inputs = inputs.view(-1, 48000)  # .cuda()
-            # inputs = get_partial_data(inputs, keep=1000)
+
+            if pre_processing:
+                inputs = whiten(inputs)
+                inputs = torch.from_numpy(
+                    resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
+                ).reshape((batch_size, 1, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling)))
+                labels = labels.view(batch_size, 1)  # .cuda()
+                inputs = inputs.view(-1, 48000)  # .cuda()
+                inputs = get_partial_data(inputs, keep=1000)
 
             if model == "ConvNet":
                 inputs = inputs.view(batch_size, 1, -1).double()
