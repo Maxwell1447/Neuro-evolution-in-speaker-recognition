@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-from anti_spoofing.utils import whiten, gate_activation, gate_average, make_visualize
+from anti_spoofing.utils import softmax, whiten, gate_activation_ce, make_visualize
 
 
 """
@@ -20,21 +20,22 @@ nb_samples_test = 10  # number of audio files used for testing
 index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]  # index of audio files to use for training
 
 n_processes = 10  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
-n_generation = 100  # number of generations
+n_generation = 300  # number of generations
 
 train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train)
 test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
 
 
+
 trainloader = []
 for data in train_loader:
-    inputs, output = data[0], data[1]
+    inputs, output = data[0], data[2]
     inputs = whiten(inputs)
     trainloader.append((inputs, output))
     
 testloader = []
 for data in test_loader:
-    inputs, output = data[0], data[1]
+    inputs, output = data[0], data[2]
     inputs = whiten(inputs)
     testloader.append((inputs, output))
 
@@ -48,29 +49,22 @@ def eval_genomes(genomes, config_):
     """
     for _, genome in tqdm(genomes):
         net = neat.nn.RecurrentNetwork.create(genome, config_)
-        target_scores = []
-        non_target_scores = []
+        cross_entropy = 0
         for data in trainloader:
             inputs, output = data[0], data[1]
             net.reset()
-            mask, score = gate_activation(net, inputs)
-            selected_score = score[mask]
+            mask, scores = gate_activation_ce(net, inputs)
+            selected_score = scores[mask]
             if selected_score.size == 0:
-                xo = 0.5
+                scores = 1/7 * np.ones(7)
             else:
-                xo = np.sum(selected_score) / selected_score.size
-            if output == 1:
-                target_scores.append(xo)
-            else:
-                non_target_scores.append(xo)
+                xo = np.sum(selected_score, axis=0) / selected_score.size
+                print("xo =", xo)
+                scores = softmax(xo)
+                print("scores =", scores)
+            cross_entropy -= np.log(scores[output] + 10**-20)
 
-        target_scores = np.array(target_scores)
-        non_target_scores = np.array(non_target_scores)
-        
-        pmiss, pfa = rocch(target_scores, non_target_scores)
-        eer = rocch2eer(pmiss, pfa)
-        genome.fitness = 2 * (.5 - eer)
-        
+        genome.fitness = 1 - cross_entropy
         
 
 def eval_genome(genome, config_):
@@ -83,34 +77,21 @@ def eval_genome(genome, config_):
     this version is intented to use ParallelEvaluator and should be much faster
     """
     net = neat.nn.RecurrentNetwork.create(genome, config_)
-    target_scores = []
-    non_target_scores = []
+    cross_entropy = 0
     for data in trainloader:
         inputs, output = data[0], data[1]
         net.reset()
-        """
-        score_weight, score = gate_activation(net, inputs)
-        selected_score = score[mask]
-        selected_score = gate_activation(net, inputs)
+        mask, scores = gate_activation_ce(net, inputs)
+        selected_score = scores[mask]
         if selected_score.size == 0:
-            xo = 0.5
+            scores = 1 / 7 * np.ones(7)
         else:
-            xo = np.sum(selected_score) / selected_score.size
-        """
-        selected_score = gate_average(net, inputs)
-        xo = np.sum(selected_score) / selected_score.size
-        if output == 1:
-            target_scores.append(xo)
-        else:
-            non_target_scores.append(xo)
-            
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
+            xo = np.sum(selected_score, axis=0) / selected_score.size
+            xo[np.isinf(xo)] = 100
+            scores = softmax(xo)
+        cross_entropy -= np.log(scores[output] + 10**-20)
 
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    return 2 * (.5 - eer)
+    return 1 - cross_entropy/19.5
         
 
 def evaluate(net, data_loader):
@@ -122,23 +103,19 @@ def evaluate(net, data_loader):
     non_target_scores = []
     for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        """
-        score_weight, score = gate_activation(net, inputs)
-        selected_score = score[mask]
-        selected_score = gate_activation(net, inputs)
+        mask, scores = gate_activation_ce(net, inputs)
+        selected_score = scores[mask]
         if selected_score.size == 0:
-            xo = 0.5
+            scores = 1 / 7 * np.ones(7)
         else:
-            xo = np.sum(selected_score) / selected_score.size
-        """
-        selected_score = gate_average(net, inputs)
-        xo = np.sum(selected_score) / selected_score.size
+            xo = np.sum(selected_score, axis=0) / selected_score.size
+            scores = softmax(xo)
         total += 1
-        correct += ((xo > 0.5) == output)
-        if output == 1:
-            target_scores.append(xo)
+        correct += (scores.argmax() == output)
+        if output == 0:
+            target_scores.append(scores[0])
         else:
-            non_target_scores.append(xo)
+            non_target_scores.append(scores[0])
         
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
@@ -199,7 +176,6 @@ def run(config_file, n_gen):
     print("**** testing target scores = {}  ****".format(target_scores))
     print("**** testing non target scores = {}  ****".format(non_target_scores))
     print("**** equal error rate = {}  ****".format(eer))
-
 
     return winner_, config_, stats_
 

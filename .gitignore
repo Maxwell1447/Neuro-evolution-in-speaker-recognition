@@ -21,6 +21,7 @@ raw-audio-gender-classification/neat/data*
 raw-audio-gender-classification/notebooks/.ipynb_checkpoints/
 raw_audio_gender_classification/neat/neat-checkpoint*
 raw_audio_gender_classification/models/*
+raw_audio_gender_classification/neat/data/*
 anti_spoofing/data/
 
 .ipynb_checkpoints
@@ -32,3 +33,5 @@ anti_spoofing/data/
 *.gv
 
 anti_spoofing/neat-checkpoint*
+
+*.wav
