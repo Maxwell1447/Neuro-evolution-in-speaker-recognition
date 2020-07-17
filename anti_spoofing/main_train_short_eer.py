@@ -1,4 +1,3 @@
-from __future__ import print_function
 import os
 import neat
 import numpy as np
@@ -22,7 +21,7 @@ nb_samples_test = 700  # number of audio files used for testing
 batch_size = 40  # size of the batch used for training, choose an even number
 
 n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
-n_generation = 100  # number of generations
+n_generation = 60  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
 # for testing
@@ -165,8 +164,7 @@ def eval_genome(genome, config, batch_data):
         else:
             xo = np.sum(selected_score) / selected_score.size
         """
-        selected_score = gate_average(net, inputs)
-        xo = np.sum(selected_score) / selected_score.size
+        xo = gate_average(net, inputs)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -242,8 +240,7 @@ def evaluate(net, data_loader):
         else:
             xo = np.sum(selected_score) / selected_score.size
         """
-        selected_score = gate_average(net, inputs)
-        xo = np.sum(selected_score) / selected_score.size
+        xo = gate_average(net, inputs)
         total += 1
         correct += ((xo > 0.5) == output)
         if output == 1:

@@ -13,7 +13,11 @@ import os
 import soundfile as sf
 from torch.utils.data import Dataset
 import numpy as np
+import random
+import librosa
 import platform
+
+from anti_spoofing.utils import whiten
 
 # tells us if one is using a linux or a windows machine
 current_os = platform.system()
@@ -31,7 +35,8 @@ class ASVDatasetshort(Dataset):
     """
     def __init__(self, length, nb_samples=10000,
                  sample_size=None,
-                 save_cache=False, index_list=None):
+                 save_cache=False, index_list=None,
+                 do_standardize=False, do_mfcc=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format. It will set
@@ -47,6 +52,11 @@ class ASVDatasetshort(Dataset):
         If True, will save the cache with torch.
         :param index_list: list
         If set to a non empty list, will only use the audio files whose index is in the list
+        :param do_standardize: bool
+        If True will standardize the audio files
+        :param do_mfcc: bool
+        If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
+        and not the raw audio files
         """
         data_root = DATA_ROOT
         track = 'LA'
@@ -55,6 +65,8 @@ class ASVDatasetshort(Dataset):
         self.prefix = 'ASVspoof2019_{}'.format(track)
         self.nb_samples = nb_samples
         self.index_list = index_list
+        self.standardize = do_standardize
+        self.mfcc = do_mfcc
         v1_suffix = ''
         self.sysid_dict = {
             'human': 0,  # bonafide speech
@@ -121,6 +133,10 @@ class ASVDatasetshort(Dataset):
             tmp_path = meta.path[:5] + self.track + "/" + meta.path[5:]
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
+        if self.mfcc:
+            data_x = np.ravel(librosa.feature.mfcc(y=data_x, sr=sample_rate))
+        if self.standardize:
+            data_x = whiten(data_x)
         # to make all data to have the same length
         if self.fragment_length:
             if data_x.size < self.fragment_length:
@@ -148,7 +164,8 @@ class ASVDatasetshort(Dataset):
         meta_files_list = list(files_meta)
         if self.index_list:
             return [meta_files_list[i] for i in self.index_list]
-        return meta_files_list[:self.nb_samples]
+        random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
+        return [meta_files_list[i] for i in random_index]
 
 
 if __name__ == '__main__':

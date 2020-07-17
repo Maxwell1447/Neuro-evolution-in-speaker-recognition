@@ -15,11 +15,13 @@ NEAT APPLIED TO ASVspoof 2019
 """
 
 nb_samples_train = 2538  # number of audio files used for training
-nb_samples_test = 700  # 700  # number of audio files used for testing
+nb_samples_test = 2800  # 700  # number of audio files used for testing
 
 batch_size = 40  # size of the batch used for training, choose an even number
 
-n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+normalize_fitness = - batch_size * np.log(1/7)
+
+n_processes = 10  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
 n_generation = 100  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
@@ -27,10 +29,11 @@ n_generation = 100  # number of generations
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 for i in range(len(dev_border) - 1):
-    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i + 1])], 100)
+    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i + 1])], 400)
 
-train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
+train_loader = ASVDatasetshort(length=None, nb_samples=nb_samples_train, do_standardize=True, do_mfcc=True)
+test_loader = ASVDataset(length=None, is_train=False, is_eval=False, index_list=index_test,
+                         do_standardize=True, do_mfcc=True)
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
@@ -126,7 +129,7 @@ def eval_genomes(genomes, config_, batch_data):
                 print("scores =", scores)
             cross_entropy -= np.log(scores[output] + 10**-20)
 
-        genome.fitness = - cross_entropy
+        genome.fitness = 1 - cross_entropy / normalize_fitness
 
 
 def eval_genome(genome, config, batch_data):
@@ -144,7 +147,6 @@ def eval_genome(genome, config, batch_data):
     cross_entropy = 0
     for data in batch_data:
         inputs, output = data[0], data[2]
-        inputs = whiten(inputs)
         net.reset()
         mask, scores = gate_activation_ce(net, inputs)
         selected_score = scores[mask]
@@ -153,10 +155,11 @@ def eval_genome(genome, config, batch_data):
         else:
             xo = np.sum(selected_score, axis=0) / selected_score.size
             xo[np.isinf(xo)] = 100
+            xo[np.isnan(xo)] = 100
             scores = softmax(xo)
         cross_entropy -= np.log(scores[output] + 10**-20)
 
-    return - cross_entropy
+    return 1 - cross_entropy / normalize_fitness
 
 
 def evaluate(net, data_loader):
@@ -222,19 +225,14 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    training_target_scores, training_non_target_scores, training_accuracy, training_eer = evaluate(winner_net,
-                                                                                                   train_loader)
-    target_scores, non_target_scores, accuracy, eer = evaluate(winner_net, test_loader)
+    training_accuracy, training_eer = evaluate(winner_net,train_loader)
+    accuracy, eer = evaluate(winner_net, test_loader)
 
     print("**** training accuracy = {}  ****".format(training_accuracy))
-    print("**** training target scores = {}  ****".format(training_target_scores))
-    print("**** training non target scores = {}  ****".format(training_non_target_scores))
     print("**** training equal error rate = {}  ****".format(training_eer))
 
     print("\n")
     print("**** accuracy = {}  ****".format(accuracy))
-    print("**** testing target scores = {}  ****".format(target_scores))
-    print("**** testing non target scores = {}  ****".format(non_target_scores))
     print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_

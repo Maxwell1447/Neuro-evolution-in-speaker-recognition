@@ -4,10 +4,11 @@ import neat
 import numpy as np
 import multiprocessing
 from tqdm import tqdm
+import librosa
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-from anti_spoofing.utils import softmax, whiten, gate_activation_ce, make_visualize
+from anti_spoofing.utils import softmax, whiten, gate_activation_ce, make_visualize, SAMPLING_RATE
 
 
 """
@@ -22,20 +23,22 @@ index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]  # index of
 n_processes = 10  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
 n_generation = 300  # number of generations
 
-train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
+train_loader = ASVDataset(length=None, is_train=True, is_eval=False, index_list=index_train)
+test_loader = ASVDataset(length=None, is_train=False, is_eval=False,  index_list=index_train)
 
 
 
 trainloader = []
 for data in train_loader:
     inputs, output = data[0], data[2]
+    inputs = np.ravel(librosa.feature.mfcc(y=inputs, sr=SAMPLING_RATE))
     inputs = whiten(inputs)
     trainloader.append((inputs, output))
     
 testloader = []
 for data in test_loader:
     inputs, output = data[0], data[2]
+    inputs = np.ravel(librosa.feature.mfcc(y=inputs, sr=SAMPLING_RATE))
     inputs = whiten(inputs)
     testloader.append((inputs, output))
 
@@ -64,7 +67,7 @@ def eval_genomes(genomes, config_):
                 print("scores =", scores)
             cross_entropy -= np.log(scores[output] + 10**-20)
 
-        genome.fitness = 1 - cross_entropy
+        genome.fitness = 1 - cross_entropy/19.5
         
 
 def eval_genome(genome, config_):
@@ -88,6 +91,7 @@ def eval_genome(genome, config_):
         else:
             xo = np.sum(selected_score, axis=0) / selected_score.size
             xo[np.isinf(xo)] = 100
+            xo[np.isnan(xo)] = 100
             scores = softmax(xo)
         cross_entropy -= np.log(scores[output] + 10**-20)
 

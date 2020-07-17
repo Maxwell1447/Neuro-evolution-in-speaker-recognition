@@ -45,8 +45,8 @@ def whiten(sample_input):
     :return whitten_input: normalized input
     """
     whiten_input = sample_input - sample_input.mean()
-    var = np.sqrt((whiten_input ** 2).mean())
-    whiten_input *= 1 / var
+    std = np.sqrt((whiten_input ** 2).mean())
+    whiten_input *= 1 / std
     return whiten_input
 
 
@@ -63,8 +63,7 @@ def gate_average(recurrent_net, sample_input):
     for i in range(length):
         select[i], score[i] = recurrent_net.activate([sample_input[i]])
     select = sigmoid(select)
-    score = sigmoid(score)
-    return select * score / np.sum(select)
+    return np.sum(select * score) / np.sum(select)
 
 
 def gate_activation(recurrent_net, sample_input):

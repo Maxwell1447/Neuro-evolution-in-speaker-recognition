@@ -2,15 +2,16 @@ import os
 import neat
 import numpy as np
 import multiprocessing
+import librosa
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-from anti_spoofing.utils import whiten, gate_activation, gate_average, make_visualize
-
+from anti_spoofing.utils import SAMPLING_RATE, whiten, gate_activation, make_visualize
 
 """
 NEAT APPLIED TO ASVspoof 2019
+with Mel-frequency cepstral coefficients as preprocessing on toy dataset
 """
 
 nb_samples_train = 10  # number of audio files used for training
@@ -18,22 +19,23 @@ nb_samples_test = 10  # number of audio files used for testing
 
 index_train = [k for k in range(5)] + [k for k in range(2590, 2595)]  # index of audio files to use for training
 
-n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
-n_generation = 60  # number of generations
+n_processes = 10  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+n_generation = 100  # number of generations
 
 train_loader = ASVDataset(None, is_train=True, is_eval=False, index_list=index_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False,  index_list=index_train)
-
+test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_train)
 
 trainloader = []
 for data in train_loader:
     inputs, output = data[0], data[1]
+    inputs = np.ravel(librosa.feature.mfcc(y=inputs, sr=SAMPLING_RATE))
     inputs = whiten(inputs)
     trainloader.append((inputs, output))
-    
+
 testloader = []
 for data in test_loader:
     inputs, output = data[0], data[1]
+    inputs = np.ravel(librosa.feature.mfcc(y=inputs, sr=SAMPLING_RATE))
     inputs = whiten(inputs)
     testloader.append((inputs, output))
 
@@ -65,17 +67,16 @@ def eval_genomes(genomes, config_):
 
         target_scores = np.array(target_scores)
         non_target_scores = np.array(non_target_scores)
-        
+
         pmiss, pfa = rocch(target_scores, non_target_scores)
         eer = rocch2eer(pmiss, pfa)
         genome.fitness = 2 * (.5 - eer)
-        
-        
+
 
 def eval_genome(genome, config_):
     """
     Most important part of NEAT since it is here that we adapt NEAT to our problem.
-    We tell what is the phenotype of a genome and how to calculate its fitness 
+    We tell what is the phenotype of a genome and how to calculate its fitness
     (same idea than a loss)
     :param config_: config from the config file
     :param genome: list of all the genomes to get evaluated
@@ -87,22 +88,17 @@ def eval_genome(genome, config_):
     for data in trainloader:
         inputs, output = data[0], data[1]
         net.reset()
-        """
-        score_weight, score = gate_activation(net, inputs)
+        mask, score = gate_activation(net, inputs)
         selected_score = score[mask]
-        selected_score = gate_activation(net, inputs)
         if selected_score.size == 0:
             xo = 0.5
         else:
             xo = np.sum(selected_score) / selected_score.size
-        """
-        selected_score = gate_average(net, inputs)
-        xo = np.sum(selected_score) / selected_score.size
         if output == 1:
             target_scores.append(xo)
         else:
             non_target_scores.append(xo)
-            
+
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
 
@@ -110,10 +106,9 @@ def eval_genome(genome, config_):
     eer = rocch2eer(pmiss, pfa)
 
     return 2 * (.5 - eer)
-        
+
 
 def evaluate(net, data_loader):
-
     correct = 0
     total = 0
     net.reset()
@@ -121,31 +116,26 @@ def evaluate(net, data_loader):
     non_target_scores = []
     for data in tqdm(data_loader):
         inputs, output = data[0], data[1]
-        """
-        score_weight, score = gate_activation(net, inputs)
+        mask, score = gate_activation(net, inputs)
         selected_score = score[mask]
-        selected_score = gate_activation(net, inputs)
         if selected_score.size == 0:
             xo = 0.5
         else:
             xo = np.sum(selected_score) / selected_score.size
-        """
-        selected_score = gate_average(net, inputs)
-        xo = np.sum(selected_score) / selected_score.size
         total += 1
         correct += ((xo > 0.5) == output)
         if output == 1:
             target_scores.append(xo)
         else:
             non_target_scores.append(xo)
-        
+
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
-    
+
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
-    
-    return target_scores, non_target_scores, float(correct)/total, eer
+
+    return target_scores, non_target_scores, float(correct) / total, eer
 
 
 def run(config_file, n_gen):
@@ -184,7 +174,8 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    training_target_scores, training_non_target_scores, training_accuracy, training_eer = evaluate(winner_net, trainloader)
+    training_target_scores, training_non_target_scores, training_accuracy, training_eer = evaluate(winner_net,
+                                                                                                   trainloader)
     target_scores, non_target_scores, accuracy, eer = evaluate(winner_net, testloader)
 
     print("**** training accuracy = {}  ****".format(training_accuracy))
@@ -192,19 +183,16 @@ def run(config_file, n_gen):
     print("**** training non target scores = {}  ****".format(training_non_target_scores))
     print("**** training equal error rate = {}  ****".format(training_eer))
 
-
     print("\n")
     print("**** accuracy = {}  ****".format(accuracy))
     print("**** testing target scores = {}  ****".format(target_scores))
     print("**** testing non target scores = {}  ****".format(non_target_scores))
     print("**** equal error rate = {}  ****".format(eer))
 
-
     return winner_, config_, stats_
 
 
 if __name__ == '__main__':
-
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.
