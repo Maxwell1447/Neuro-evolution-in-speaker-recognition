@@ -1,5 +1,8 @@
 import numpy as np
 import tqdm
+from scipy.optimize import brentq
+from scipy.interpolate import interp1d
+from sklearn.metrics import roc_curve
 
 import neat_local.visualization.visualize as visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
@@ -50,6 +53,21 @@ def whiten(sample_input):
     return whiten_input
 
 
+def err(y_true, y_pred, pos_label=1):
+    """
+    https://yangcha.github.io/EER-ROC/
+    return the equal error rate and the threshold
+    :param y_true: true labels
+    :param y_pred: prediction scores
+    :param pos_label: label of true class
+    :return: equal error rate, threshold
+    """
+    fpr, tpr, thresholds = roc_curve(y_true, y_pred, pos_label=pos_label)
+    eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
+    thresh = interp1d(fpr, thresholds)(eer)
+    return eer, thresh
+
+
 def gate_average(recurrent_net, sample_input):
     """
     compute mask and the scores for a given input (audio file)
@@ -62,6 +80,22 @@ def gate_average(recurrent_net, sample_input):
     score, select = np.zeros(length), np.zeros(length)
     for i in range(length):
         select[i], score[i] = recurrent_net.activate([sample_input[i]])
+    select = sigmoid(select)
+    return np.sum(select * score) / np.sum(select)
+
+
+def gate_mfcc(recurrent_net, sample_input):
+    """
+    compute mask and the scores for a given input (audio file) preprocessed with mfcc
+    the mask tells by how the corresponding score should be taken into account
+    :param recurrent_net: network
+    :param sample_input: one audio file in a numpy format
+    :return mask, score
+    """
+    length = sample_input.shape[1]
+    score, select = np.zeros(length), np.zeros(length)
+    for i in range(length):
+        select[i], score[i] = recurrent_net.activate(sample_input[:, i])
     select = sigmoid(select)
     return np.sum(select * score) / np.sum(select)
 

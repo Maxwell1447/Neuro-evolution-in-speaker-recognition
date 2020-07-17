@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils import softmax, whiten, gate_activation_ce, evaluate, make_visualize
+from anti_spoofing.utils import softmax, gate_activation_ce, evaluate, make_visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 """
@@ -17,11 +17,11 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 2800  # 700  # number of audio files used for testing
 
-batch_size = 40  # size of the batch used for training, choose an even number
+batch_size = 35  # size of the batch used for training, choose an even number
 
 normalize_fitness = - batch_size * np.log(1/7)
 
-n_processes = 10  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
+n_processes = 2  # multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
 n_generation = 100  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
@@ -29,7 +29,7 @@ n_generation = 100  # number of generations
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 for i in range(len(dev_border) - 1):
-    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i + 1])], 400)
+    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i + 1])], 2)
 
 train_loader = ASVDatasetshort(length=None, nb_samples=nb_samples_train, do_standardize=True, do_mfcc=True)
 test_loader = ASVDataset(length=None, is_train=False, is_eval=False, index_list=index_test,
@@ -56,10 +56,15 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.batch_size = batch_size
         self.bona_fide_train = list(range(258))  # index list of bona fide files
         rd.shuffle(self.bona_fide_train)  # shuffle the index
-        self.spoofed_train = list(range(258, 2280))  # index list of spoofed files
-        rd.shuffle(self.spoofed_train)  # shuffle the index
         self.bona_fide_index = 0
-        self.spoofed_index = 0
+
+        self.train_short_border = [0, 258, 638, 1018, 1398, 1778, 2158, 2538]
+        # index list of spoofed files
+        self.spoofed_train = np.array([list(range(self.train_short_border[i],
+                                                  self.train_short_border[i+1])) for i in range(1, 7)])
+        for sys_id in range(6):
+            rd.shuffle(self.spoofed_train[sys_id])  # shuffle the index
+        self.spoofed_index = np.array([0, 0, 0, 0, 0, 0])
 
     def evaluate(self, genomes, config):
         """
@@ -86,21 +91,22 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.current_batch = []
 
         # adding bona fida index for training
-        if batch_size // 2 + self.bona_fide_index >= 258:
+        if batch_size // 7 + self.bona_fide_index >= 258:
             self.bona_fide_index = 0
             rd.shuffle(self.bona_fide_train)
-        for index in range(self.batch_size // 2):
-            self.current_batch.append(self.data.__getitem__(self.bona_fide_train[self.bona_fide_index + index]))
+        for index in range(self.batch_size // 7):
+            self.current_batch.append(self.data[self.bona_fide_train[self.bona_fide_index + index]])
 
         # adding spoofed index for training
-        if batch_size // 2 + self.spoofed_index >= 2280:
-            self.spoofed_index = 0
-            rd.shuffle(self.spoofed_train)
-        for index in range(self.batch_size // 2):
-            self.current_batch.append(self.data.__getitem__(self.spoofed_train[self.spoofed_index + index]))
+        for sys_id in range(6):
+            if batch_size // 7 + self.spoofed_index[sys_id] >= 380:
+                self.spoofed_index[sys_id] = 0
+                rd.shuffle(self.spoofed_train[sys_id])
+            for index in range(self.batch_size // 7):
+                self.current_batch.append(self.data[self.spoofed_train[sys_id, self.spoofed_index[sys_id] + index]])
 
-        self.bona_fide_index += batch_size // 2
-        self.spoofed_index += batch_size // 2
+        self.bona_fide_index += batch_size // 7
+        self.spoofed_index += batch_size // 7
 
         self.current_batch = np.array(self.current_batch)
 
@@ -225,7 +231,7 @@ def run(config_file, n_gen):
     print('\n')
     winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
-    training_accuracy, training_eer = evaluate(winner_net,train_loader)
+    training_accuracy, training_eer = evaluate(winner_net, train_loader)
     accuracy, eer = evaluate(winner_net, test_loader)
 
     print("**** training accuracy = {}  ****".format(training_accuracy))
