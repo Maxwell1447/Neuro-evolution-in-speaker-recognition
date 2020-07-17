@@ -8,7 +8,7 @@ import librosa
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-from anti_spoofing.utils import softmax, whiten, gate_activation_ce, make_visualize, SAMPLING_RATE
+from anti_spoofing.utils_ASV import softmax, whiten, gate_activation_ce, make_visualize, SAMPLING_RATE
 
 
 """

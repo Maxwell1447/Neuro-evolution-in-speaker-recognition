@@ -143,13 +143,13 @@ def run(config_file, n_gen, data):
     #                                                   "weight_mutate_power": 0.001}))
     p.add_reporter(SineScheduler(config_,
                                  period=1000,
-                                 final_values={"node_add_prob": 0.0,
-                                               "node_delete_prob": 0.05,
-                                               "conn_add_prob": 0.0,
-                                               "conn_delete_prob": 0.05,
+                                 final_values={"node_add_prob": 0.01,
+                                               "node_delete_prob": 0.0,
+                                               "conn_add_prob": 0.01,
+                                               "conn_delete_prob": 0.0,
                                                "bias_mutate_power": 0.01,
                                                "weight_mutate_power": 0.01},
-                                 verbose=0))
+                                 verbose=1))
     # p.add_reporter(neat.Checkpointer(1000))
 
     # Run for up to n_gen generations.
@@ -204,7 +204,7 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats = run(config_path, 10000, trainloader)
+    winner, config, stats = run(config_path, 3000, trainloader)
 
     # Usable for "visualize_behavior.py" afterward
     torch.save(winner, 'best_genome_save_simple')

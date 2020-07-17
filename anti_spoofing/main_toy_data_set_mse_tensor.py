@@ -9,7 +9,7 @@ from tqdm import tqdm
 from anti_spoofing.data_utils import ASVDataset
 from raw_audio_gender_classification.utils import whiten
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-from anti_spoofing.utils import make_visualize, gate_activation_tensor
+from anti_spoofing.utils_ASV import make_visualize, gate_activation_tensor
 
 
 """

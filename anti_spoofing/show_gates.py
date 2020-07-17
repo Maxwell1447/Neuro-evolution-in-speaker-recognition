@@ -9,7 +9,7 @@ import webrtcvad
 
 from tqdm import tqdm
 
-from anti_spoofing.utils import SAMPLING_RATE
+from anti_spoofing.utils_ASV import SAMPLING_RATE
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.silence_detection import detect_speech
 

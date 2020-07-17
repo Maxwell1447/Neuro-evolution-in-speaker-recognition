@@ -17,7 +17,7 @@ import random
 import librosa
 import platform
 
-from anti_spoofing.utils import whiten
+from anti_spoofing.utils_ASV import whiten
 
 # tells us if one is using a linux or a windows machine
 current_os = platform.system()

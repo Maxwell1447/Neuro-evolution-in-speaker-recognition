@@ -17,7 +17,7 @@ import random
 import librosa
 import platform
 
-from anti_spoofing.utils import whiten
+from anti_spoofing.utils_ASV import whiten
 
 # tells us if one is using a linux or a windows machine
 current_os = platform.system()
@@ -133,7 +133,8 @@ class ASVDataset(Dataset):
                                                                                                            self.protocols_fname)
         self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
         if os.path.exists(self.cache_fname):
-            self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
+            # self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
+            self.data_x, self.data_y, self.files_meta = torch.load(self.cache_fname)
             print('Dataset loaded from cache ', self.cache_fname)
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
@@ -143,7 +144,8 @@ class ASVDataset(Dataset):
             # to add meta data    
             # self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
             if save_cache:
-                torch.save((self.data_x, self.data_y, self.data_sysid, self.files_meta), self.cache_fname)
+                # torch.save((self.data_x, self.data_y, self.data_sysid, self.files_meta), self.cache_fname)
+                torch.save((self.data_x, self.data_y, self.files_meta), self.cache_fname)
                 print('Dataset saved to cache ', self.cache_fname)
         if sample_size:
             select_idx = np.random.choice(len(self.files_meta), size=(sample_size,), replace=True).astype(np.int32)

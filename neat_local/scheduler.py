@@ -24,19 +24,20 @@ class ExponentialScheduler(BaseReporter):
             final_values = {}
         self.final_values = final_values
         self.fade_factor = 0.5 ** (1 / semi_gen)
+        self.verbose= verbose
 
     def end_generation(self, conf, population, species_set):
         """
         Updates the parameters.
         """
 
-        if verbose:
+        if self.verbose:
             print()
             print("--Scheduler Values--")
         for key in self.final_values:
             prev_value = getattr(conf.genome_config, key)
 
-            if verbose:
+            if self.verbose:
                 print(key, prev_value)
 
             setattr(conf.genome_config, key,
@@ -69,6 +70,7 @@ class SineScheduler(BaseReporter):
         self.period = period
         self.gen = 0
         self.init_values = {}
+        self.verbose = verbose
 
         for key in self.final_values:
             self.init_values[key] = getattr(conf.genome_config, key)
@@ -78,7 +80,7 @@ class SineScheduler(BaseReporter):
         Updates the parameters.
         """
 
-        if verbose:
+        if self.verbose:
             print()
             print("--Scheduler Values--")
 
@@ -86,7 +88,7 @@ class SineScheduler(BaseReporter):
             b, a = self.final_values[key], self.init_values[key]
             value = (a + b) / 2 + (a - b) / 2 * cos(2 * pi * self.gen / self.period)
 
-            if verbose:
+            if self.verbose:
                 print(key, value)
 
             setattr(conf.genome_config, key, value)

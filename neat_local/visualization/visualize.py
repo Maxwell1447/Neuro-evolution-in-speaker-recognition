@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from utils import smooth
 
+
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
     """ Plots the population's average and best fitness. """
     if plt is None:

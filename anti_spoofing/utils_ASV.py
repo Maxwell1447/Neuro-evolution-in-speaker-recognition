@@ -4,6 +4,7 @@ from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from sklearn.metrics import roc_curve
 
+
 import neat_local.visualization.visualize as visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
