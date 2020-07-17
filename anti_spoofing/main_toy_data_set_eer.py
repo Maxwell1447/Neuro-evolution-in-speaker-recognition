@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-from anti_spoofing.utils import whiten, gate_activation, gate_average, make_visualize
+from anti_spoofing.utils_ASV import whiten, gate_activation, gate_average, make_visualize
 
 
 """

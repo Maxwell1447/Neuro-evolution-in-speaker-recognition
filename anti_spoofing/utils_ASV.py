@@ -1,5 +1,5 @@
 import numpy as np
-import tqdm
+from tqdm import tqdm
 
 import neat_local.visualization.visualize as visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
