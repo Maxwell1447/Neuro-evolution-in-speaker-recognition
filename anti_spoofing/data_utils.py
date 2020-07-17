@@ -34,7 +34,7 @@ class ASVDataset(Dataset):
     Utility class to load  train/dev/eval data set
     """
 
-    def __init__(self, length=None, nb_samples=10000,
+    def __init__(self, length=None, nb_samples=10000, random_samples=False,
                  is_train=True, sample_size=None,
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
@@ -46,6 +46,8 @@ class ASVDataset(Dataset):
         If set to None, it will return the audio files without changing their length.
         :param nb_samples: int
         Number of files to use.
+        :param random_samples: bool
+        If true then the files will be chosen randomly (shuffled if all the files are selected)
         :param is_train: bool
         If True, will use the files from the train folder.
         :param sample_size: int
@@ -80,6 +82,7 @@ class ASVDataset(Dataset):
         self.is_logical = is_logical
         self.prefix = 'ASVspoof2019_{}'.format(track)
         self.nb_samples = nb_samples
+        self.random_samples = random_samples
         self.index_list = index_list
         self.standardize = do_standardize
         self.mfcc = do_mfcc
@@ -210,8 +213,10 @@ class ASVDataset(Dataset):
         meta_files_list = list(files_meta)
         if self.index_list:
             return [meta_files_list[i] for i in self.index_list]
-        random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
-        return [meta_files_list[i] for i in random_index]
+        if self.random_samples:
+            random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
+            return [meta_files_list[i] for i in random_index]
+        return meta_files_list
 
 
 if __name__ == '__main__':

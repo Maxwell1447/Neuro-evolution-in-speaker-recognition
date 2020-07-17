@@ -53,7 +53,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.batch_size = batch_size
         self.bona_fide_train = list(range(258))  # index list of bona fide files
         rd.shuffle(self.bona_fide_train)  # shuffle the index
-        self.spoofed_train = list(range(258, 2280))  # index list of spoofed files
+        self.spoofed_train = list(range(258, 2538))  # index list of spoofed files
         rd.shuffle(self.spoofed_train)  # shuffle the index
         self.bona_fide_index = 0
         self.spoofed_index = 0
@@ -105,14 +105,14 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             self.bona_fide_index = 0
             rd.shuffle(self.bona_fide_train)
         for index in range(self.batch_size // 2):
-            self.current_batch.append(self.data.__getitem__(self.bona_fide_train[self.bona_fide_index + index]))
+            self.current_batch.append(self.data[self.bona_fide_train[self.bona_fide_index + index]])
 
         # adding spoofed index for training
         if batch_size // 2 + self.spoofed_index >= 2280:
             self.spoofed_index = 0
             rd.shuffle(self.spoofed_train)
         for index in range(self.batch_size // 2):
-            self.current_batch.append(self.data.__getitem__(self.spoofed_train[self.spoofed_index + index]))
+            self.current_batch.append(self.data[self.spoofed_train[self.spoofed_index + index]])
 
         self.bona_fide_index += batch_size // 2
         self.spoofed_index += batch_size // 2

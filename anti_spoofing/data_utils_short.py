@@ -33,10 +33,10 @@ class ASVDatasetshort(Dataset):
     """
     Utility class to load  train short data set
     """
-    def __init__(self, length, nb_samples=10000,
+    def __init__(self, length, nb_samples=2538, random_samples=False,
                  sample_size=None,
                  save_cache=False, index_list=None,
-                 do_standardize=False, do_mfcc=False):
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format. It will set
@@ -44,6 +44,8 @@ class ASVDatasetshort(Dataset):
         If set to None, it will return the audio files without changing their length.
         :param nb_samples: int
         Number of files to use.
+        :param random_samples: bool
+        If true then the files will be chosen randomly (shuffled if all the files are selected)
         :param sample_size: int
         Number of files to use. Difference between this one and nb_samples, is that, nb_samples will only load the
         correct number of files required, whereas sample_size will load all files from the folder considered and then
@@ -64,9 +66,11 @@ class ASVDatasetshort(Dataset):
         self.fragment_length = length
         self.prefix = 'ASVspoof2019_{}'.format(track)
         self.nb_samples = nb_samples
+        self.random_samples = random_samples
         self.index_list = index_list
         self.standardize = do_standardize
         self.mfcc = do_mfcc
+        self.chroma_cqt = do_chroma_cqt
         v1_suffix = ''
         self.sysid_dict = {
             'human': 0,  # bonafide speech
@@ -134,7 +138,9 @@ class ASVDatasetshort(Dataset):
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:
-            data_x = np.ravel(librosa.feature.mfcc(y=data_x, sr=sample_rate))
+            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate)
+        if self.chroma_cqt:
+            data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate,  n_chroma=20)
         if self.standardize:
             data_x = whiten(data_x)
         # to make all data to have the same length
@@ -164,9 +170,11 @@ class ASVDatasetshort(Dataset):
         meta_files_list = list(files_meta)
         if self.index_list:
             return [meta_files_list[i] for i in self.index_list]
-        random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
-        return [meta_files_list[i] for i in random_index]
+        if self.random_samples:
+            random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
+            return [meta_files_list[i] for i in random_index]
+        return meta_files_list
 
 
 if __name__ == '__main__':
-    train_loader = ASVDatasetshort(48000, nb_samples=10)
+    train_loader = ASVDatasetshort(length=None, nb_samples=2538, do_mfcc=True)
