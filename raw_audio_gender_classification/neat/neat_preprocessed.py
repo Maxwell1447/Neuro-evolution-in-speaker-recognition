@@ -144,11 +144,12 @@ def run(config_file, n_gen, data):
     p.add_reporter(SineScheduler(config_,
                                  period=1000,
                                  final_values={"node_add_prob": 0.0,
-                                               "node_delete_prob": 0.0,
+                                               "node_delete_prob": 0.05,
                                                "conn_add_prob": 0.0,
-                                               "conn_delete_prob": 0.0,
-                                               "bias_mutate_power": 0.001,
-                                               "weight_mutate_power": 0.001}))
+                                               "conn_delete_prob": 0.05,
+                                               "bias_mutate_power": 0.01,
+                                               "weight_mutate_power": 0.01},
+                                 verbose=0))
     # p.add_reporter(neat.Checkpointer(1000))
 
     # Run for up to n_gen generations.
