@@ -11,9 +11,6 @@ from anti_spoofing.eval_functions import eval_genome_bce, ProcessedASVEvaluator
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 2538  # number of audio files used for training
-nb_samples_test = 700  # number of audio files used for testing
-
 
 def run(config_file, n_gen):
     """
@@ -48,9 +45,9 @@ if __name__ == '__main__':
     # here so that the script will run successfully regardless of the
     # current working directory.
     local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'neat.cfg')
+    config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
-    trainloader, testloader = load_data(batch_size=50, length=3*16000)
+    trainloader, testloader = load_data(batch_size=50, length=3*16000, num_train=1000)
 
-    winner, config, stats = run(config_path, 100)
+    winner, config, stats = run(config_path, 1000)
     make_visualize(winner, config, stats)

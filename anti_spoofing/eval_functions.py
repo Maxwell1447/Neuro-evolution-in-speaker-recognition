@@ -10,7 +10,7 @@ class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
     The eval function itself is not defined here.
     """
 
-    def __init__(self, num_workers, eval_function, batch_num, data, timeout=None):
+    def __init__(self, num_workers, eval_function, data, timeout=None):
         super().__init__(num_workers, eval_function, timeout)
         self.data = data  # PyTorch DataLoader
         self.data_iter = iter(data)

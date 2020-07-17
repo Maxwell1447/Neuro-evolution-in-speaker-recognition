@@ -21,7 +21,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
 
-        with Pool(multiprocessing.cpu_count()) as pool:
+        with Pool(multiprocessing.cpu_count()-1) as pool:
             jobs = []
 
             for i in tqdm(range(self.len)):
@@ -39,7 +39,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         return self.len
 
 
-def load_data(batch_size=50, length=3 * 16000):
+def load_data(batch_size=50, length=3 * 16000, num_train=10000, num_test=10000):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
@@ -49,10 +49,10 @@ def load_data(batch_size=50, length=3 * 16000):
     """
     option = OPTION
 
-    if os.path.exists("./data/preprocessed/train_{}_{}".format(option, batch_size)) and \
-            os.path.exists("./data/preprocessed/test_{}_{}".format(option, batch_size)):
-        train_loader = torch.load("./data/preprocessed/train_{}_{}".format(option, batch_size))
-        test_loader = torch.load("./data/preprocessed/test_{}_{}".format(option, batch_size))
+    if os.path.exists("./data/preprocessed/train_{}_{}_{}".format(option, batch_size, num_train)) and \
+            os.path.exists("./data/preprocessed/test_{}_{}_{}".format(option, batch_size, num_test)):
+        train_loader = torch.load("./data/preprocessed/train_{}_{}_{}".format(option, batch_size, num_train))
+        test_loader = torch.load("./data/preprocessed/test_{}_{}_{}".format(option, batch_size, num_test))
         return train_loader, test_loader
 
     if not os.path.isdir('./data/preprocessed'):
@@ -62,14 +62,17 @@ def load_data(batch_size=50, length=3 * 16000):
     trainset = ASVDataset(length=length)
     testset = ASVDataset(length=length, is_train=False, is_eval=True)
 
+    print("preprocessing train set")
     trainset = PreprocessedASVDataset(trainset)
-    testset = PreprocessedASVDataset(testset)
-
     train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=True, drop_last=True)
-    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True, shuffle=False)
+    torch.save(train_loader, "./data/preprocessed/train_{}_{}_{}".format(option, batch_size, num_train))
+    del trainset
 
-    torch.save(train_loader, "./data/preprocessed/train_{}_{}".format(option, batch_size))
-    torch.save(test_loader, "./data/preprocessed/test_{}_{}".format(option, batch_size))
+    print("preprocessing test set")
+    testset = PreprocessedASVDataset(testset)
+    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True, shuffle=False)
+    torch.save(test_loader, "./data/preprocessed/test_{}_{}_{}".format(option, batch_size, num_test))
+    del testset
 
     return train_loader, test_loader
 
