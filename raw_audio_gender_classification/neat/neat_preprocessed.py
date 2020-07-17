@@ -9,6 +9,7 @@ import neat_local.visualization.visualize as visualize
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+from torch import sigmoid
 
 from neat_local.nn import RecurrentNet
 from raw_audio_gender_classification.models import *
@@ -18,7 +19,7 @@ import neat
 from neat.reporting import BaseReporter
 from tqdm import tqdm
 from utils import smooth
-from neat_local.scheduler import ExponentialScheduler
+from neat_local.scheduler import ExponentialScheduler, SineScheduler
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\Graphviz2.38\\bin"
 
@@ -63,7 +64,7 @@ class TestAccReporter(BaseReporter):
                 acc += y.sum()
                 n += len(y)
             print()
-            print(">> Test Accuracy: {:.2f}%".format(float(acc)/float(n)*100))
+            print(">> Test Accuracy: {:.2f}%".format(float(acc) / float(n) * 100))
             print("------------------------")
             print()
             self.acc.append(float(acc) / float(n) * 100)
@@ -94,7 +95,7 @@ def eval_genome(g, conf, batch, return_correct=False):
         # input_t: batch_size x bins
 
         # Usage of batch evaluation provided by PyTorch-NEAT
-        xo = net.activate(input_t)  # batch_size x 2
+        xo = sigmoid(net.activate(input_t))  # batch_size x 2
         score = xo[:, 1]
         confidence = xo[:, 0]
         contribution += score * confidence  # batch_size
@@ -133,22 +134,30 @@ def run(config_file, n_gen, data):
     p.add_reporter(stats_)
     test_acc_reporter = TestAccReporter(testloader)
     p.add_reporter(test_acc_reporter)
-    p.add_reporter(ExponentialScheduler(semi_gen=500,
-                                        final_values={"node_add_prob": 0.0,
-                                                      "node_delete_prob": 0.0,
-                                                      "conn_add_prob": 0.0,
-                                                      "conn_delete_prob": 0.0,
-                                                      "bias_mutate_power": 0.001,
-                                                      "weight_mutate_power": 0.001}))
+    # p.add_reporter(ExponentialScheduler(semi_gen=500,
+    #                                     final_values={"node_add_prob": 0.0,
+    #                                                   "node_delete_prob": 0.0,
+    #                                                   "conn_add_prob": 0.0,
+    #                                                   "conn_delete_prob": 0.0,
+    #                                                   "bias_mutate_power": 0.001,
+    #                                                   "weight_mutate_power": 0.001}))
+    p.add_reporter(SineScheduler(config_,
+                                 period=1000,
+                                 final_values={"node_add_prob": 0.0,
+                                               "node_delete_prob": 0.0,
+                                               "conn_add_prob": 0.0,
+                                               "conn_delete_prob": 0.0,
+                                               "bias_mutate_power": 0.001,
+                                               "weight_mutate_power": 0.001}))
     # p.add_reporter(neat.Checkpointer(1000))
 
     # Run for up to n_gen generations.
-    multi_evaluator = GenderEvaluator(multiprocessing.cpu_count(), eval_genome, len(trainloader)-1, data)
+    multi_evaluator = GenderEvaluator(multiprocessing.cpu_count(), eval_genome, len(trainloader) - 1, data)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     # plot test accuracy
     plt.figure()
-    plt.plot(np.arange(len(test_acc_reporter.acc))*100, smooth(test_acc_reporter.acc, momentum=0.8),
+    plt.plot(np.arange(len(test_acc_reporter.acc)) * 100, smooth(test_acc_reporter.acc, momentum=0.8),
              label="testing accuracy over the generations")
     plt.show()
 
@@ -184,7 +193,6 @@ def make_visualize(winner_, config_, stats_):
 
 
 if __name__ == '__main__':
-
     trainloader, testloader = load_data(batch_size=batch_size)
 
     # Determine path to configuration file. This path manipulation is
@@ -195,9 +203,9 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats = run(config_path, 3000, trainloader)
+    winner, config, stats = run(config_path, 10000, trainloader)
 
     # Usable for "visualize_behavior.py" afterward
-    torch.save(winner, 'best_genome_save')
+    torch.save(winner, 'best_genome_save_simple')
 
     make_visualize(winner, config, stats)
