@@ -1,7 +1,10 @@
 import torch
 from torch import sigmoid
+import numpy as np
 from neat_local.nn.recurrent_net import RecurrentNet
 import neat
+
+from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
 class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
@@ -73,3 +76,48 @@ def eval_genome_bce(g, conf, batch, return_correct=False):
     # return the fitness computed from the BCE loss
     with torch.no_grad():
         return (1 / (1 + torch.nn.BCELoss()(prediction, outputs))).item()
+
+
+def eval_genome_eer(g, conf, batch):
+    """
+    Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
+    The input is already preprocessed with shape batch_size x t x bins
+    t: index of the windows used for the pre-processing
+    bins: number of features extracted --> corresponds to the number of input neurons of the recurrent net
+    Here the fitness function is the equal error rate
+    """
+
+    # inputs: batch_size x t x bins
+    # outputs: batch_size
+    inputs, outputs = batch
+    # inputs: t x batch_size x bins
+    inputs = inputs.transpose(0, 1)
+
+    target_scores = []
+    non_target_scores = []
+
+    jitter = 1e-8
+
+    net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
+    net.reset()
+    for (input_t, output) in zip(inputs, outputs):
+        # input_t: batch_size x bins
+
+        # Usage of batch evaluation provided by PyTorch-NEAT
+        xo = sigmoid(net.activate(input_t))  # batch_size x 2
+        score = xo[:, 1]
+        confidence = xo[:, 0]
+        contribution = (score * confidence).sum() / (jitter + confidence).sum()
+
+        if output == 1:
+            target_scores.append(contribution)
+        else:
+            non_target_scores.append(contribution)
+
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+
+    return 2 * (.5 - eer)

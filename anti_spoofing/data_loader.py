@@ -59,8 +59,8 @@ def load_data(batch_size=50, length=3 * 16000, num_train=10000, num_test=10000):
         local_dir = os.path.dirname(__file__)
         os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
-    trainset = ASVDataset(length=length)
-    testset = ASVDataset(length=length, is_train=False, is_eval=True)
+    trainset = ASVDataset(length=length, nb_samples=num_train, random_samples=True)
+    testset = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_test, random_samples=True)
 
     print("preprocessing train set")
     trainset = PreprocessedASVDataset(trainset)

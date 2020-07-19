@@ -47,7 +47,7 @@ class ASVDataset(Dataset):
         :param nb_samples: int
         Number of files to use.
         :param random_samples: bool
-        If true then the files will be chosen randomly (shuffled if all the files are selected)
+        If true then the nb_samples files will be chosen randomly (shuffled if all the files are selected)
         :param is_train: bool
         If True, will use the files from the train folder.
         :param sample_size: int
@@ -195,7 +195,8 @@ class ASVDataset(Dataset):
                 data_x_copy = data_x[:]
                 for _ in range(nb_iter):
                     data_x = np.concatenate((data_x, data_x_copy))
-            return data_x[:self.fragment_length], float(data_y)
+            begin = np.random.randint(0, data_x.size - self.fragment_length)
+            return data_x[begin: begin+self.fragment_length], float(data_y)
         else:
             return data_x, float(data_y)
         # to add meta data    
@@ -216,11 +217,12 @@ class ASVDataset(Dataset):
         if self.index_list:
             return [meta_files_list[i] for i in self.index_list]
         if self.random_samples:
+            self.random_samples = np.min([self.random_samples, len(meta_files_list)])
             random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
             return [meta_files_list[i] for i in random_index]
-        return meta_files_list
+        return meta_files_list[:self.nb_samples]
 
 
 if __name__ == '__main__':
-    train_loader = ASVDataset(length=None, is_train=True, nb_samples=10, do_mfcc=True)
-    testset = ASVDataset(length=None, is_train=False, is_eval=False, nb_samples=10)
+    train_loader = ASVDataset(length=48000, is_train=True, nb_samples=70000, do_mfcc=False)
+    testset = ASVDataset(length=48000, is_train=False, is_eval=True, nb_samples=70000)

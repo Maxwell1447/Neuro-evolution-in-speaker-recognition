@@ -177,4 +177,4 @@ class ASVDatasetshort(Dataset):
 
 
 if __name__ == '__main__':
-    train_loader = ASVDatasetshort(length=None, nb_samples=2538, do_mfcc=True)
+    train_loader = ASVDatasetshort(length=None, nb_samples=2538, do_mfcc=False)

@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     sns.set(style="darkgrid")
     for audio_sample in range(nb_samples * 7):
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(2, 2)
 
         # plot gates
         ax1.plot(audio_samples_using[audio_sample], 'b', label="average gates")
@@ -143,5 +143,9 @@ if __name__ == '__main__':
         nb_frames, nb_elements = speech_detection_time[audio_sample]
         t = np.linspace(0, nb_frames * nb_elements, nb_frames)
         ax3.plot(t, speech_detection[audio_sample], 'g', label="speech detection")
+
+        # plot signal
+        ax4.plot()
+
         fig.legend()
         plt.show()
