@@ -4,7 +4,6 @@ import numpy as np
 import random as rd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter
 import webrtcvad
 import soundfile as sf
 import contextlib

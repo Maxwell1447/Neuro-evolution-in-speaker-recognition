@@ -5,11 +5,8 @@ import random as rd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
-import webrtcvad
-
 from tqdm import tqdm
 
-from anti_spoofing.utils_ASV import SAMPLING_RATE
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.silence_detection import detect_speech
 
@@ -21,12 +18,6 @@ dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 for i in range(len(dev_border) - 1):
     index_test += rd.sample([k for k in range(dev_border[i], dev_border[i + 1])], nb_samples)
-
-vad = webrtcvad.Vad()
-vad.set_mode(1)
-frame_duration = 10  # ms
-frame = b'\x00\x00' * int(SAMPLING_RATE * frame_duration / 1000)
-print('Contains speech: %s' % (vad.is_speech(frame, SAMPLING_RATE)))
 
 test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
 
@@ -114,14 +105,14 @@ if __name__ == '__main__':
 
         # to smooth gates
         audio_samples_using[audio_sample] = audio_samples_using[audio_sample] / nb_genomes
-        audio_samples_using[audio_sample] = savgol_filter(audio_samples_using[audio_sample], 201, 3)
+        audio_samples_using[audio_sample] = savgol_filter(audio_samples_using[audio_sample], 161, 3)
 
         # to smooth scores
         score_audio_samples_using[audio_sample] = score_audio_samples_using[audio_sample] / nb_genomes
-        score_audio_samples_using[audio_sample] = savgol_filter(score_audio_samples_using[audio_sample], 201, 3)
+        score_audio_samples_using[audio_sample] = savgol_filter(score_audio_samples_using[audio_sample], 161, 3)
 
         # to retrieve detection of speech
-        raw_audio_sample = test_loader.__getitem__(audio_sample)
+        raw_audio_sample = test_loader[audio_sample]
         name = str(raw_audio_sample[2]) + ".wav"
         silence, nb_frames, nb_elements = detect_speech(raw_audio_sample[0], name)
         speech_detection.append(silence)
@@ -131,7 +122,7 @@ if __name__ == '__main__':
 
     sns.set(style="darkgrid")
     for audio_sample in range(nb_samples * 7):
-        fig, (ax1, ax2, ax3, ax4) = plt.subplots(2, 2)
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1)
 
         # plot gates
         ax1.plot(audio_samples_using[audio_sample], 'b', label="average gates")
@@ -145,7 +136,7 @@ if __name__ == '__main__':
         ax3.plot(t, speech_detection[audio_sample], 'g', label="speech detection")
 
         # plot signal
-        ax4.plot()
+        ax4.plot(test_loader[audio_sample][0], 'm', label='signal')
 
         fig.legend()
         plt.show()
