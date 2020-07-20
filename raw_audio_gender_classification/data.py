@@ -10,7 +10,7 @@ import platform
 from preprocessing.preprocessing import preprocess
 import multiprocessing
 from multiprocessing import Pool
-from raw_audio_gender_classification.neat.constants import BINS, OPTION
+from raw_audio_gender_classification.neat.constants import *
 
 current_os = platform.system()
 
@@ -198,14 +198,14 @@ class LibriSpeechDataset(torch.utils.data.Dataset):
 
 
 def preprocess_function(s):
-    return torch.from_numpy(preprocess(s, option=OPTION, bins=BINS, sr=16000))
+    return torch.from_numpy(preprocess(s, option=OPTION, bins=BINS, sr=16000, win_length=WIN_LENGTH, hop_length=HOP_LENGTH))
 
 
 class PreprocessedLibriSpeechDataset(torch.utils.data.Dataset):
 
     def __init__(self, dataset: LibriSpeechDataset):
         self.len = len(dataset)
-        self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
+        self.X = torch.empty(self.len, 16000 * 3 // HOP_LENGTH + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
 
         with Pool(multiprocessing.cpu_count()) as pool:
@@ -213,7 +213,8 @@ class PreprocessedLibriSpeechDataset(torch.utils.data.Dataset):
 
             for i in tqdm(range(self.len)):
                 x, t = dataset[i]
-                jobs.append(pool.apply_async(preprocess_function, [x.astype(np.float32)]))
+                jobs.append(pool.apply_async(preprocess_function,
+                                             (x.astype(np.float32),)))
                 self.t[i] = float(t)
 
             for i, job in enumerate(jobs):

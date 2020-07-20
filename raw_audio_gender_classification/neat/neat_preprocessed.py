@@ -110,7 +110,8 @@ def eval_genome(g, conf, batch, return_correct=False):
 
     # return the fitness computed from the BCE loss
     with torch.no_grad():
-        return (1 / (1 + torch.nn.BCELoss()(prediction, outputs))).item()
+        bce = torch.nn.BCELoss()
+        return (1 / (1 + bce(prediction, outputs))).item()
 
 
 def run(config_file, n_gen, data):
@@ -134,22 +135,23 @@ def run(config_file, n_gen, data):
     p.add_reporter(stats_)
     test_acc_reporter = TestAccReporter(testloader)
     p.add_reporter(test_acc_reporter)
-    # p.add_reporter(ExponentialScheduler(semi_gen=500,
+    # p.add_reporter(ExponentialScheduler(semi_gen=2000,
     #                                     final_values={"node_add_prob": 0.0,
     #                                                   "node_delete_prob": 0.0,
     #                                                   "conn_add_prob": 0.0,
     #                                                   "conn_delete_prob": 0.0,
-    #                                                   "bias_mutate_power": 0.001,
-    #                                                   "weight_mutate_power": 0.001}))
-    p.add_reporter(SineScheduler(config_,
-                                 period=1000,
-                                 final_values={"node_add_prob": 0.01,
-                                               "node_delete_prob": 0.0,
-                                               "conn_add_prob": 0.01,
-                                               "conn_delete_prob": 0.0,
-                                               "bias_mutate_power": 0.01,
-                                               "weight_mutate_power": 0.01},
-                                 verbose=1))
+    #                                                   "bias_mutate_power": 0.01,
+    #                                                   "weight_mutate_power": 0.01}))
+
+    # p.add_reporter(SineScheduler(config_,
+    #                              period=1000,
+    #                              final_values={"node_add_prob": 0.01,
+    #                                            "node_delete_prob": 0.0,
+    #                                            "conn_add_prob": 0.01,
+    #                                            "conn_delete_prob": 0.0,
+    #                                            "bias_mutate_power": 0.01,
+    #                                            "weight_mutate_power": 0.01},
+    #                              verbose=1))
     # p.add_reporter(neat.Checkpointer(1000))
 
     # Run for up to n_gen generations.
@@ -158,7 +160,7 @@ def run(config_file, n_gen, data):
 
     # plot test accuracy
     plt.figure()
-    plt.plot(np.arange(len(test_acc_reporter.acc)) * 100, smooth(test_acc_reporter.acc, momentum=0.8),
+    plt.plot(np.arange(len(test_acc_reporter.acc)) * 100, smooth(test_acc_reporter.acc, momentum=0.5),
              label="testing accuracy over the generations")
     plt.show()
 
@@ -204,9 +206,9 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats = run(config_path, 3000, trainloader)
+    winner, config, stats = run(config_path, 2000, trainloader)
 
     # Usable for "visualize_behavior.py" afterward
-    torch.save(winner, 'best_genome_save_simple')
+    torch.save(winner, 'best_genome_save')
 
     make_visualize(winner, config, stats)

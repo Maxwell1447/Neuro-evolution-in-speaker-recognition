@@ -19,7 +19,7 @@ from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RA
 from raw_audio_gender_classification.data import LibriSpeechDataset, PreprocessedLibriSpeechDataset
 from raw_audio_gender_classification.models import *
 from raw_audio_gender_classification.utils import whiten
-from raw_audio_gender_classification.neat.constants import BINS, OPTION
+from raw_audio_gender_classification.neat.constants import *
 
 os.environ["PATH"] += os.pathsep + "C:\\Program Files (x86)\\graphviz\\bin"
 
@@ -42,10 +42,12 @@ def load_data(preprocessing=True, batch_size=batch_size):
     option = OPTION
 
     if preprocessing:
-        if os.path.exists("./data/preprocessed/train_{}_{}".format(option, batch_size)) and \
-                os.path.exists("./data/preprocessed/test_{}_{}".format(option, batch_size)):
-            train_loader = torch.load("./data/preprocessed/train_{}_{}".format(option, batch_size))
-            test_loader = torch.load("./data/preprocessed/test_{}_{}".format(option, batch_size))
+        if os.path.exists("./data/preprocessed/train_{}_{}_{}_{}_{}".format(option, batch_size, BINS, WIN_LENGTH, HOP_LENGTH)) and \
+                os.path.exists("./data/preprocessed/test_{}_{}_{}_{}_{}".format(option, batch_size, BINS, WIN_LENGTH, HOP_LENGTH)):
+            train_loader = torch.load("./data/preprocessed/train_{}_{}_{}_{}_{}"
+                                      .format(option, batch_size, BINS, WIN_LENGTH, HOP_LENGTH))
+            test_loader = torch.load("./data/preprocessed/test_{}_{}_{}_{}_{}"
+                                     .format(option, batch_size, BINS, WIN_LENGTH, HOP_LENGTH))
             return train_loader, test_loader
 
         if not os.path.isdir('./data/preprocessed'):
@@ -62,8 +64,10 @@ def load_data(preprocessing=True, batch_size=batch_size):
     test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True, shuffle=False)
 
     if preprocessing:
-        torch.save(train_loader, "./data/preprocessed/train_{}_{}".format(option, batch_size))
-        torch.save(test_loader, "./data/preprocessed/test_{}_{}".format(option, batch_size))
+        torch.save(train_loader, "./data/preprocessed/train_{}_{}_{}_{}_{}"
+                   .format(option, batch_size, BINS, WIN_LENGTH, HOP_LENGTH))
+        torch.save(test_loader, "./data/preprocessed/test_{}_{}_{}_{}_{}"
+                   .format(option, batch_size, BINS, WIN_LENGTH, HOP_LENGTH))
 
     return train_loader, test_loader
 
