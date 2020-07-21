@@ -88,14 +88,16 @@ if __name__ == '__main__':
     trainloader, testloader = load_data(preprocessing=pre_processing)
 
     # CHOICE OF THE MODEL USED
-    model = "LSTM"
+    model = "linear"
 
     if model == "LSTM":
-        rnn = LSTM(BINS, 300, batch_size, device="cpu")
+        rnn = LSTM(BINS, 10, batch_size, device="cpu")
     elif model == "RNN":
-        rnn = RNN(BINS, 300, batch_size, device="cpu")
+        rnn = RNN(BINS, 30, batch_size, device="cpu")
     elif model == "GRU":
-        rnn = GRU(BINS, 300, batch_size, device="cpu")
+        rnn = GRU(BINS, 30, batch_size, device="cpu")
+    elif model == "linear":
+        rnn = Linear(BINS, device="cpu")
     elif model == "ConvNet":
         rnn = ConvNet(64, 4)
         rnn.double().cuda()
@@ -129,7 +131,7 @@ if __name__ == '__main__':
             # get the inputs
             inputs, labels = data
 
-            if pre_processing:
+            if not pre_processing:
                 inputs = whiten(inputs)
                 inputs = torch.from_numpy(
                     resample(inputs, int(LIBRISPEECH_SAMPLING_RATE * n_seconds / downsampling), axis=1)
@@ -168,7 +170,6 @@ if __name__ == '__main__':
                 else:
                     labels = labels.float().reshape(-1, 1)
 
-                # forward + backward + optimize
                 outputs = rnn(inputs).view(1, 1)
                 tes_acc += get_accuracy(outputs, labels) * batch_size
 

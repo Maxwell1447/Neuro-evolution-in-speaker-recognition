@@ -96,8 +96,8 @@ def eval_genome(g, conf, batch, return_correct=False):
 
         # Usage of batch evaluation provided by PyTorch-NEAT
         xo = sigmoid(net.activate(input_t))  # batch_size x 2
-        score = xo[:, 1]
-        confidence = xo[:, 0]
+        score = torch.sigmoid(xo[:, 1])
+        confidence = torch.sigmoid(xo[:, 0])
         contribution += score * confidence  # batch_size
         norm += confidence
 
@@ -110,8 +110,10 @@ def eval_genome(g, conf, batch, return_correct=False):
 
     # return the fitness computed from the BCE loss
     with torch.no_grad():
-        bce = torch.nn.BCELoss()
-        return (1 / (1 + bce(prediction, outputs))).item()
+        # loss = torch.nn.BCELoss()
+        loss = torch.nn.MSELoss()
+
+        return (1 / (1 + loss(prediction, outputs))).item()
 
 
 def run(config_file, n_gen, data):
