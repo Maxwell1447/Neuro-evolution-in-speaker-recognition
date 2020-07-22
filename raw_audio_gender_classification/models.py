@@ -142,6 +142,11 @@ class Linear(nn.Module):
         self.input_size = n_inputs
 
     def forward(self, x: torch.Tensor):
+
+        selectivity, score = self.score_gate(x)
+        return self.predict(selectivity, score)
+
+    def score_gate(self, x: torch.Tensor):
         x = x.float()  # batch_size x seq_len x bins
         xt = x.transpose(0, 1)  # seq_len x batch_size x bins
 
@@ -158,6 +163,10 @@ class Linear(nn.Module):
         score = out[:, :, 1]
         selectivity = out[:, :, 0]
 
+        return selectivity, score
+
+    @staticmethod
+    def predict(selectivity, score):
         selected_score = score * selectivity
         prediction = selected_score.sum(dim=1) / selectivity.sum(dim=1)
 

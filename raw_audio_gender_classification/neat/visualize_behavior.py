@@ -11,6 +11,8 @@ from neat_local.nn import RecurrentNet
 import neat
 import numpy as np
 from preprocessing.preprocessing import preprocess
+import librosa
+from scipy.fftpack import fft, rfft
 
 batch_size = 50
 
@@ -55,6 +57,88 @@ def plot_gate_vs_signal(x, x_p, genome, conf):
     plt.show()
 
 
+def plot_gate_vs_signal_linear(x, x_p, model):
+    """
+        x: numpy array corresponding to the raw audio signal
+        x_p: preprocessed signal
+        model: linear model
+
+        plot the squared signal w.r.t. the windowed-gate signal
+        """
+
+    x_pt = x_p.transpose(0, 1)
+
+    # norm = torch.zeros(batch_size)
+
+    with torch.no_grad():
+        print(model.fc1.weight)
+        score, gate = model.score_gate(x_pt)  # t x batch_size
+
+        # gate: t x batch_size(=1)
+        gate = gate.numpy()
+
+    assert gate.shape[1] == 1
+    gate.flatten()
+    gate = gate.repeat(512)
+
+    x = x.numpy()[0]
+
+    filtered_signal = gate[:len(x)] * x
+    # norm = (x**2).sum() / gate.sum()
+    plt.figure()
+    plt.plot(x)
+    plt.plot(filtered_signal)
+    plt.plot(gate)
+    plt.show()
+
+
+def plot_gated_fft(x, x_p, genome, conf, t):
+    x_pt = x_p.transpose(0, 1)
+
+    net = RecurrentNet.create(genome, conf, device="cpu", dtype=torch.float32)
+    net.reset()
+    gate = []
+    # norm = torch.zeros(batch_size)
+    for xi in x_pt:
+        xo = net.activate(xi)  # batch_size x 2
+        # score = xo[:, 1]
+        confidence = xo[:, 0]
+        gate.append(xo[:, 0].numpy())
+        # contribution += score * confidence  # batch_size
+        # norm += confidence
+
+    # gate: t x batch_size(=1)
+    gate = np.array(gate)
+
+    assert gate.shape[1] == 1
+    gate.flatten()
+    gate = gate.repeat(512)
+
+    filtered_signal = gate[:len(x)] * x.numpy()
+
+    # plt.figure()
+    # plt.plot(x)
+    # plt.plot(filtered_signal)
+    # plt.plot(gate)
+    # plt.show()
+
+    print(t)
+
+    # x_fft = rfft(x.numpy())
+    #
+    # plt.figure()
+    # plt.title("signal female" if t else "signal male")
+    # plt.plot(x_fft)
+    # plt.show()
+
+    x_fft = rfft(filtered_signal)
+
+    plt.figure()
+    plt.title("filtered signal female" if t else "filtered signal male")
+    plt.plot(x_fft[:len(x_fft)//94])
+    plt.show()
+
+
 def test_correspondence(s, s_p):
     print(s.shape, s_p.shape)
     s_p2 = preprocess(s, option="mfcc")
@@ -78,9 +162,12 @@ if __name__ == "__main__":
 
     test_iter_pp = iter(test_loader_pp)
     test_iter = iter(test_loader)
-    for _ in range(10):  # number of audio files taken
+    for i in range(150):  # number of audio files taken
 
-        y, _ = next(test_iter)
+        y, t = next(test_iter)
         y_p, _ = next(test_iter_pp)
 
-        plot_gate_vs_signal(y[0], y_p, winner, config_)
+        if i % 17 == 0:
+            # plot_gate_vs_signal(y[0], y_p, winner, config_)
+            # plot_gate_vs_signal_linear(y, y_p, torch.load("linear_SGD.pkl"))
+            plot_gated_fft(y[0], y_p, winner, config_, t[0])

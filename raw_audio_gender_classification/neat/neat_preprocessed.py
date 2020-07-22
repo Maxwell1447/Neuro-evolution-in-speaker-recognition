@@ -55,14 +55,18 @@ class TestAccReporter(BaseReporter):
         self.cpt += 1
 
     def post_evaluate(self, conf, population, species, best_genome):
+
         if self.cpt % 100 == 0:
+            # visualize.draw_net(conf, best_genome, True)
+            # print(best_genome)
             acc = 0
             n = 0
             # Compute accuracy over the whole test set
-            for e in tqdm(iter(self.test_set), total=len(self.test_set)):
+            for i, e in enumerate(tqdm(iter(self.test_set), total=len(self.test_set))):
                 y = eval_genome(best_genome, conf, e, return_correct=True)
                 acc += y.sum()
                 n += len(y)
+
             print()
             print(">> Test Accuracy: {:.2f}%".format(float(acc) / float(n) * 100))
             print("------------------------")
@@ -91,13 +95,13 @@ def eval_genome(g, conf, batch, return_correct=False):
     net.reset()
     contribution = torch.zeros(len(outputs))
     norm = torch.zeros(len(outputs))
-    for input_t in inputs:
+    for  input_t in inputs:
         # input_t: batch_size x bins
 
         # Usage of batch evaluation provided by PyTorch-NEAT
-        xo = sigmoid(net.activate(input_t))  # batch_size x 2
-        score = torch.sigmoid(xo[:, 1])
-        confidence = torch.sigmoid(xo[:, 0])
+        xo = net.activate(input_t)  # batch_size x 2
+        score = xo[:, 1]
+        confidence = xo[:, 0]
         contribution += score * confidence  # batch_size
         norm += confidence
 
@@ -110,8 +114,8 @@ def eval_genome(g, conf, batch, return_correct=False):
 
     # return the fitness computed from the BCE loss
     with torch.no_grad():
-        # loss = torch.nn.BCELoss()
-        loss = torch.nn.MSELoss()
+        loss = torch.nn.BCELoss()
+        # loss = torch.nn.MSELoss()
 
         return (1 / (1 + loss(prediction, outputs))).item()
 
@@ -137,13 +141,14 @@ def run(config_file, n_gen, data):
     p.add_reporter(stats_)
     test_acc_reporter = TestAccReporter(testloader)
     p.add_reporter(test_acc_reporter)
-    # p.add_reporter(ExponentialScheduler(semi_gen=2000,
-    #                                     final_values={"node_add_prob": 0.0,
-    #                                                   "node_delete_prob": 0.0,
-    #                                                   "conn_add_prob": 0.0,
-    #                                                   "conn_delete_prob": 0.0,
-    #                                                   "bias_mutate_power": 0.01,
-    #                                                   "weight_mutate_power": 0.01}))
+    p.add_reporter(ExponentialScheduler(semi_gen=200,
+                                        final_values={"node_add_prob": 0.0,
+                                                      "node_delete_prob": 0.0,
+                                                      "conn_add_prob": 0.0,
+                                                      "conn_delete_prob": 0.0}))
+    p.add_reporter(ExponentialScheduler(semi_gen=1000,
+                                        final_values={"bias_mutate_power": 0.0,
+                                                      "weight_mutate_power": 0.0}))
 
     # p.add_reporter(SineScheduler(config_,
     #                              period=1000,
@@ -208,7 +213,7 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats = run(config_path, 2000, trainloader)
+    winner, config, stats = run(config_path, 1500, trainloader)
 
     # Usable for "visualize_behavior.py" afterward
     torch.save(winner, 'best_genome_save')

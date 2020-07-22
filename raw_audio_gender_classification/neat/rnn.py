@@ -14,6 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
+import torch
 
 from raw_audio_gender_classification.config import PATH, LIBRISPEECH_SAMPLING_RATE
 from raw_audio_gender_classification.data import LibriSpeechDataset, PreprocessedLibriSpeechDataset
@@ -118,7 +119,7 @@ if __name__ == '__main__':
         return accuracy.item()
 
 
-    for epoch in range(10):  # loop over the dataset multiple times
+    for epoch in range(3):  # loop over the dataset multiple times
         train_running_loss = 0.0
         train_acc = 0.0
         rnn.train()
@@ -175,3 +176,5 @@ if __name__ == '__main__':
 
         print('Epoch:  %d | Loss: %.4f | Train Accuracy: %.2f | Test Accuracy: %.2f'
               % (epoch, train_running_loss / len(trainloader), train_acc / len(trainloader), tes_acc/len(testloader)))
+
+    torch.save(rnn, "linear_SGD.pkl")
