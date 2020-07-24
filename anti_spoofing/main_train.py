@@ -43,6 +43,9 @@ def run(config_file, n_gen):
     multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_eer, trainloader)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
+    # Display the winning genome.
+    print('\nBest genome:\n{!s}'.format(winner_))
+
     return winner_, config_, stats_
 
 def evaluate(g, conf, data):

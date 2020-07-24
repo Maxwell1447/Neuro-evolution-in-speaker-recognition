@@ -42,7 +42,11 @@ def run(config_file, n_gen):
     # Run for up to n_gen generations.
     multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc,
                                                trainloader, pop=config_.pop_size)
+
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
+
+    # Display the winning genome.
+    # print('\nBest genome:\n{!s}'.format(winner_))
 
     return winner_, config_, stats_
 
@@ -95,15 +99,21 @@ if __name__ == '__main__':
     # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
+    # config.genome_config.num_inputs = 2
 
     trainloader, testloader = load_data(batch_size=100, length=3*16000, num_train=10000)
 
-    winner, config, stats = run(config_path, 2000)
+    eer_list = []
+    accuracy_list = []
+    for iterations in range(20):
+        winner, config, stats = run(config_path, 2000)
 
-    eer, accuracy = evaluate(winner, config, testloader)
+        eer, accuracy = evaluate(winner, config, testloader)
+        eer_list.append(eer)
+        accuracy_list.append(accuracy)
 
     print("\n")
-    print("equal error rate", eer)
-    print("accuracy", accuracy)
+    print("equal error rate", eer_list)
+    print("accuracy", accuracy_list)
 
-    make_visualize(winner, config, stats)
+    # make_visualize(winner, config, stats)

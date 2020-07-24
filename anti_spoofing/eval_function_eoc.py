@@ -163,6 +163,9 @@ def eval_genome_eoc(g, conf, batch):
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
 
+    if target_scores.size == 0:
+        return np.zeros(1)
+
     l_s_n = np.zeros(target_scores.size)
 
     for i in range(target_scores.size):

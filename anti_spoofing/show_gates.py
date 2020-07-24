@@ -119,7 +119,6 @@ if __name__ == '__main__':
         speech_detection_time.append((nb_frames, nb_elements))
 
 
-
     sns.set(style="darkgrid")
     for audio_sample in range(nb_samples * 7):
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1)
@@ -128,6 +127,7 @@ if __name__ == '__main__':
         ax1.plot(audio_samples_using[audio_sample], 'b', label="average gates")
 
         # plot scores
+        score_audio_samples_using[audio_sample][audio_samples_using[audio_sample] < 0.5] = 0
         ax2.plot(score_audio_samples_using[audio_sample], 'r', label="average scores")
 
         # plot detection of speech
