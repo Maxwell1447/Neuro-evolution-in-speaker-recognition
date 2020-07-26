@@ -6,12 +6,13 @@ from torch import sigmoid
 import numpy as np
 import multiprocessing
 from tqdm import tqdm
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 from anti_spoofing.utils_ASV import make_visualize
 from anti_spoofing.data_loader import load_data
-from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc
+from anti_spoofing.eval_funtion_ce import eval_genome_ce, ProcessedASVEvaluator
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -40,14 +41,14 @@ def run(config_file, n_gen):
     # p.add_reporter(neat.Checkpointer(generation_interval=100, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
-    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc,
-                                               data=trainloader, pop=config_.pop_size)
+    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_ce, trainloader)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     # Display the winning genome.
     # print('\nBest genome:\n{!s}'.format(winner_))
 
     return winner_, config_, stats_
+
 
 def evaluate(g, conf, data):
     """
@@ -66,22 +67,20 @@ def evaluate(g, conf, data):
     net.reset()
     for i in range(len(data)):
         batch = next(data_iter)
-        input, output, _ = batch
+        input, _, output = batch
         input = input[0]
-        xo = sigmoid(net.activate(input))
-        score = xo[:, 1]
-        confidence = xo[:, 0]
-        contribution = (score * confidence).sum() / (jitter + confidence).sum()
-
-        if output == 1:
-            target_scores.append(contribution)
+        xo = net.activate(input)  # batch_size x 8
+        score = xo[:, 1:].reshape(torch.Size((7, -1)))
+        confidence = sigmoid(xo[:, 0])
+        contribution = (score * confidence).sum(axis=1) / (jitter + confidence).sum()
+        if output == 0:
+            target_scores.append(contribution[0].item())
         else:
-            non_target_scores.append(contribution)
+            non_target_scores.append(contribution[0].item())
 
-        correct += ((contribution > 0.5) == output).item()
+        correct += (contribution.argmax() == output).item()
         total += 1
-
-    accuracy = correct/total
+    accuracy = correct / total
 
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
@@ -97,14 +96,14 @@ if __name__ == '__main__':
     # here so that the script will run successfully regardless of the
     # current working directory.
     local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
+    config_path = os.path.join(local_dir, 'ASV_neat_preprocessed_ce.cfg')
 
-    trainloader, testloader = load_data(batch_size=100, length=3*16000, num_train=10000)
+    trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, num_test=10000)
 
     eer_list = []
     accuracy_list = []
-    for iterations in range(1):
-        winner, config, stats = run(config_path, 20)
+    for iterations in range(20):
+        winner, config, stats = run(config_path, 500)
 
         eer, accuracy = evaluate(winner, config, testloader)
         eer_list.append(eer)

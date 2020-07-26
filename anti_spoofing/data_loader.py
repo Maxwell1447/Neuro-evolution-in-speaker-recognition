@@ -20,6 +20,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         self.len = len(dataset)
         self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
+        self.meta = torch.empty(self.len, dtype=torch.int64)
 
         with Pool(multiprocessing.cpu_count()-1) as pool:
             jobs = []
@@ -28,12 +29,13 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
                 x, t, meta = dataset[i]
                 jobs.append(pool.apply_async(preprocess_function, [x.astype(np.float32)]))
                 self.t[i] = float(t)
+                self.meta[i] = int(meta)
 
             for i, job in enumerate(jobs):
                 self.X[i] = job.get(timeout=None)
 
     def __getitem__(self, index):
-        return self.X[index], self.t[index]
+        return self.X[index], self.t[index], self.meta[index]
 
     def __len__(self):
         return self.len
