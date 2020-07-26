@@ -36,14 +36,16 @@ class ASVDatasetshort(Dataset):
     def __init__(self, length, nb_samples=2538, random_samples=False,
                  sample_size=None,
                  save_cache=False, index_list=None,
-                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False):
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False):
         """
         :param length: int
-        Length of the audio files in number of elements in a numpy array format. It will set
-        the audio files to the correspond length by removing the end or adding duplicate parts of the file.
+        Length of the audio files in number of elements in a numpy array format.
+        Number of elements times the sampling rate is equal the length in seconds of the audio file.
+        It will set the audio files to the correspond length by removing the end or adding duplicate parts
+        of the file.
         If set to None, it will return the audio files without changing their length.
         :param nb_samples: int
-        Number of files to use.
+        Number of files to use. If greater than the actual number of files, nb_samples will be set to this value.
         :param random_samples: bool
         If true then the files will be chosen randomly (shuffled if all the files are selected)
         :param sample_size: int
@@ -55,10 +57,16 @@ class ASVDatasetshort(Dataset):
         :param index_list: list
         If set to a non empty list, will only use the audio files whose index is in the list
         :param do_standardize: bool
-        If True will standardize the audio files
+        If True will standardize the audio files.
         :param do_mfcc: bool
         If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
-        and not the raw audio files
+        and not the raw audio files.
+        :param do_chroma_cqt: bool
+        If True will return the Constant-Q chromagram (cqt) of the audio files
+        and not the raw audio files.
+        :param do_chroma_stft: bool
+        If True will return the chromagram, Short-time Fourier transform (stft), from the audio files
+        and not the raw audio files.
         """
         data_root = DATA_ROOT
         track = 'LA'
@@ -71,6 +79,9 @@ class ASVDatasetshort(Dataset):
         self.standardize = do_standardize
         self.mfcc = do_mfcc
         self.chroma_cqt = do_chroma_cqt
+        self.chroma_stft = do_chroma_stft
+        if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt):
+            raise ValueError("You cannot specify a length if you are using pre-processing functions")
         v1_suffix = ''
         self.sysid_dict = {
             'human': 0,  # bonafide speech
@@ -138,9 +149,11 @@ class ASVDatasetshort(Dataset):
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:
-            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate)
+            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24)
         if self.chroma_cqt:
-            data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate,  n_chroma=20)
+            data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate, n_chroma=24)
+        if self.chroma_stft:
+            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24)
         if self.standardize:
             data_x = whiten(data_x)
         # to make all data to have the same length
@@ -171,10 +184,11 @@ class ASVDatasetshort(Dataset):
         if self.index_list:
             return [meta_files_list[i] for i in self.index_list]
         if self.random_samples:
+            self.nb_samples = np.min([self.nb_samples, len(meta_files_list)])
             random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
             return [meta_files_list[i] for i in random_index]
-        return meta_files_list
+        return meta_files_list[:self.nb_samples]
 
 
 if __name__ == '__main__':
-    train_loader = ASVDatasetshort(length=None, nb_samples=2538, do_mfcc=False)
+    train_loader = ASVDatasetshort(length=None, nb_samples=2530, do_mfcc=False)
