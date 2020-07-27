@@ -29,6 +29,7 @@ anti_spoofing/data/
 .pylint.d/
 
 *.svg
+*.pkl
 
 *.gv
 
