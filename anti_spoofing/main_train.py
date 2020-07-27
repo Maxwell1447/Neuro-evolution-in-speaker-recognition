@@ -8,10 +8,10 @@ import multiprocessing
 from tqdm import tqdm
 
 from anti_spoofing.utils_ASV import make_visualize
-from anti_spoofing.data_loader import load_data
+from anti_spoofing.data_loader import load_data, load_data_cqcc
 from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-
+from anti_spoofing.constants import *
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -41,9 +41,11 @@ def run(config_file, n_gen):
 
     # Run for up to n_gen generations.
     multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_eer, trainloader)
+
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     return winner_, config_, stats_
+
 
 def evaluate(g, conf, data):
     """
@@ -64,7 +66,7 @@ def evaluate(g, conf, data):
         batch = next(data_iter)
         input, output = batch
         input = input[0]
-        xo = sigmoid(net.activate(input))
+        xo = net.activate(input)
         score = xo[:, 1]
         confidence = xo[:, 0]
         contribution = (score * confidence).sum() / (jitter + confidence).sum()
@@ -77,7 +79,7 @@ def evaluate(g, conf, data):
         correct += ((contribution > 0.5) == output).item()
         total += 1
 
-    accuracy = correct/total
+    accuracy = correct / total
 
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
@@ -95,7 +97,10 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
-    trainloader, testloader = load_data(batch_size=100, length=3*16000, num_train=10000)
+    if OPTION == "cqcc":
+        trainloader, testloader = load_data_cqcc(num_train=1000, num_test=1000)
+    else:
+        trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000)
 
     winner, config, stats = run(config_path, 10)
 
