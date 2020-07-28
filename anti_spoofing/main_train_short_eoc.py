@@ -3,10 +3,12 @@ import neat
 import numpy as np
 import random as rd
 import multiprocessing
+from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils_ASV import whiten, gate_activation, evaluate, make_visualize
+from anti_spoofing.utils_ASV import whiten, gate_mfcc, make_visualize
+from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
 """
@@ -14,23 +16,23 @@ NEAT APPLIED TO ASVspoof 2019
 """
 
 nb_samples_train = 2538  # number of audio files used for training
-nb_samples_test = 700  # number of audio files used for testing
+nb_samples_test = 7000  # number of audio files used for testing
 
-batch_size = 100  # size of the batch used for training, choose an even number
+batch_size = 128  # size of the batch used for training, choose an even number
 
-n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
-n_generation = 40  # number of generations
+n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
+n_generation = 500  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
 # for testing
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 for i in range(len(dev_border)-1):
-    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i+1])], 100)
+    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i+1])], 1000)
 
 
-train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
+train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True)
+test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test, do_mfcc=True)
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
@@ -139,12 +141,15 @@ def eval_genome(genome, config, batch_data):
         inputs, output = data[0], data[1]
         inputs = whiten(inputs)
         net.reset()
-        mask, score = gate_activation(net, inputs)
+        """
+        mask, score = gate_mfcc(net, inputs)
         selected_score = score[mask]
         if selected_score.size == 0:
             xo = 0.5
         else:
             xo = np.sum(selected_score) / selected_score.size
+        """
+        xo = gate_mfcc(net, inputs)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -178,7 +183,7 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None))
+    #p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, pop=config_.pop_size)
@@ -187,20 +192,35 @@ def run(config_file, n_gen):
     # Display the winning genome.
     print('\nBest genome:\n{!s}'.format(winner_))
 
-    # Show output of the most fit genome against training data.
-    print('\n')
-    winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
-
-    train_eer = evaluate(winner_net, train_loader)
-    eer = evaluate(winner_net, test_loader)
-
-    print("\n")
-    print("**** training equal error rate = {}  ****".format(train_eer))
-
-    print("\n")
-    print("**** equal error rate = {}  ****".format(eer))
-
     return winner_, config_, stats_
+
+
+def evaluate(net, data_loader):
+    """
+    compute the eer equal error rate
+    :param net: network
+    :param data_loader: test dataset, contains audio files in a numpy array format
+    :return eer
+    """
+    net.reset()
+    target_scores = []
+    non_target_scores = []
+    for data in tqdm(data_loader):
+        sample_input, output = data[0], data[1]
+        sample_input = whiten(sample_input)
+        xo = gate_mfcc(net, sample_input)
+        if output == 1:
+            target_scores.append(xo)
+        else:
+            non_target_scores.append(xo)
+
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+
+    return eer
 
 
 if __name__ == '__main__':
@@ -212,3 +232,13 @@ if __name__ == '__main__':
 
     winner, config, stats = run(config_path, n_generation)
     make_visualize(winner, config, stats)
+
+    winner_net = neat.nn.RecurrentNetwork.create(winner, config)
+    train_eer = evaluate(winner_net, train_loader)
+    eer = evaluate(winner_net, test_loader)
+
+    print("\n")
+    print("**** training equal error rate = {}  ****".format(train_eer))
+
+    print("\n")
+    print("**** equal error rate = {}  ****".format(eer))

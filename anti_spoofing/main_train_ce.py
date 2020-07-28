@@ -103,11 +103,12 @@ if __name__ == '__main__':
     eer_list = []
     accuracy_list = []
     for iterations in range(20):
-        winner, config, stats = run(config_path, 1000)
+        winner, config, stats = run(config_path, 500)
 
         eer, accuracy = evaluate(winner, config, testloader)
         eer_list.append(eer)
         accuracy_list.append(accuracy)
+        print("\n ********** iterations", iterations, "***********")
 
     print("\n")
     print("equal error rate", eer_list)

@@ -103,8 +103,8 @@ if __name__ == '__main__':
 
     eer_list = []
     accuracy_list = []
-    for iterations in range(1):
-        winner, config, stats = run(config_path, 20)
+    for iterations in range(10):
+        winner, config, stats = run(config_path, 500)
 
         eer, accuracy = evaluate(winner, config, testloader)
         eer_list.append(eer)
