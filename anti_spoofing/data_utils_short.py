@@ -115,7 +115,7 @@ class ASVDatasetshort(Dataset):
             print('Dataset loaded from cache ', self.cache_fname)
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
-            # tqdm bar
+            # tqdm progress for loading files
             data = list(map(self.read_file, tqdm(self.files_meta)))
             self.data_x, self.data_y = map(list, zip(*data))
             # to add meta data    

@@ -35,3 +35,5 @@ anti_spoofing/data/
 anti_spoofing/neat-checkpoint*
 
 *.wav
+
+anti_spoofing/best_genome*

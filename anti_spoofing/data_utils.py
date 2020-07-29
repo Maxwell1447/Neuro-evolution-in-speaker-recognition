@@ -154,7 +154,7 @@ class ASVDataset(Dataset):
             print('Dataset loaded from cache ', self.cache_fname)
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
-            # tqdm bar
+            # tqdm progress for loading files
             data = list(map(self.read_file, tqdm(self.files_meta)))
             self.data_x, self.data_y = map(list, zip(*data))
             # to add meta data    
@@ -245,4 +245,4 @@ class ASVDataset(Dataset):
 
 if __name__ == '__main__':
     trainset = ASVDataset(is_train=True, nb_samples=20, do_mfcc=False, random_samples=True)
-    testset = ASVDataset(is_train=False, is_eval=False, nb_samples=2538, do_self_mfcc=True)
+    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=2538, do_mfcc=True)
