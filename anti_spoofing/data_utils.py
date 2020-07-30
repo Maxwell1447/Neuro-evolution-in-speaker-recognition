@@ -38,14 +38,16 @@ class ASVDataset(Dataset):
                  is_train=True, sample_size=None,
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
-                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False):
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False):
         """
         :param length: int
-        Length of the audio files in number of elements in a numpy array format. It will set
-        the audio files to the correspond length by removing the end or adding duplicate parts of the file.
+        Length of the audio files in number of elements in a numpy array format.
+        Number of elements times the sampling rate is equal the length in seconds of the audio file.
+        It will set the audio files to the correspond length by removing the end or adding duplicate parts
+        of the file.
         If set to None, it will return the audio files without changing their length.
         :param nb_samples: int
-        Number of files to use.
+        Number of files to use. If greater than the actual number of files, nb_samples will be set to this value.
         :param random_samples: bool
         If true then the nb_samples files will be chosen randomly (shuffled if all the files are selected)
         :param is_train: bool
@@ -62,12 +64,18 @@ class ASVDataset(Dataset):
         :param save_cache: bool
         If True, will save the cache with torch.
         :param index_list: list
-        If set to a non empty list, will only use the audio files whose index is in the list
+        If set to a non empty list, will only use the audio files whose index is in the list.
         :param do_standardize: bool
         If True will standardize the audio files
         :param do_mfcc: bool
         If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
-        and not the raw audio files
+        and not the raw audio files.
+        :param do_chroma_cqt: bool
+        If True will return the Constant-Q chromagram (cqt) of the audio files
+        and not the raw audio files.
+        :param do_chroma_stft: bool
+        If True will return the chromagram, Short-time Fourier transform (stft), from the audio files
+        and not the raw audio files.
         """
         data_root = DATA_ROOT
         if is_logical:
@@ -87,6 +95,9 @@ class ASVDataset(Dataset):
         self.standardize = do_standardize
         self.mfcc = do_mfcc
         self.chroma_cqt = do_chroma_cqt
+        self.chroma_stft = do_chroma_stft
+        if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt):
+            raise ValueError("You cannot specify a length if you are using pre-processing functions")
         v1_suffix = ''
         if is_eval and track == 'PA':
             v1_suffix = '_v1'
@@ -183,9 +194,11 @@ class ASVDataset(Dataset):
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:
-            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate)
+            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24)
         if self.chroma_cqt:
-            data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate,  n_chroma=20)
+            data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate,  n_chroma=24)
+        if self.chroma_stft:
+            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24)
         if self.standardize:
             data_x = whiten(data_x)
         # to make all data to have the same length
@@ -217,12 +230,12 @@ class ASVDataset(Dataset):
         if self.index_list:
             return [meta_files_list[i] for i in self.index_list]
         if self.random_samples:
-            self.random_samples = np.min([self.random_samples, len(meta_files_list)])
+            self.nb_samples = np.min([self.nb_samples, len(meta_files_list)])
             random_index = random.sample(range(0, len(meta_files_list)), self.nb_samples)
             return [meta_files_list[i] for i in random_index]
         return meta_files_list[:self.nb_samples]
 
 
 if __name__ == '__main__':
-    train_loader = ASVDataset(length=48000, is_train=True, nb_samples=70000, do_mfcc=False)
-    testset = ASVDataset(length=48000, is_train=False, is_eval=True, nb_samples=70000)
+    trainset = ASVDataset(is_train=True, nb_samples=20, do_mfcc=False, random_samples=True)
+    testset = ASVDataset(is_train=False, is_eval=False, nb_samples=20, do_chroma_stft=True)

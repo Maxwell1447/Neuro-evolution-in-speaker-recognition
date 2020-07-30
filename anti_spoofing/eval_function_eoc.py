@@ -4,8 +4,6 @@ import numpy as np
 from neat_local.nn.recurrent_net import RecurrentNet
 import neat
 
-from anti_spoofing.metrics_utils import rocch2eer, rocch
-
 
 class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
     """
@@ -133,7 +131,7 @@ def eval_genome_eoc(g, conf, batch):
 
     # inputs: batch_size x t x bins
     # outputs: batch_size
-    inputs, outputs = batch
+    inputs, outputs, _ = batch
     # inputs: t x batch_size x bins
     inputs = inputs.transpose(0, 1)
 
@@ -162,6 +160,9 @@ def eval_genome_eoc(g, conf, batch):
 
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
+
+    if target_scores.size == 0:
+        return np.zeros(1)
 
     l_s_n = np.zeros(target_scores.size)
 
