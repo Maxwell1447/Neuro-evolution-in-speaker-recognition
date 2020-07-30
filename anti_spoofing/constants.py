@@ -1,8 +1,8 @@
-BINS = 24
+BINS = 20
 OPTION = "cqcc"
 
 # Case CQCC
-B = 2048
-d = 2048
+B = 96
+d = 16
 cf = 19
 ZsdD = "Zs"

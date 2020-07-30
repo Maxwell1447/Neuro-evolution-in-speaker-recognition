@@ -49,6 +49,7 @@ def eval_genome_bce(g, conf, batch, return_correct=False):
     # inputs: batch_size x t x bins
     # outputs: batch_size
     inputs, outputs = batch
+    outputs = outputs.float()
     # inputs: t x batch_size x bins
     inputs = inputs.transpose(0, 1)
 

@@ -94,3 +94,58 @@ class SineScheduler(BaseReporter):
             setattr(conf.genome_config, key, value)
 
             self.gen += 1
+
+
+class OnPlateauScheduler(BaseReporter):
+    """
+    Scheduler that either shrinks or amplify the 'learning' rate by a certain factor when on a plateau
+    The 'learning rate' is decomposed for NEAT:
+        * for the topology: node_add_prob and conn_add_prob
+        * for the weights/biases: weight_mutate_power and bias_mutate_power
+    """
+
+    def __init__(self, parameters=None, verbose=0, patience=5, factor=0.95, momentum=0.99):
+        """
+        parameters: name of affected parameters
+        verbose: if 1, print the current values of the parameters
+        conf: NEAT config
+        """
+
+        if parameters is None:
+            parameters = []
+        self.parameters = parameters
+        self.verbose = verbose
+        self.last_fitness = None
+        self.factor = factor
+        self.patience = patience
+        self.cpt = 0
+        self.mu = momentum
+        self.w = 1.
+        self.s = 0.
+
+    def post_evaluate(self, config, population, species, best_genome):
+        v = best_genome.fitness
+
+        self.s = self.s * self.mu + v
+        smoothed_fitness = self.s / self.w
+        self.w = 1 + self.mu * self.w
+
+        if self.last_fitness is not None:
+
+            if smoothed_fitness <= self.last_fitness:
+                self.cpt += 1
+                if self.cpt > self.patience:
+                    for key in self.parameters:
+                        setattr(config.genome_config, key, self.factor * getattr(config.genome_config, key))
+                    self.cpt = 0
+                    self.last_fitness = smoothed_fitness
+            else:
+                self.last_fitness = smoothed_fitness
+                self.cpt = 0
+
+        else:
+            self.last_fitness = smoothed_fitness
+
+        if self.verbose:
+            for key in self.parameters:
+                print(key, getattr(config.genome_config, key))
