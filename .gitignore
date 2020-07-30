@@ -30,7 +30,6 @@ anti_spoofing/data/
 
 *.svg
 *.pkl
-
 *.gv
 
 anti_spoofing/neat-checkpoint*
