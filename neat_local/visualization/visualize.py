@@ -10,6 +10,11 @@ from utils import smooth
 
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
+    plot_stats_single(statistics, ylog=ylog, view=view, filename=filename, momentum=0)
+    plot_stats_single(statistics, ylog=ylog, view=view, filename=filename, momentum=momentum)
+
+
+def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")

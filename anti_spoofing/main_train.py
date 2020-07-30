@@ -12,6 +12,7 @@ from anti_spoofing.data_loader import load_data, load_data_cqcc
 from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
+from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -38,11 +39,26 @@ def run(config_file, n_gen):
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=100, time_interval_seconds=None))
+    scheduler = ExponentialScheduler(semi_gen=2000, final_values={
+        "node_add_prob": 0.,
+        "conn_add_prob": 0.
+    })
+    scheduler2 = ExponentialScheduler(semi_gen=3000, final_values={
+        "node_delete_prob": 0.,
+        "conn_delete_prob": 0.
+    })
+    # scheduler = OnPlateauScheduler(parameters=["node_add_prob", "conn_add_prob",
+    #                                            "node_delete_prob", "conn_delete_prob"],
+    #                                verbose=1, patience=10, factor=0.995, momentum=0.99)
+    p.add_reporter(scheduler)
+    p.add_reporter(scheduler2)
 
     # Run for up to n_gen generations.
-    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_eer, trainloader)
+    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
+
+    print("run finished")
 
     return winner_, config_, stats_
 
@@ -69,7 +85,7 @@ def evaluate(g, conf, data):
         xo = net.activate(input)
         score = xo[:, 1]
         confidence = xo[:, 0]
-        contribution = (score * confidence).sum() / (jitter + confidence).sum()
+        contribution = (score * confidence).sum() / (jitter + confidence.sum())
 
         if output == 1:
             target_scores.append(contribution)
@@ -98,11 +114,11 @@ if __name__ == '__main__':
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
     if OPTION == "cqcc":
-        trainloader, testloader = load_data_cqcc(num_train=1000, num_test=1000)
+        trainloader, testloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
     else:
         trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000)
 
-    winner, config, stats = run(config_path, 10)
+    winner, config, stats = run(config_path, 5000)
 
     eer, accuracy = evaluate(winner, config, testloader)
 

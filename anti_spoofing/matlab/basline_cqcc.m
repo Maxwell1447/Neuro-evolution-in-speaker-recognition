@@ -37,10 +37,10 @@ fclose(fileID);
 filelist = protocol{2};
 labels = protocol{5};
 
-fmax = 8000;
-fmin = 7000;
-B = 2048;
-d = 2048;
+B = 96;
+fmax = 16000/2;
+fmin = fmax/2^9;
+d = 16;
 cf = 19;
 ZsdD = "Zs";
 

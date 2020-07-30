@@ -16,12 +16,16 @@ PROTOCOLS_PATH = os.path.abspath(os.path.join(local_dir, "data", "LA", "ASVspoof
 
 class CQCCDataset(torch.utils.data.Dataset):
 
-    def __init__(self, params_id="train_2048_2048_19_Zs", n_files=10000):
+    def __init__(self, params_id="train_96_16_19_Zs", n_files=10000, balanced=True):
         directory = os.path.join(local_dir, "data", "features", params_id)
+
+        if not os.path.exists(directory):
+            raise NotADirectoryError("trying to fetch data with id "+params_id)
 
         self.files_dir = directory
         self.fixed_t = 20
         self.n_files = n_files
+        self.balanced = balanced
 
         self.sysid_dict = {
             '-': 0,  # bonafide speech
@@ -57,28 +61,55 @@ class CQCCDataset(torch.utils.data.Dataset):
                                             .format(self.data_set_type, ext))
         self.parse_protocols_file(self.protocols_fname)
 
-        mats = []
+        if balanced:
+            matS = []  # spoofed
+            matB = []  # bonafide
+        else:
+            mats = []
         ys = []
         cpt = 0
-        for filename in tqdm(os.listdir(directory)):
+        for filename in tqdm(os.listdir(directory), total=min(len(os.listdir(directory)), self.n_files)):
             if filename.endswith(".mat"):
-                if cpt > self.n_files and self.n_files != -1:
+                if cpt > self.n_files != -1:
                     break
-                mats.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"], self.fixed_t))
                 f = filename.split('.')[0]
+                if balanced:
+                    if self.meta[f].key:
+                        matB.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"], self.fixed_t))
+                    else:
+                        matS.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"], self.fixed_t))
+                else:
+                    mats.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"], self.fixed_t))
+
                 ys.append(self.meta[f].key)
                 cpt += 1
 
-        self.data_x = np.array(mats)
-        self.data_y = np.array(ys).astype(np.float32)
+        if balanced:
+            self.dataS_x = torch.from_numpy(np.array(matS)).float()  # m
+            self.dataB_x = torch.from_numpy(np.array(matB)).float()  # n (n<m)
+            self.length = 2 * len(self.dataS_x)  # 2m
+            print("S", self.dataS_x.shape)
+            print("B", self.dataB_x.shape)
+        else:
+            self.data_x = torch.from_numpy(np.array(mats)).float()
+            self.length = len(self.data_x)
+            print(self.data_x.shape)
 
-        print(self.data_x.shape)
+        self.data_y = torch.from_numpy(np.array(ys)).float()
+
         print(self.data_y.shape)
 
-        self.length = len(self.data_x)
-
     def __getitem__(self, item):
-        return self.data_x[item], self.data_y[item]
+        if self.balanced:
+            if item < self.length // 2:
+                return self.dataS_x[item], 0
+                # return self.dataS_x[item], 0
+            else:
+                n = len(self.dataB_x)
+                return self.dataB_x[item % n], 1
+                # return self.dataB_x[item % n], 1
+        else:
+            return self.data_x[item], self.data_y[item]
 
     def __len__(self):
         return self.length
