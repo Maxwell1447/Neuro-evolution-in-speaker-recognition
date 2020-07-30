@@ -37,7 +37,7 @@ def load_data(preprocessing=True, batch_size=batch_size):
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
 
-    If preprocessing=True and if a data loader has not been saved already,
+    If preprocessing_tools=True and if a data loader has not been saved already,
     a data loader is created, then saved for train and test sets.
     """
     option = OPTION

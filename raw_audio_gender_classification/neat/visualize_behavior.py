@@ -10,7 +10,7 @@ from raw_audio_gender_classification.neat.rnn import load_data
 from neat_local.nn import RecurrentNet
 import neat
 import numpy as np
-from preprocessing.preprocessing import preprocess
+from preprocessing_tools.preprocessing import preprocess
 import librosa
 from scipy.fftpack import fft, rfft
 

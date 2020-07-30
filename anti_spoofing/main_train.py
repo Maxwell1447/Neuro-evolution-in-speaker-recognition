@@ -12,7 +12,7 @@ from anti_spoofing.data_loader import load_data, load_data_cqcc
 from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
-from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler
+from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, ImpulseScheduler
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -47,11 +47,15 @@ def run(config_file, n_gen):
         "node_delete_prob": 0.,
         "conn_delete_prob": 0.
     })
+    impulse_scheduler = ImpulseScheduler(parameters=["node_add_prob", "conn_add_prob",
+                                                     "node_delete_prob", "conn_delete_prob"],
+                                         verbose=1, patience=10, impulse_factor=2., momentum=0.99)
     # scheduler = OnPlateauScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                            "node_delete_prob", "conn_delete_prob"],
     #                                verbose=1, patience=10, factor=0.995, momentum=0.99)
     p.add_reporter(scheduler)
     p.add_reporter(scheduler2)
+    p.add_reporter(impulse_scheduler)
 
     # Run for up to n_gen generations.
     multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
