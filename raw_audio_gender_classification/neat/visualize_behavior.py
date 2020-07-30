@@ -124,18 +124,20 @@ def plot_gated_fft(x, x_p, genome, conf, t):
 
     print(t)
 
-    # x_fft = rfft(x.numpy())
-    #
-    # plt.figure()
-    # plt.title("signal female" if t else "signal male")
-    # plt.plot(x_fft)
-    # plt.show()
+    x_fft = rfft(x.numpy())
+
+    plt.figure()
+    plt.title("signal female" if t else "signal male")
+    plt.xscale("log")
+    plt.plot(x_fft)
+    plt.show()
 
     x_fft = rfft(filtered_signal)
 
     plt.figure()
     plt.title("filtered signal female" if t else "filtered signal male")
-    plt.plot(x_fft[:len(x_fft)//94])
+    plt.xscale("log")
+    plt.plot(x_fft[:len(x_fft)])
     plt.show()
 
 
@@ -167,7 +169,7 @@ if __name__ == "__main__":
         y, t = next(test_iter)
         y_p, _ = next(test_iter_pp)
 
-        if i % 17 == 0:
+        if i % 34 == 0:
             # plot_gate_vs_signal(y[0], y_p, winner, config_)
             # plot_gate_vs_signal_linear(y, y_p, torch.load("linear_SGD.pkl"))
             plot_gated_fft(y[0], y_p, winner, config_, t[0])
