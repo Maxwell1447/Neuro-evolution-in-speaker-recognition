@@ -135,31 +135,26 @@ def eval_genome_eoc(g, conf, batch):
     # inputs: t x batch_size x bins
     inputs = inputs.transpose(0, 1)
 
-    batch_size = len(batch)
-
-    target_scores = []
-    non_target_scores = []
-
-    jitter = 1e-8
-
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
     net.reset()
-    for (input_t, output) in zip(inputs, outputs):
+
+    contribution = torch.zeros(len(outputs))
+    norm = torch.zeros(len(outputs))
+    for input_t in inputs:
         # input_t: batch_size x bins
 
         # Usage of batch evaluation provided by PyTorch-NEAT
         xo = sigmoid(net.activate(input_t))  # batch_size x 2
         score = xo[:, 1]
         confidence = xo[:, 0]
-        contribution = (score * confidence).sum() / (jitter + confidence).sum()
+        contribution += score * confidence  # batch_size
+        norm += confidence  # batch_size
 
-        if output == 1:
-            target_scores.append(contribution)
-        else:
-            non_target_scores.append(contribution)
+    jitter = 1e-8
+    prediction = contribution / (norm + jitter)          # batch_size
 
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
+    target_scores = prediction[outputs == 1].numpy()  # select with mask when target == 1
+    non_target_scores = prediction[outputs == 0].numpy()  # select with mask when target == 0
 
     if target_scores.size == 0:
         return np.zeros(1)

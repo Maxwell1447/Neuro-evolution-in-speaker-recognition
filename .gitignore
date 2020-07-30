@@ -29,7 +29,7 @@ anti_spoofing/data/
 .pylint.d/
 
 *.svg
-
+*.pkl
 *.gv
 
 anti_spoofing/neat-checkpoint*
