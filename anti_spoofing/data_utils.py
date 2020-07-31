@@ -18,6 +18,7 @@ import librosa
 import platform
 
 from anti_spoofing.utils_ASV import whiten
+from anti_spoofing.mfcc import mfcc
 
 # tells us if one is using a linux or a windows machine
 current_os = platform.system()
@@ -38,7 +39,7 @@ class ASVDataset(Dataset):
                  is_train=True, sample_size=None,
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
-                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False):
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -76,6 +77,9 @@ class ASVDataset(Dataset):
         :param do_chroma_stft: bool
         If True will return the chromagram, Short-time Fourier transform (stft), from the audio files
         and not the raw audio files.
+        :param do_self_mfcc: bool
+        If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
+        and not the raw audio files. This version does not use librosa.
         """
         data_root = DATA_ROOT
         if is_logical:
@@ -96,7 +100,8 @@ class ASVDataset(Dataset):
         self.mfcc = do_mfcc
         self.chroma_cqt = do_chroma_cqt
         self.chroma_stft = do_chroma_stft
-        if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt):
+        self.m_mfcc = do_self_mfcc
+        if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt or self.m_mfcc):
             raise ValueError("You cannot specify a length if you are using pre-processing functions")
         v1_suffix = ''
         if is_eval and track == 'PA':
@@ -149,7 +154,7 @@ class ASVDataset(Dataset):
             print('Dataset loaded from cache ', self.cache_fname)
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
-            # tqdm bar
+            # tqdm progress for loading files
             data = list(map(self.read_file, tqdm(self.files_meta)))
             self.data_x, self.data_y = map(list, zip(*data))
             # to add meta data    
@@ -199,6 +204,8 @@ class ASVDataset(Dataset):
             data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate,  n_chroma=24)
         if self.chroma_stft:
             data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24)
+        if self.m_mfcc:
+            data_x = mfcc(data_x, num_cep=24)
         if self.standardize:
             data_x = whiten(data_x)
         # to make all data to have the same length
@@ -238,4 +245,4 @@ class ASVDataset(Dataset):
 
 if __name__ == '__main__':
     trainset = ASVDataset(is_train=True, nb_samples=20, do_mfcc=False, random_samples=True)
-    testset = ASVDataset(is_train=False, is_eval=False, nb_samples=20, do_chroma_stft=True)
+    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=2538, do_mfcc=True)

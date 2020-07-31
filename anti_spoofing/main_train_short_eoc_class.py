@@ -10,7 +10,6 @@ from anti_spoofing.data_utils_short import ASVDatasetshort
 from anti_spoofing.utils_ASV import whiten, gate_mfcc, make_visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
-
 """
 NEAT APPLIED TO ASVspoof 2019
 """
@@ -18,21 +17,27 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 7000  # number of audio files used for testing
 
-batch_size = 128  # size of the batch used for training, choose an even number
+batch_size = 258  # size of the batch used for training, choose a multiple of 12
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
 n_generation = 500  # number of generations
+
+spoofed_class = 1
+
+train_short_border = [0, 258, 638, 1018, 1398, 1778, 2158, 2538]
+index_train = list(range(0, 258)) + list(range(train_short_border[spoofed_class], train_short_border[spoofed_class+1]))
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
 # for testing
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
-for i in range(len(dev_border)-1):
-    index_test += rd.sample([k for k in range(dev_border[i], dev_border[i+1])], 1000)
+
+index_test += rd.sample([k for k in range(dev_border[0], dev_border[1])], 2000)
+index_test += rd.sample([k for k in range(dev_border[spoofed_class], dev_border[spoofed_class + 1])], 3000)
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
-    def __init__(self, num_workers, eval_function, data, pop, batch_size=batch_size, timeout=None):
+    def __init__(self, num_workers, eval_function, data, pop, class_spoofed, batch_size=batch_size, timeout=None):
         """
         :param num_workers: int
         number of workers to use for evaluating the fitness
@@ -51,12 +56,14 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.batch_size = batch_size
         self.bona_fide_train = list(range(258))  # index list of bona fide files
         rd.shuffle(self.bona_fide_train)  # shuffle the index
-        self.spoofed_train = list(range(258, 2538))  # index list of spoofed files
-        rd.shuffle(self.spoofed_train)  # shuffle the index
         self.bona_fide_index = 0
+
+        # index list of spoofed files
+        self.spoofed_train = list(range(380))
+        rd.shuffle(self.spoofed_train)  # shuffle the index
         self.spoofed_index = 0
         self.G = pop
-        self.l_s_n = np.zeros((self.batch_size//2, self.G))
+        self.l_s_n = np.zeros((self.batch_size // 2, self.G))
 
     def evaluate(self, genomes, config):
         """
@@ -70,11 +77,12 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         jobs = []
         self.next()
         batch_data = self.current_batch
+
         for ignored_genome_id, genome in genomes:
             jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch_data)))
-        
+
         self.G = len(genomes)
-        self.l_s_n = np.zeros((self.batch_size//2, self.G))
+        self.l_s_n = np.zeros((self.batch_size // 2, self.G))
 
         pseudo_genome_id = 0
         # return ease of classification for each genome
@@ -106,11 +114,11 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             self.current_batch.append(self.data[self.bona_fide_train[self.bona_fide_index + index]])
 
         # adding spoofed index for training
-        if batch_size // 2 + self.spoofed_index >= 2280:
-            self.spoofed_index = 0
-            rd.shuffle(self.spoofed_train)
+        if batch_size // 2 + self.spoofed_index >= 380:
+                self.spoofed_index = 0
+                rd.shuffle(self.spoofed_train)
         for index in range(self.batch_size // 2):
-            self.current_batch.append(self.data[self.spoofed_train[self.spoofed_index + index]])
+            self.current_batch.append(self.data[self.spoofed_index + index + 258])
 
         self.bona_fide_index += batch_size // 2
         self.spoofed_index += batch_size // 2
@@ -154,15 +162,17 @@ def eval_genome(genome, config, batch_data):
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
 
-    for i in range(batch_size//2):
+    for i in range(batch_size // 2):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
 
     return 1 - l_s_n
 
 
-def run(config_file, n_gen):
+def run(config_file, n_gen, train_loader, spoofed_class):
     """
     Launches a run until convergence or max number of generation reached
+    :param spoofed_class: spoofed class used for training
+    :param train_loader: dataset used for training
     :param config_file: path to the config file
     :param n_gen: lax number of generation
     :return: the best genontype (winner), the configs, the stats of the run and the accuracy on the testing set
@@ -179,10 +189,10 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    #p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None))
+    # p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
-    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, pop=config_.pop_size)
+    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, config_.pop_size, spoofed_class)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     # Display the winning genome.
@@ -226,13 +236,14 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True)
+    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True, index_list=index_train)
     test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test, do_mfcc=True)
 
-    winner, config, stats = run(config_path, n_generation)
+    winner, config, stats = run(config_path, n_generation, train_loader, spoofed_class)
     make_visualize(winner, config, stats)
 
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
+
     train_eer = evaluate(winner_net, train_loader)
     eer = evaluate(winner_net, test_loader)
 
