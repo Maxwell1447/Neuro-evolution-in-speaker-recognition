@@ -131,7 +131,10 @@ def eval_genome_eoc(g, conf, batch):
 
     # inputs: batch_size x t x bins
     # outputs: batch_size
-    inputs, outputs, _ = batch
+    if len(batch) == 3:
+        inputs, outputs, _ = batch
+    else:
+        inputs, outputs = batch
     # inputs: t x batch_size x bins
     inputs = inputs.transpose(0, 1)
 
