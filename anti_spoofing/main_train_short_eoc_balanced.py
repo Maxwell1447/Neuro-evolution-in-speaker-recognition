@@ -4,6 +4,7 @@ import numpy as np
 import random as rd
 import multiprocessing
 from tqdm import tqdm
+import pickle
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
@@ -17,7 +18,7 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 7000  # number of audio files used for testing
 
-batch_size = 120  # size of the batch used for training, choose a multiple of 12
+batch_size = 128  # size of the batch used for training, choose a multiple of 12
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
 n_generation = 500  # number of generations
@@ -246,3 +247,5 @@ if __name__ == '__main__':
 
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))
+
+    pickle.dump(winner, open('best_genome_eoc_batch_120_c3_balanced_test', 'wb'))

@@ -48,17 +48,22 @@ if __name__ == '__main__':
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    winner = pickle.load(open('best_genome_eoc_batch_120_c3_balanced', 'rb'))
+    winner = pickle.load(open('best_genome_eoc_batch_120_c3_balanced_test', 'rb'))
 
-    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_mfcc=True)
+    train_set = ASVDataset(is_train=True, is_eval=False, nb_samples=80000, do_mfcc=True)
+    dev_set = ASVDataset(is_train=False, is_eval=False, nb_samples=80000, do_mfcc=True)
+    eval_set = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_mfcc=True)
 
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
-    eer = evaluate(winner_net, testset)
+
+    eer_train = evaluate(winner_net, train_set)
+    eer_dev = evaluate(winner_net, dev_set)
+    eer_test = evaluate(winner_net, eval_set)
 
     test_seen_classes = []
     test_unseen_classes = []
 
-    for x in testset:
+    for x in eval_set:
         if x[2] == 0:
             test_seen_classes.append(x)
             test_unseen_classes.append(x)
@@ -71,10 +76,17 @@ if __name__ == '__main__':
     eer_unseen = evaluate(winner_net, test_unseen_classes)
 
     print("\n")
+    print("**** test equal error rate = {}  ****".format(eer_train))
+
+    print("\n")
+    print("**** test equal error rate = {}  ****".format(eer_dev))
+
+    print("\n")
+    print("**** test equal error rate = {}  ****".format(eer_test))
+
+    print("\n")
     print("**** equal error rate seen classes = {}  ****".format(eer_seen))
 
     print("\n")
     print("**** equal error rate unseen classes = {}  ****".format(eer_unseen))
 
-    print("\n")
-    print("**** equal error rate = {}  ****".format(eer))

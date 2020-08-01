@@ -10,6 +10,11 @@ from utils import smooth
 
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
+    plot_stats_single(statistics, ylog=ylog, view=view, filename=filename, momentum=0)
+    plot_stats_single(statistics, ylog=ylog, view=view, filename='avg_fitness_smooth.svg', momentum=momentum)
+
+
+def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -21,13 +26,9 @@ def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg', m
     stdev_fitness = np.array(statistics.get_fitness_stdev())
 
     plt.plot(generation, smooth(avg_fitness, momentum=momentum), 'b-', label="average")
-    plt.plot(generation, smooth(avg_fitness - stdev_fitness, momentum=momentum), 'g-', label="-1 sd")
-    plt.plot(generation, smooth(avg_fitness + stdev_fitness, momentum=momentum), 'g-', label="+1 sd")
     plt.plot(generation, smooth(best_fitness, momentum=momentum), 'r-', label="best")
-    plt.plot(generation, avg_fitness, 'b+', label="average")
-    plt.plot(generation, avg_fitness - stdev_fitness, 'g-.', label="-1 sd")
-    plt.plot(generation, avg_fitness + stdev_fitness, 'g-.', label="+1 sd")
-    plt.plot(generation, best_fitness, 'r+', label="best")
+    plt.plot(generation, smooth(avg_fitness - stdev_fitness, momentum=momentum), 'g-.', label="-1 sd")
+    plt.plot(generation, smooth(avg_fitness + stdev_fitness, momentum=momentum), 'g-.', label="+1 sd")
 
     plt.title("Population's average and best fitness")
     plt.xlabel("Generations")

@@ -103,7 +103,9 @@ if __name__ == '__main__':
 
     eer_list = []
     accuracy_list = []
-    for iterations in range(10):
+    for iterations in range(20):
+        print(iterations)
+        print(eer_list)
         winner, config, stats = run(config_path, 500)
 
         eer, accuracy = evaluate(winner, config, testloader)
@@ -114,4 +116,13 @@ if __name__ == '__main__':
     print("equal error rate", eer_list)
     print("accuracy", accuracy_list)
 
+    print("\n")
+
+    array_eer = np.array(eer_list)
+
+    print("min =", array_eer.min())
+    print("max =", array_eer.max())
+    print("median =", np.median(array_eer))
+    print("average =", array_eer.mean())
+    print("std =", array_eer.std())
     # make_visualize(winner, config, stats)

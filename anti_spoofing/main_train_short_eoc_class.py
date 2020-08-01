@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils_ASV import whiten, gate_mfcc, make_visualize
+from anti_spoofing.utils_ASV import whiten, gate_mfcc, make_visualize, err_threshold
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 """
@@ -17,12 +17,12 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 7000  # number of audio files used for testing
 
-batch_size = 258  # size of the batch used for training, choose a multiple of 12
+batch_size = 258  # size of the batch used for training, choose a multiple 2
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
 n_generation = 500  # number of generations
 
-spoofed_class = 1
+spoofed_class = 6
 
 train_short_border = [0, 258, 638, 1018, 1398, 1778, 2158, 2538]
 index_train = list(range(0, 258)) + list(range(train_short_border[spoofed_class], train_short_border[spoofed_class+1]))
@@ -33,7 +33,7 @@ dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 
 index_test += rd.sample([k for k in range(dev_border[0], dev_border[1])], 2000)
-index_test += rd.sample([k for k in range(dev_border[spoofed_class], dev_border[spoofed_class + 1])], 3000)
+index_test += rd.sample([k for k in range(dev_border[spoofed_class], dev_border[spoofed_class + 1])], 1168)
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
@@ -211,6 +211,8 @@ def evaluate(net, data_loader):
     net.reset()
     target_scores = []
     non_target_scores = []
+    scores = []
+    labels = []
     for data in tqdm(data_loader):
         sample_input, output = data[0], data[1]
         sample_input = whiten(sample_input)
@@ -219,6 +221,8 @@ def evaluate(net, data_loader):
             target_scores.append(xo)
         else:
             non_target_scores.append(xo)
+        scores.append(xo)
+        labels.append(output)
 
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
@@ -226,7 +230,9 @@ def evaluate(net, data_loader):
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    return eer
+    eer_, threshold = err_threshold(labels, scores)
+
+    return eer, eer_, threshold
 
 
 if __name__ == '__main__':

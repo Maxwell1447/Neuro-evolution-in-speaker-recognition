@@ -54,7 +54,7 @@ def whiten(sample_input):
     return whiten_input
 
 
-def err(y_true, y_pred, pos_label=1):
+def err_threshold(y_true, y_pred, pos_label=1):
     """
     https://yangcha.github.io/EER-ROC/
     return the equal error rate and the threshold
