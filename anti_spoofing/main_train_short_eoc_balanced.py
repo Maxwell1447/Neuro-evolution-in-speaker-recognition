@@ -18,7 +18,7 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 7000  # number of audio files used for testing
 
-batch_size = 128  # size of the batch used for training, choose a multiple of 12
+batch_size = 64  # size of the batch used for training, choose a multiple of 12
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
 n_generation = 500  # number of generations

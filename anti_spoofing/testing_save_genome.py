@@ -16,10 +16,10 @@ def evaluate(net, data_loader):
     :param data_loader: test dataset, contains audio files in a numpy array format
     :return eer
     """
-    net.reset()
     target_scores = []
     non_target_scores = []
     for data in tqdm(data_loader):
+        net.reset()
         sample_input, output = data[0], data[1]
         sample_input = whiten(sample_input)
         xo = gate_mfcc(net, sample_input)
@@ -44,15 +44,15 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
+    train_set = ASVDataset(is_train=True, is_eval=False, nb_samples=25380, do_mfcc=True)
+    dev_set = ASVDataset(is_train=False, is_eval=False, nb_samples=24844, do_mfcc=True)
+    eval_set = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_mfcc=True)
+
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
     winner = pickle.load(open('best_genome_eoc_batch_120_c3_balanced_test', 'rb'))
-
-    train_set = ASVDataset(is_train=True, is_eval=False, nb_samples=80000, do_mfcc=True)
-    dev_set = ASVDataset(is_train=False, is_eval=False, nb_samples=80000, do_mfcc=True)
-    eval_set = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_mfcc=True)
 
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
@@ -76,13 +76,13 @@ if __name__ == '__main__':
     eer_unseen = evaluate(winner_net, test_unseen_classes)
 
     print("\n")
-    print("**** test equal error rate = {}  ****".format(eer_train))
+    print("**** train equal error rate = {}  ****".format(eer_train))
 
     print("\n")
-    print("**** test equal error rate = {}  ****".format(eer_dev))
+    print("**** dev equal error rate = {}  ****".format(eer_dev))
 
     print("\n")
-    print("**** test equal error rate = {}  ****".format(eer_test))
+    print("**** eval equal error rate = {}  ****".format(eer_test))
 
     print("\n")
     print("**** equal error rate seen classes = {}  ****".format(eer_seen))

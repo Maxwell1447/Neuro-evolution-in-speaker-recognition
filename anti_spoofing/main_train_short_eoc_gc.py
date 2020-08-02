@@ -42,7 +42,7 @@ validation_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=i
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
-    def __init__(self, num_workers, eval_function, data, config, gc_eval, batch_size=batch_size, timeout=None):
+    def __init__(self, num_workers, eval_function, data, val_data, config, gc_eval, batch_size=batch_size, timeout=None):
         """
         :param num_workers: int
         number of workers to use for evaluating the fitness
@@ -61,6 +61,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         """
         super().__init__(num_workers, eval_function, timeout)
         self.data = data
+        self.val_data = val_data
         self.config = config
         self.current_batch = []  # contains current batch of audio files
         self.batch_size = batch_size
@@ -224,7 +225,7 @@ def eer_gc(genome, config, validation_set):
     return eer
 
 
-def run(config_file, n_gen):
+def run(config_file, n_gen, train_loader, val_loader):
     """
     Launches a run until convergence or max number of generation reached
     :param config_file: path to the config file
@@ -246,16 +247,9 @@ def run(config_file, n_gen):
     # p.add_reporter(neat.Checkpointer(generation_interval=100))
 
     # Run for up to n_gen generations.
-    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, config_,
+    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, val_loader, config_,
                                               gc_eval=eer_gc)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
-
-    # Display the winning genome.
-    print('\nBest genome:\n{!s}'.format(winner_))
-
-    # Show output of the most fit genome against training data.
-    print('\n')
-    winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
 
     gc_scores = np.zeros(n_gen)
     for gc_index in range(n_gen):
@@ -263,17 +257,6 @@ def run(config_file, n_gen):
         gc_scores[gc_index] = eer_gc(genome, config_, test_loader)
 
     _, winner_ = multi_evaluator.gc[np.argmax(gc_scores)]
-
-    winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
-
-    train_eer = evaluate(winner_net, train_loader)
-    eer = evaluate(winner_net, test_loader)
-
-    print("\n")
-    print("**** training equal error rate = {}  ****".format(train_eer))
-
-    print("\n")
-    print("**** equal error rate = {}  ****".format(eer))
 
     return winner_, config_, stats_
 
@@ -285,5 +268,21 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    winner, config, stats = run(config_path, n_generation)
+    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train)
+    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
+    validation_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_validation)
+
+    winner, config, stats = run(config_path, n_generation, train_loader, validation_loader)
     make_visualize(winner, config, stats)
+
+    winner_net = neat.nn.RecurrentNetwork.create(winner, config)
+
+    train_eer = evaluate(winner_net, train_loader)
+    eer = evaluate(winner_net, test_loader)
+
+    print("\n")
+    print("**** training equal error rate = {}  ****".format(train_eer))
+
+    print("\n")
+    print("**** equal error rate = {}  ****".format(eer))
+

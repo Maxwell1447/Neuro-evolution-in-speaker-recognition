@@ -34,11 +34,6 @@ for i in range(len(dev_border)-1):
     index_test += rd.sample([k for k in range(dev_border[i], dev_border[i+1])], 400)
 
 
-train_loader = ASVDatasetshort(length=None, nb_samples=nb_samples_train, do_standardize=True, do_mfcc=True)
-test_loader = ASVDataset(length=None, is_train=False, is_eval=False, index_list=index_test,
-                         do_standardize=True, do_mfcc=True)
-
-
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
     def __init__(self, num_workers, eval_function, batch_size, data, timeout=None):
         """
@@ -211,20 +206,6 @@ def run(config_file, n_gen):
     # Display the winning genome.
     print('\nBest genome:\n{!s}'.format(winner_))
 
-    # Show output of the most fit genome against training data.
-    print('\n')
-    winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
-
-    training_accuracy, training_eer = evaluate(winner_net, train_loader)
-    accuracy, eer = evaluate(winner_net, test_loader)
-
-    print("**** training accuracy = {}  ****".format(training_accuracy))
-    print("**** training equal error rate = {}  ****".format(training_eer))
-
-    print("\n")
-    print("**** accuracy = {}  ****".format(accuracy))
-    print("**** equal error rate = {}  ****".format(eer))
-
     return winner_, config_, stats_
 
 
@@ -269,5 +250,21 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
+    train_loader = ASVDatasetshort(length=None, nb_samples=nb_samples_train, do_standardize=True, do_mfcc=True)
+    test_loader = ASVDataset(length=None, is_train=False, is_eval=False, index_list=index_test,
+                             do_standardize=True, do_mfcc=True)
+
     winner, config, stats = run(config_path, n_generation)
     make_visualize(winner, config, stats)
+
+    winner_net = neat.nn.RecurrentNetwork.create(winner, config)
+
+    training_accuracy, training_eer = evaluate(winner_net, train_loader)
+    accuracy, eer = evaluate(winner_net, test_loader)
+
+    print("**** training accuracy = {}  ****".format(training_accuracy))
+    print("**** training equal error rate = {}  ****".format(training_eer))
+
+    print("\n")
+    print("**** accuracy = {}  ****".format(accuracy))
+    print("**** equal error rate = {}  ****".format(eer))

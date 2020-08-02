@@ -17,8 +17,6 @@ def evaluate(net, data_loader):
     :param data_loader: test dataset, contains audio files in a numpy array format
     :return eer
     """
-    for i in range(6):
-        net[i].reset()
     target_scores_sum = []
     non_target_scores_sum = []
     target_scores_prod = []
@@ -30,6 +28,8 @@ def evaluate(net, data_loader):
     target_scores_median = []
     non_target_scores_median = []
     for data in tqdm(data_loader):
+        for i in range(6):
+            net[i].reset()
         sample_input, output = data[0], data[1]
         sample_input = whiten(sample_input)
         xo = np.zeros(6)

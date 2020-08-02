@@ -4,6 +4,7 @@ import numpy as np
 import random as rd
 import multiprocessing
 from tqdm import tqdm
+import pickle
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
@@ -17,12 +18,12 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 7000  # number of audio files used for testing
 
-batch_size = 258  # size of the batch used for training, choose a multiple 2
+batch_size = 760  # size of the batch used for training, choose a multiple 2
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
 n_generation = 500  # number of generations
 
-spoofed_class = 6
+spoofed_class = 2
 
 train_short_border = [0, 258, 638, 1018, 1398, 1778, 2158, 2538]
 index_train = list(range(0, 258)) + list(range(train_short_border[spoofed_class], train_short_border[spoofed_class+1]))
@@ -57,6 +58,8 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.bona_fide_train = list(range(258))  # index list of bona fide files
         rd.shuffle(self.bona_fide_train)  # shuffle the index
         self.bona_fide_index = 0
+        self.nb_iter_bona_fide = max(batch_size // 2, 258)
+        self.nb_iter_spoofed = max(batch_size // 2, 380)
 
         # index list of spoofed files
         self.spoofed_train = list(range(380))
@@ -64,6 +67,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.spoofed_index = 0
         self.G = pop
         self.l_s_n = np.zeros((self.batch_size // 2, self.G))
+
 
     def evaluate(self, genomes, config):
         """
@@ -107,20 +111,21 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.current_batch = []
 
         # adding bona fida index for training
-        if batch_size // 2 + self.bona_fide_index >= 258:
-            self.bona_fide_index = 0
-            rd.shuffle(self.bona_fide_train)
-        for index in range(self.batch_size // 2):
-            self.current_batch.append(self.data[self.bona_fide_train[self.bona_fide_index + index]])
+        for index in range(self.nb_iter_bona_fide):
+            if self.bona_fide_index >= 258:
+                self.bona_fide_index = 0
+                rd.shuffle(self.bona_fide_train)
+            self.current_batch.append(self.data[self.bona_fide_train[self.bona_fide_index]])
+            self.bona_fide_index += 1
 
         # adding spoofed index for training
-        if batch_size // 2 + self.spoofed_index >= 380:
+        for index in range(self.nb_iter_spoofed):
+            if self.spoofed_index >= 380:
                 self.spoofed_index = 0
                 rd.shuffle(self.spoofed_train)
-        for index in range(self.batch_size // 2):
-            self.current_batch.append(self.data[self.spoofed_index + index + 258])
+            self.current_batch.append(self.data[self.spoofed_index + 258])
+            self.spoofed_index += 1
 
-        self.bona_fide_index += batch_size // 2
         self.spoofed_index += batch_size // 2
 
         self.current_batch = np.array(self.current_batch)
@@ -208,12 +213,10 @@ def evaluate(net, data_loader):
     :param data_loader: test dataset, contains audio files in a numpy array format
     :return eer
     """
-    net.reset()
     target_scores = []
     non_target_scores = []
-    scores = []
-    labels = []
     for data in tqdm(data_loader):
+        net.reset()
         sample_input, output = data[0], data[1]
         sample_input = whiten(sample_input)
         xo = gate_mfcc(net, sample_input)
@@ -221,8 +224,6 @@ def evaluate(net, data_loader):
             target_scores.append(xo)
         else:
             non_target_scores.append(xo)
-        scores.append(xo)
-        labels.append(output)
 
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
@@ -230,9 +231,7 @@ def evaluate(net, data_loader):
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    eer_, threshold = err_threshold(labels, scores)
-
-    return eer, eer_, threshold
+    return eer
 
 
 if __name__ == '__main__':
@@ -248,6 +247,8 @@ if __name__ == '__main__':
     winner, config, stats = run(config_path, n_generation, train_loader, spoofed_class)
     make_visualize(winner, config, stats)
 
+    winner = pickle.load(open('best_genome_eoc_class_1_test', 'rb'))
+
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
     train_eer = evaluate(winner_net, train_loader)
@@ -258,3 +259,5 @@ if __name__ == '__main__':
 
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))
+
+    #pickle.dump(winner, open('best_genome_eoc_class_2_test0', 'wb'))

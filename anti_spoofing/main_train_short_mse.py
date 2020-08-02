@@ -20,8 +20,8 @@ nb_samples_test = 700  # number of audio files used for testing
 
 batch_size = 10  # size of the batch used for training, choose an even number
 
-n_processes = multiprocessing.cpu_count()  # number of workers to use for evaluating the fitness
-n_generation = 300  # number of generations
+n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
+n_generation = 2  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
 # for testing
@@ -30,9 +30,6 @@ index_test = []
 for i in range(len(dev_border)-1):
     index_test += rd.sample([k for k in range(dev_border[i], dev_border[i+1])], 100)
 
-
-train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train)
-test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
@@ -185,9 +182,23 @@ def run(config_file, n_gen):
     # Display the winning genome.
     print('\nBest genome:\n{!s}'.format(winner_))
 
-    # Show output of the most fit genome against training data.
-    print('\n')
-    winner_net = neat.nn.RecurrentNetwork.create(winner_, config_)
+    return winner_, config_, stats_
+
+
+if __name__ == '__main__':
+    # Determine path to configuration file. This path manipulation is
+    # here so that the script will run successfully regardless of the
+    # current working directory.
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, 'neat.cfg')
+
+    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train)
+    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test)
+
+    winner, config, stats = run(config_path, n_generation)
+    make_visualize(winner, config, stats)
+
+    winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
     train_accuracy, train_eer = evaluate_acc_eer(winner_net, train_loader)
     accuracy, eer = evaluate_acc_eer(winner_net, test_loader)
@@ -199,16 +210,3 @@ def run(config_file, n_gen):
     print("\n")
     print("**** accuracy = {}  ****".format(accuracy))
     print("**** equal error rate = {}  ****".format(eer))
-
-    return winner_, config_, stats_
-
-
-if __name__ == '__main__':
-    # Determine path to configuration file. This path manipulation is
-    # here so that the script will run successfully regardless of the
-    # current working directory.
-    local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'neat.cfg')
-
-    winner, config, stats = run(config_path, n_generation)
-    make_visualize(winner, config, stats)

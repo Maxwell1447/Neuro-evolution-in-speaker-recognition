@@ -198,10 +198,10 @@ def evaluate(net, data_loader):
     :param data_loader: test dataset, contains audio files in a numpy array format
     :return eer
     """
-    net.reset()
     target_scores = []
     non_target_scores = []
     for data in tqdm(data_loader):
+        net.reset()
         sample_input, output = data[0], data[1]
         sample_input = whiten(sample_input)
         xo = gate_mfcc(net, sample_input)
