@@ -23,7 +23,7 @@ class CQCCDataset(torch.utils.data.Dataset):
             raise NotADirectoryError("trying to fetch data with id "+params_id)
 
         self.files_dir = directory
-        self.fixed_t = 20
+        self.fixed_t = 200
         self.n_files = n_files
         self.balanced = balanced
 
@@ -75,11 +75,14 @@ class CQCCDataset(torch.utils.data.Dataset):
                 f = filename.split('.')[0]
                 if balanced:
                     if self.meta[f].key:
-                        matB.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"], self.fixed_t))
+                        matB.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"],
+                                               self.fixed_t).T)
                     else:
-                        matS.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"], self.fixed_t))
+                        matS.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"],
+                                               self.fixed_t).T)
                 else:
-                    mats.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"], self.fixed_t))
+                    mats.append(tile_trunc(scipy.io.loadmat(os.path.join(directory, filename))["x"],
+                                           self.fixed_t).T)
 
                 ys.append(self.meta[f].key)
                 cpt += 1

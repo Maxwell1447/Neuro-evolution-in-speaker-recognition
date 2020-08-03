@@ -108,12 +108,13 @@ def load_single_data_cqcc(batch_size=50, num_data=1000, balanced=False, data_typ
     shuffle = data_type == "train"
 
     if os.path.exists(
-            os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}".format(data_type, B, d, cf, ZsdD))):
+            os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}_{}"
+                    .format(data_type, B, d, cf, ZsdD, balanced))):
         print("{} data found locally".format(data_type))
-        cqcc_data = torch.load("./data/preprocessed/{}_cqcc_{}_{}_{}_{}"
-                               .format(data_type, B, d, cf, ZsdD))
+        cqcc_data = torch.load("./data/preprocessed/{}_cqcc_{}_{}_{}_{}_{}"
+                               .format(data_type, B, d, cf, ZsdD, balanced))
         dataloader = torch.utils.data.DataLoader(cqcc_data, batch_size=batch_size,
-                                                 num_workers=0, shuffle=shuffle)
+                                                 num_workers=0, shuffle=shuffle, drop_last=True)
         return dataloader
 
     if not os.path.isdir('./data/preprocessed'):
@@ -127,10 +128,10 @@ def load_single_data_cqcc(batch_size=50, num_data=1000, balanced=False, data_typ
                             n_files=num_data, balanced=balanced)
 
     torch.save(cqcc_data,
-               os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}"
-                            .format(data_type, B, d, cf, ZsdD)))
+               os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}_{}"
+                            .format(data_type, B, d, cf, ZsdD, balanced)))
 
     dataloader = torch.utils.data.DataLoader(cqcc_data, batch_size=batch_size,
-                                             num_workers=0, shuffle=shuffle)
+                                             num_workers=0, shuffle=shuffle, drop_last=True)
 
     return dataloader
