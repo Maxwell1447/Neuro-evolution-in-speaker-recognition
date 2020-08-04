@@ -5,7 +5,9 @@ import multiprocessing
 from multiprocessing import Pool
 from tqdm import tqdm
 import numpy as np
-from preprocessing.preprocessing import preprocess
+
+from anti_spoofing.matlab.mat_loader import CQCCDataset
+from preprocessing_tools.preprocessing import preprocess
 import os
 from torch.utils.data.dataloader import DataLoader
 
@@ -20,28 +22,38 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         self.len = len(dataset)
         self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
-        self.meta = torch.empty(self.len, dtype=torch.int64)
+        if dataset.metadata:
+            self.meta = torch.empty(self.len, dtype=torch.int64)
+        else:
+            self.meta = None
 
-        with Pool(multiprocessing.cpu_count()-1) as pool:
+        with Pool(multiprocessing.cpu_count() - 1) as pool:
             jobs = []
 
             for i in tqdm(range(self.len)):
-                x, t, meta = dataset[i]
+                if dataset.metadata:
+                    x, t, meta = dataset[i]
+                else:
+                    x, t = dataset[i]
                 jobs.append(pool.apply_async(preprocess_function, [x.astype(np.float32)]))
                 self.t[i] = float(t)
-                self.meta[i] = int(meta)
+                if dataset.metadata:
+                    self.meta[i] = int(meta)
 
             for i, job in enumerate(jobs):
                 self.X[i] = job.get(timeout=None)
 
     def __getitem__(self, index):
-        return self.X[index], self.t[index], self.meta[index]
+        if self.meta is not None:
+            return self.X[index], self.t[index], self.meta[index]
+        else:
+            return self.X[index], self.t[index]
 
     def __len__(self):
         return self.len
 
 
-def load_data(batch_size=50, length=3 * 16000, num_train=10000, num_test=10000):
+def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
@@ -49,34 +61,88 @@ def load_data(batch_size=50, length=3 * 16000, num_train=10000, num_test=10000):
     If a data loader has not been saved already,
     a data loader is created, then saved for train and test sets.
     """
+
+    train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type="train")
+    test_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_train, data_type="test")
+
+    return train_loader, test_loader
+
+
+def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=1000, balanced=False):
+    """
+    loads the data and puts it in PyTorch DataLoader.
+    Librispeech uses Index caching to access the data more rapidly.
+
+    If a data loader has not been saved already,
+    a data loader is created, then saved for train and test sets.
+    """
+
+    train_dataloader = load_single_data_cqcc(batch_size=batch_size, num_data=num_train,
+                                             balanced=balanced, data_type="train")
+    dev_dataloader = load_single_data_cqcc(batch_size=batch_size_test, num_data=num_test,
+                                           balanced=balanced, data_type="test")
+
+    return train_dataloader, dev_dataloader
+
+
+def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train"):
     option = OPTION
 
-    if os.path.exists("./data/preprocessed/train_{}_{}_{}".format(option, batch_size, num_train)) and \
-            os.path.exists("./data/preprocessed/test_{}_{}_{}".format(option, batch_size, num_test)):
-        train_loader = torch.load("./data/preprocessed/train_{}_{}_{}".format(option, batch_size, num_train))
-        test_loader = torch.load("./data/preprocessed/test_{}_{}_{}".format(option, batch_size, num_test))
-        return train_loader, test_loader
+    shuffle = data_type == "train"
+
+    if os.path.exists("./data/preprocessed/{}_{}_{}".format(data_type, option, num_data)):
+        data = torch.load("./data/preprocessed/{}_{}_{}".format(data_type, option, num_data))
+        dataloader = DataLoader(data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
+        return dataloader
 
     if not os.path.isdir('./data/preprocessed'):
         local_dir = os.path.dirname(__file__)
         os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
-    trainset = ASVDataset(length=length, nb_samples=num_train, random_samples=True)
-    testset = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_test, random_samples=True)
+    if data_type == "train":
+        data = ASVDataset(length=length, nb_samples=num_data, random_samples=True, metadata=False)
+    else:
+        data = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_data, random_samples=True,
+                          metadata=False)
 
-    print("preprocessing train set")
-    trainset = PreprocessedASVDataset(trainset)
-    train_loader = DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=True, drop_last=True)
-    torch.save(train_loader, "./data/preprocessed/train_{}_{}_{}".format(option, batch_size, num_train))
-    del trainset
+    print("preprocessing_tools {} set".format(data_type))
+    pp_data = PreprocessedASVDataset(data)
+    torch.save(pp_data, "./data/preprocessed/{}_{}_{}".format(data_type, option, num_data))
+    dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
 
-    print("preprocessing test set")
-    testset = PreprocessedASVDataset(testset)
-    test_loader = DataLoader(testset, batch_size=1, num_workers=4, drop_last=True, shuffle=False)
-    torch.save(test_loader, "./data/preprocessed/test_{}_{}_{}".format(option, batch_size, num_test))
-    del testset
-
-    return train_loader, test_loader
+    return dataloader
 
 
+def load_single_data_cqcc(batch_size=50, num_data=1000, balanced=False, data_type="train"):
+    local_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "anti_spoofing")
 
+    shuffle = data_type == "train"
+
+    if os.path.exists(
+            os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}_{}"
+                    .format(data_type, B, d, cf, ZsdD, balanced))):
+        print("{} data found locally".format(data_type))
+        cqcc_data = torch.load("./data/preprocessed/{}_cqcc_{}_{}_{}_{}_{}"
+                               .format(data_type, B, d, cf, ZsdD, balanced))
+        dataloader = torch.utils.data.DataLoader(cqcc_data, batch_size=batch_size,
+                                                 num_workers=0, shuffle=shuffle, drop_last=True)
+        return dataloader
+
+    if not os.path.isdir('./data/preprocessed'):
+        local_dir = os.path.dirname(__file__)
+        os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
+
+    print("loading {} .mat files to PyTorch...".format(data_type))
+
+    cqcc_data_type = data_type if data_type == "train" else "dev"
+    cqcc_data = CQCCDataset(params_id="{}_{}_{}_{}_{}".format(cqcc_data_type, B, d, cf, ZsdD),
+                            n_files=num_data, balanced=balanced)
+
+    torch.save(cqcc_data,
+               os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}_{}"
+                            .format(data_type, B, d, cf, ZsdD, balanced)))
+
+    dataloader = torch.utils.data.DataLoader(cqcc_data, batch_size=batch_size,
+                                             num_workers=0, shuffle=shuffle, drop_last=True)
+
+    return dataloader

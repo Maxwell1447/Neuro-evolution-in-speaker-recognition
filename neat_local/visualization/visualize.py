@@ -11,7 +11,7 @@ from utils import smooth
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
     plot_stats_single(statistics, ylog=ylog, view=view, filename=filename, momentum=0)
-    plot_stats_single(statistics, ylog=ylog, view=view, filename='avg_fitness_smooth.svg', momentum=momentum)
+    plot_stats_single(statistics, ylog=ylog, view=view, filename=filename, momentum=momentum)
 
 
 def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
@@ -29,6 +29,7 @@ def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.
     plt.plot(generation, smooth(best_fitness, momentum=momentum), 'r-', label="best")
     plt.plot(generation, smooth(avg_fitness - stdev_fitness, momentum=momentum), 'g-.', label="-1 sd")
     plt.plot(generation, smooth(avg_fitness + stdev_fitness, momentum=momentum), 'g-.', label="+1 sd")
+
 
     plt.title("Population's average and best fitness")
     plt.xlabel("Generations")

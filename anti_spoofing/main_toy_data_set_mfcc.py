@@ -11,7 +11,7 @@ from anti_spoofing.utils_ASV import SAMPLING_RATE, whiten, gate_activation, make
 
 """
 NEAT APPLIED TO ASVspoof 2019
-with Mel-frequency cepstral coefficients as preprocessing on toy dataset
+with Mel-frequency cepstral coefficients as preprocessing_tools on toy dataset
 """
 
 nb_samples_train = 10  # number of audio files used for training

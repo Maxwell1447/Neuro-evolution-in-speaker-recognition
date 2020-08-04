@@ -49,6 +49,7 @@ def eval_genome_bce(g, conf, batch, return_correct=False):
     # inputs: batch_size x t x bins
     # outputs: batch_size
     inputs, outputs = batch
+    outputs = outputs.float()
     # inputs: t x batch_size x bins
     inputs = inputs.transpose(0, 1)
 
@@ -60,7 +61,7 @@ def eval_genome_bce(g, conf, batch, return_correct=False):
         # input_t: batch_size x bins
 
         # Usage of batch evaluation provided by PyTorch-NEAT
-        xo = sigmoid(net.activate(input_t))  # batch_size x 2
+        xo = net.activate(input_t)  # batch_size x 2
         score = xo[:, 1]
         confidence = xo[:, 0]
         contribution += score * confidence  # batch_size
@@ -104,7 +105,7 @@ def eval_genome_eer(g, conf, batch):
         # input_t: batch_size x bins
 
         # Usage of batch evaluation provided by PyTorch-NEAT
-        xo = sigmoid(net.activate(input_t))  # batch_size x 2
+        xo = net.activate(input_t)  # batch_size x 2
         score = xo[:, 1]
         confidence = xo[:, 0]
         contribution = (score * confidence).sum() / (jitter + confidence).sum()

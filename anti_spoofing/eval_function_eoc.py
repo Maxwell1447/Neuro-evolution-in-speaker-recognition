@@ -131,7 +131,10 @@ def eval_genome_eoc(g, conf, batch):
 
     # inputs: batch_size x t x bins
     # outputs: batch_size
-    inputs, outputs, _ = batch
+    if len(batch) == 3:
+        inputs, outputs, _ = batch
+    else:
+        inputs, outputs = batch
     # inputs: t x batch_size x bins
     inputs = inputs.transpose(0, 1)
 
@@ -144,7 +147,7 @@ def eval_genome_eoc(g, conf, batch):
         # input_t: batch_size x bins
 
         # Usage of batch evaluation provided by PyTorch-NEAT
-        xo = sigmoid(net.activate(input_t))  # batch_size x 2
+        xo = net.activate(input_t)  # batch_size x 2
         score = xo[:, 1]
         confidence = xo[:, 0]
         contribution += score * confidence  # batch_size

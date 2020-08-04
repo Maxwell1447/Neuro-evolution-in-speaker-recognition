@@ -19,7 +19,7 @@ def evaluate(model, dataloader, preprocessor):
     peak generalisation performance and save the weights.
     :param model: Model to evaluate
     :param dataloader: An instance of a pytorch DataLoader class
-    :param preprocessor: Function that takes a batch and performs any required preprocessing
+    :param preprocessor: Function that takes a batch and performs any required preprocessing_tools
     :return: Accuracy of the model on the data supplied by dataloader
     """
     correct = 0

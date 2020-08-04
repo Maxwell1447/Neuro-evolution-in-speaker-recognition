@@ -39,7 +39,8 @@ class ASVDataset(Dataset):
                  is_train=True, sample_size=None,
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
-                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False):
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
+                 metadata=True):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -90,6 +91,7 @@ class ASVDataset(Dataset):
             data_root = os.path.join('eval_data', data_root)
         self.fragment_length = length
         self.track = track
+        self.metadata = metadata
         self.is_train = is_train
         self.is_logical = is_logical
         self.prefix = 'ASVspoof2019_{}'.format(track)
@@ -165,7 +167,8 @@ class ASVDataset(Dataset):
                 print('Dataset saved to cache ', self.cache_fname)
         if sample_size:
             select_idx = np.random.choice(len(self.files_meta), size=(sample_size,), replace=True).astype(np.int32)
-            self.files_meta = [self.files_meta[x] for x in select_idx]
+            if metadata:
+                self.files_meta = [self.files_meta[x] for x in select_idx]
             self.data_x = [self.data_x[x] for x in select_idx]
             self.data_y = [self.data_y[x] for x in select_idx]
             # self.data_sysid = [self.data_sysid[x] for x in select_idx]
@@ -177,7 +180,10 @@ class ASVDataset(Dataset):
     def __getitem__(self, idx):
         x = self.data_x[idx]
         y = self.data_y[idx]
-        return x, y, self.files_meta[idx].sys_id
+        if self.metadata:
+            return x, y, self.files_meta[idx].sys_id
+        else:
+            return x, y
         # to all of the meta data
         # self.files_meta[idx]
 
@@ -211,10 +217,10 @@ class ASVDataset(Dataset):
         # to make all data to have the same length
         if self.fragment_length:
             if data_x.size < self.fragment_length:
+
                 nb_iter = self.fragment_length // data_x.size + 1
-                data_x_copy = data_x[:]
-                for _ in range(nb_iter):
-                    data_x = np.concatenate((data_x, data_x_copy))
+                data_x = np.tile(data_x, nb_iter)
+
             begin = np.random.randint(0, data_x.size - self.fragment_length)
             return data_x[begin: begin+self.fragment_length], float(data_y)
         else:
