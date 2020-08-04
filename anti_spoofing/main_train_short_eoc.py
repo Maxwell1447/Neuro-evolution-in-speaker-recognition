@@ -135,7 +135,6 @@ def eval_genome(genome, config, batch_data):
     l_s_n = np.zeros(batch_size // 2)
     for data in batch_data:
         inputs, output = data[0], data[1]
-        inputs = whiten(inputs)
         net.reset()
         """
         mask, score = gate_mfcc(net, inputs)
@@ -203,7 +202,6 @@ def evaluate(net, data_loader):
     for data in tqdm(data_loader):
         net.reset()
         sample_input, output = data[0], data[1]
-        sample_input = whiten(sample_input)
         xo = gate_mfcc(net, sample_input)
         if output == 1:
             target_scores.append(xo)
@@ -226,8 +224,9 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True)
-    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test, do_mfcc=True)
+    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True, do_standardize=True, n_fft=1024)
+    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test,
+                             do_mfcc=True, do_standardize=True)
 
     winner, config, stats = run(config_path, n_generation)
     make_visualize(winner, config, stats)

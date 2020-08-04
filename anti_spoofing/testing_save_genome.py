@@ -56,14 +56,24 @@ if __name__ == '__main__':
 
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
-    eer_train = evaluate(winner_net, train_set)
-    eer_dev = evaluate(winner_net, dev_set)
-    eer_test = evaluate(winner_net, eval_set)
+    train_eer = evaluate(winner_net, train_set)
+    dev_eer = evaluate(winner_net, dev_set)
+    eer = evaluate(winner_net, eval_set)
 
+    print("\n")
+    print("**** equal error rate train = {}  ****".format(train_eer))
+
+    print("\n")
+    print("**** equal error rate dev = {}  ****".format(dev_eer))
+
+    print("\n")
+    print("**** equal error rate = {}  ****".format(eer))
+
+    """
     test_seen_classes = []
     test_unseen_classes = []
 
-    for x in eval_set:
+    for x in testset:
         if x[2] == 0:
             test_seen_classes.append(x)
             test_unseen_classes.append(x)
@@ -71,22 +81,13 @@ if __name__ == '__main__':
             test_seen_classes.append(x)
         else:
             test_unseen_classes.append(x)
-
     eer_seen = evaluate(winner_net, test_seen_classes)
     eer_unseen = evaluate(winner_net, test_unseen_classes)
-
-    print("\n")
-    print("**** train equal error rate = {}  ****".format(eer_train))
-
-    print("\n")
-    print("**** dev equal error rate = {}  ****".format(eer_dev))
-
-    print("\n")
-    print("**** eval equal error rate = {}  ****".format(eer_test))
 
     print("\n")
     print("**** equal error rate seen classes = {}  ****".format(eer_seen))
 
     print("\n")
     print("**** equal error rate unseen classes = {}  ****".format(eer_unseen))
+    """
 

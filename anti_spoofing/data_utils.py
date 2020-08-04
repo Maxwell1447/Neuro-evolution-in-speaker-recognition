@@ -40,7 +40,7 @@ class ASVDataset(Dataset):
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 metadata=True):
+                 metadata=True, n_fft=2048):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -103,6 +103,7 @@ class ASVDataset(Dataset):
         self.chroma_cqt = do_chroma_cqt
         self.chroma_stft = do_chroma_stft
         self.m_mfcc = do_self_mfcc
+        self.n_fft = n_fft
         if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt or self.m_mfcc):
             raise ValueError("You cannot specify a length if you are using pre-processing functions")
         v1_suffix = ''
@@ -205,13 +206,13 @@ class ASVDataset(Dataset):
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:
-            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24)
+            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
         if self.chroma_cqt:
             data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate,  n_chroma=24)
         if self.chroma_stft:
-            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24)
+            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
         if self.m_mfcc:
-            data_x = mfcc(data_x, num_cep=24)
+            data_x = mfcc(data_x, num_cep=24, nfft=self.n_fft)
         if self.standardize:
             data_x = whiten(data_x)
         # to make all data to have the same length

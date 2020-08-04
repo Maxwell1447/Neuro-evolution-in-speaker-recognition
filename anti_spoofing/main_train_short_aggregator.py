@@ -92,16 +92,12 @@ if __name__ == '__main__':
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    net_1 = pickle.load(open('best_genome_eoc_class_1', 'rb'))
-    net_2 = pickle.load(open('best_genome_eoc_class_2', 'rb'))
-    net_3 = pickle.load(open('best_genome_eoc_class_3', 'rb'))
-    net_4 = pickle.load(open('best_genome_eoc_class_4', 'rb'))
-    net_5 = pickle.load(open('best_genome_eoc_class_5', 'rb'))
-    net_6 = pickle.load(open('best_genome_eoc_class_6', 'rb'))
+    net_1 = pickle.load(open('best_genome_eoc_batch_128_c3', 'rb'))
+    net_2 = pickle.load(open('best_genome_eoc_64_cqt', 'rb'))
 
-    net = [net_1, net_2, net_3, net_4, net_5, net_6]
+    net = [net_1, net_2]
 
-    trainset = ASVDatasetshort(None, nb_samples=2538, do_mfcc=True)
+    trainset = ASVDataset(is_train=True, nb_samples=80000, do_mfcc=True)
     devset = ASVDataset(is_train=False, is_eval=False, nb_samples=80000, do_mfcc=True)
     testset = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_mfcc=True)
 
@@ -109,6 +105,20 @@ if __name__ == '__main__':
     for i in range(6):
         aggregate_net.append(neat.nn.RecurrentNetwork.create(net[i], config))
 
+    train_eer = evaluate(aggregate_net, trainset)
+    dev_eer = evaluate(aggregate_net, devset)
+    eer = evaluate(aggregate_net, testset)
+
+    print("\n")
+    print("**** equal error rate train = {}  ****".format(train_eer))
+
+    print("\n")
+    print("**** equal error rate dev = {}  ****".format(dev_eer))
+
+    print("\n")
+    print("**** equal error rate = {}  ****".format(eer))
+
+    """
     test_seen_classes = []
     test_unseen_classes = []
 
@@ -120,24 +130,12 @@ if __name__ == '__main__':
             test_seen_classes.append(x)
         else:
             test_unseen_classes.append(x)
-
-    train_eer = evaluate(aggregate_net, trainset)
-    dev_eer = evaluate(aggregate_net, devset)
     eer_seen = evaluate(aggregate_net, test_seen_classes)
     eer_unseen = evaluate(aggregate_net, test_unseen_classes)
-    eer = evaluate(aggregate_net, testset)
-
-    print("\n")
-    print("**** equal error rate train = {}  ****".format(train_eer))
-
-    print("\n")
-    print("**** equal error rate dev = {}  ****".format(dev_eer))
-
+    
     print("\n")
     print("**** equal error rate seen classes = {}  ****".format(eer_seen))
 
     print("\n")
     print("**** equal error rate unseen classes = {}  ****".format(eer_unseen))
-
-    print("\n")
-    print("**** equal error rate = {}  ****".format(eer))
+    """
