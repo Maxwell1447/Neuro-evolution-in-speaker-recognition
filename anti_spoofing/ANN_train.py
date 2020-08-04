@@ -84,17 +84,17 @@ def evaluate(model, data):
         out = model(x)
 
         if y[0]:
-            target_scores.append(out[0])
+            target_scores.append(out[0].numpy())
         else:
-            non_target_scores.append(out[0])
+            non_target_scores.append(out[0].numpy())
 
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
+    target_scores = np.array(target_scores).flatten()
+    non_target_scores = np.array(non_target_scores).flatten()
 
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    acc = (target_scores < 0.5).sum() + (non_target_scores > 0.5).sum()
+    acc = (target_scores > 0.5).sum() + (non_target_scores < 0.5).sum()
     acc = acc / (len(target_scores) + len(non_target_scores))
 
     return eer, acc
@@ -108,12 +108,12 @@ if __name__ == '__main__':
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
     if OPTION == "cqcc":
-        trainloader, testloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=False)
+        trainloader, testloader = load_data_cqcc(batch_size=100, batch_size_test=100, num_train=10000, num_test=10000,
+                                                 balanced=True)
     else:
-        trainloader, testloader = None, None
-        exit(7)
+        trainloader, testloader = load_data(batch_size=100, batch_size_test=100, num_train=10000, num_test=10000)
 
-    writer = SummaryWriter('./runs/linear_model')
+    writer = SummaryWriter('./runs/{}'.format(OPTION))
     model = LinearModel2()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.BCELoss()
@@ -135,7 +135,8 @@ if __name__ == '__main__':
             writer.add_scalar('training eer', eer)
 
     print("TESTING")
-    eer, acc = evaluate(model, testloader)
+    with torch.no_grad():
+        eer, acc = evaluate(model, testloader)
 
     print("TESTING EER / ACC:")
     print(eer)

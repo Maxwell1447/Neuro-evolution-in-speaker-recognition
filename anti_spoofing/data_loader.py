@@ -22,28 +22,38 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         self.len = len(dataset)
         self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
-        self.meta = torch.empty(self.len, dtype=torch.int64)
+        if dataset.metadata:
+            self.meta = torch.empty(self.len, dtype=torch.int64)
+        else:
+            self.meta = None
 
         with Pool(multiprocessing.cpu_count() - 1) as pool:
             jobs = []
 
             for i in tqdm(range(self.len)):
-                x, t, meta = dataset[i]
+                if dataset.metadata:
+                    x, t, meta = dataset[i]
+                else:
+                    x, t = dataset[i]
                 jobs.append(pool.apply_async(preprocess_function, [x.astype(np.float32)]))
                 self.t[i] = float(t)
-                self.meta[i] = int(meta)
+                if dataset.metadata:
+                    self.meta[i] = int(meta)
 
             for i, job in enumerate(jobs):
                 self.X[i] = job.get(timeout=None)
 
     def __getitem__(self, index):
-        return self.X[index], self.t[index], self.meta[index]
+        if self.meta is not None:
+            return self.X[index], self.t[index], self.meta[index]
+        else:
+            return self.X[index], self.t[index]
 
     def __len__(self):
         return self.len
 
 
-def load_data(batch_size=50, length=3 * 16000, num_train=10000, num_test=10000):
+def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
@@ -53,12 +63,12 @@ def load_data(batch_size=50, length=3 * 16000, num_train=10000, num_test=10000):
     """
 
     train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type="train")
-    test_loader = load_single_data(batch_size=1, length=length, num_data=num_train, data_type="test")
+    test_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_train, data_type="test")
 
     return train_loader, test_loader
 
 
-def load_data_cqcc(batch_size=50, num_train=1000, num_test=1000, balanced=False):
+def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=1000, balanced=False):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
@@ -69,7 +79,7 @@ def load_data_cqcc(batch_size=50, num_train=1000, num_test=1000, balanced=False)
 
     train_dataloader = load_single_data_cqcc(batch_size=batch_size, num_data=num_train,
                                              balanced=balanced, data_type="train")
-    dev_dataloader = load_single_data_cqcc(batch_size=1, num_data=num_test,
+    dev_dataloader = load_single_data_cqcc(batch_size=batch_size_test, num_data=num_test,
                                            balanced=balanced, data_type="test")
 
     return train_dataloader, dev_dataloader
@@ -90,9 +100,10 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
         os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
     if data_type == "train":
-        data = ASVDataset(length=length, nb_samples=num_data, random_samples=True)
+        data = ASVDataset(length=length, nb_samples=num_data, random_samples=True, metadata=False)
     else:
-        data = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_data, random_samples=True)
+        data = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_data, random_samples=True,
+                          metadata=False)
 
     print("preprocessing_tools {} set".format(data_type))
     pp_data = PreprocessedASVDataset(data)
