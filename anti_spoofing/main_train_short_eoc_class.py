@@ -126,8 +126,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             self.current_batch.append(self.data[self.spoofed_index + 258])
             self.spoofed_index += 1
 
-        self.spoofed_index += batch_size // 2
-
         self.current_batch = np.array(self.current_batch)
 
 

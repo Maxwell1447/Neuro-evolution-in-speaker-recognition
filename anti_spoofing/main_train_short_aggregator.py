@@ -17,6 +17,7 @@ def evaluate(net, data_loader):
     :param data_loader: test dataset, contains audio files in a numpy array format
     :return eer
     """
+    nb_net = len(net)
     target_scores_sum = []
     non_target_scores_sum = []
     target_scores_prod = []
@@ -28,21 +29,21 @@ def evaluate(net, data_loader):
     target_scores_median = []
     non_target_scores_median = []
     for data in tqdm(data_loader):
-        for i in range(6):
+        for i in range(nb_net):
             net[i].reset()
         sample_input, output = data[0], data[1]
         sample_input = whiten(sample_input)
-        xo = np.zeros(6)
-        for i in range(1, 6):
+        xo = np.zeros(nb_net)
+        for i in range(nb_net):
             xo[i] = gate_mfcc(net[i], sample_input)
         if output == 1:
-            target_scores_sum.append(xo.sum()/6)
+            target_scores_sum.append(xo.mean())
             target_scores_prod.append(xo.prod())
             target_scores_min.append(xo.min())
             target_scores_max.append(xo.max())
             target_scores_median.append(np.median(xo))
         else:
-            non_target_scores_sum.append(xo.sum()/6)
+            non_target_scores_sum.append(xo.mean())
             non_target_scores_prod.append(xo.prod())
             non_target_scores_min.append(xo.min())
             non_target_scores_max.append(xo.max())
@@ -92,17 +93,18 @@ if __name__ == '__main__':
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    net_1 = pickle.load(open('best_genome_eoc_batch_128_c3', 'rb'))
-    net_2 = pickle.load(open('best_genome_eoc_64_cqt', 'rb'))
-
-    net = [net_1, net_2]
-
     trainset = ASVDataset(is_train=True, nb_samples=80000, do_mfcc=True)
     devset = ASVDataset(is_train=False, is_eval=False, nb_samples=80000, do_mfcc=True)
     testset = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_mfcc=True)
 
+    net_1 = pickle.load(open('best_genome_eoc_batch_128_c3', 'rb'))
+    net_2 = pickle.load(open('best_genome_eoc_batch_128_nfft_1024', 'rb'))
+    net_3 = pickle.load(open('best_genome_eoc_batch_128_nfft_512', 'rb'))
+
+    net = [net_1, net_2, net_3]
+
     aggregate_net = []
-    for i in range(6):
+    for i in range(len(net)):
         aggregate_net.append(neat.nn.RecurrentNetwork.create(net[i], config))
 
     train_eer = evaluate(aggregate_net, trainset)
