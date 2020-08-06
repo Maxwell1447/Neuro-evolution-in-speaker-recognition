@@ -27,7 +27,9 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         else:
             self.meta = None
 
-        with Pool(1) as pool:
+        torch.multiprocessing.set_sharing_strategy('file_system')
+
+        with Pool(multiprocessing.cpu_count() - 1) as pool:
             jobs = []
 
             for i in tqdm(range(self.len)):
