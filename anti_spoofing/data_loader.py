@@ -29,7 +29,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
 
         torch.multiprocessing.set_sharing_strategy('file_system')
 
-        with Pool(multiprocessing.cpu_count() - 1) as pool:
+        with Pool(multiprocessing.cpu_count()//2) as pool:
             jobs = []
 
             for i in tqdm(range(self.len)):
@@ -42,8 +42,8 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
                 if dataset.metadata:
                     self.meta[i] = int(meta)
 
-            for i, job in tqdm(enumerate(jobs)):
-                self.X[i] = job.get(timeout=10)
+            for i, job in tqdm(enumerate(jobs), total=self.len):
+                self.X[i] = job.get(timeout=30)
 
     def __getitem__(self, index):
         if self.meta is not None:
