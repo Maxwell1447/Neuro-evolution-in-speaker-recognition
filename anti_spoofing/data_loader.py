@@ -29,7 +29,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
 
         torch.multiprocessing.set_sharing_strategy('file_descriptor')
 
-        with Pool(multiprocessing.cpu_count()//2) as pool:
+        with Pool(1) as pool:
             jobs = []
 
             for i in tqdm(range(self.len)):
