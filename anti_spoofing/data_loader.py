@@ -97,8 +97,8 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
         dataloader = DataLoader(data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
         return dataloader
 
-    if not os.path.isdir('./data/preprocessed'):
-        local_dir = os.path.dirname(__file__)
+    local_dir = os.path.dirname(__file__)
+    if not os.path.isdir(os.path.join(local_dir, 'data/preprocessed')):
         os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
     if data_type == "train":
