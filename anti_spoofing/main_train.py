@@ -29,6 +29,7 @@ if sys.platform.find("win") >= 0:
 else:
     DATA_ROOT = os.path.join("speechmaterials", "databases", "ASVspoof")
     print(DATA_ROOT)
+    print(os.path.abspath(DATA_ROOT))
     print(os.path.isdir(DATA_ROOT))
     exit(8)
 
