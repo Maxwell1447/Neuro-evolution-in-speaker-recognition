@@ -107,12 +107,15 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
 
     shuffle = data_type == "train"
 
-    if os.path.exists("./data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data)):
-        data = torch.load("./data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data))
+    local_dir = os.path.dirname(__file__)
+
+    if os.path.exists(os.path.join(local_dir,
+                                   "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data))):
+        data = torch.load(os.path.join(local_dir,
+                                       "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data)))
         dataloader = DataLoader(data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
         return dataloader
 
-    local_dir = os.path.dirname(__file__)
     if not os.path.isdir(os.path.join(local_dir, 'data/preprocessed')):
         os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
@@ -125,7 +128,8 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
 
     print("preprocessing_tools {} set".format(data_type))
     pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc)
-    torch.save(pp_data, "./data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data))
+    torch.save(pp_data, os.path.join(local_dir,
+                                     "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data)))
     dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
 
     return dataloader
