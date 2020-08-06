@@ -27,7 +27,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         else:
             self.meta = None
 
-        with Pool(multiprocessing.cpu_count() - 1) as pool:
+        with Pool(multiprocessing.cpu_count()//2) as pool:
             jobs = []
 
             for i in tqdm(range(self.len)):
