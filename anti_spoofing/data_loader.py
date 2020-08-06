@@ -42,7 +42,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
                 if dataset.metadata:
                     self.meta[i] = int(meta)
 
-            for i, job in tdqm(enumerate(jobs)):
+            for i, job in tqdm(enumerate(jobs)):
                 self.X[i] = job.get(timeout=10)
 
     def __getitem__(self, index):
