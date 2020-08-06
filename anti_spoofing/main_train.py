@@ -27,7 +27,7 @@ NEAT APPLIED TO ASVspoof 2019
 if sys.platform.find("win") >= 0:
     DATA_ROOT = './data'
 else:
-    DATA_ROOT = os.path.join("speechmaterials", "databases", "ASVspoof")
+    DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
     print(DATA_ROOT)
     print(os.path.abspath(DATA_ROOT))
     print(os.path.isdir(DATA_ROOT))
