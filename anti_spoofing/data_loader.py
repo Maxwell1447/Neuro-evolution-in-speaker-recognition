@@ -18,7 +18,7 @@ def preprocess_function(s):
 
 class PreprocessedASVDataset(torch.utils.data.Dataset):
 
-    def __init__(self, dataset: ASVDataset):
+    def __init__(self, dataset: ASVDataset, multi_proc=True):
         self.len = len(dataset)
         self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
@@ -27,23 +27,34 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         else:
             self.meta = None
 
-        torch.multiprocessing.set_sharing_strategy('file_descriptor')
+        if multi_proc:
+            torch.multiprocessing.set_sharing_strategy('file_descriptor')
 
-        with Pool(1) as pool:
-            jobs = []
+            with Pool(multiprocessing.cpu_count()) as pool:
+                jobs = []
 
+                for i in tqdm(range(self.len)):
+                    if dataset.metadata:
+                        x, t, meta = dataset[i]
+                    else:
+                        x, t = dataset[i]
+                    jobs.append(pool.apply_async(preprocess_function, [x.astype(np.float32)]))
+                    self.t[i] = float(t)
+                    if dataset.metadata:
+                        self.meta[i] = int(meta)
+
+                for i, job in tqdm(enumerate(jobs), total=self.len):
+                    self.X[i] = job.get(timeout=30)
+        else:
             for i in tqdm(range(self.len)):
                 if dataset.metadata:
                     x, t, meta = dataset[i]
                 else:
                     x, t = dataset[i]
-                jobs.append(pool.apply_async(preprocess_function, [x.astype(np.float32)]))
+                self.X[i] = preprocess_function(x.astype(np.float32))
                 self.t[i] = float(t)
                 if dataset.metadata:
                     self.meta[i] = int(meta)
-
-            for i, job in tqdm(enumerate(jobs), total=self.len):
-                self.X[i] = job.get(timeout=30)
 
     def __getitem__(self, index):
         if self.meta is not None:
@@ -55,7 +66,8 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         return self.len
 
 
-def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000, custom_path='./data'):
+def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000, custom_path='./data',
+              multi_proc=True):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
@@ -65,9 +77,9 @@ def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=1000
     """
 
     train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type="train",
-                                    custom_path=custom_path)
+                                    custom_path=custom_path, multi_proc=multi_proc)
     test_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_test, data_type="test",
-                                   custom_path=custom_path)
+                                   custom_path=custom_path, multi_proc=multi_proc)
 
     return train_loader, test_loader
 
@@ -89,7 +101,8 @@ def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=10
     return train_dataloader, dev_dataloader
 
 
-def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data"):
+def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data",
+                     multi_proc=True):
     option = OPTION
 
     shuffle = data_type == "train"
@@ -111,7 +124,7 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
                           metadata=False, custom_path=custom_path)
 
     print("preprocessing_tools {} set".format(data_type))
-    pp_data = PreprocessedASVDataset(data)
+    pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc)
     torch.save(pp_data, "./data/preprocessed/{}_{}_{}".format(data_type, option, num_data))
     dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
 

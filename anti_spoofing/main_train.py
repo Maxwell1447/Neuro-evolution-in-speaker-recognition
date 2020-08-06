@@ -150,7 +150,8 @@ if __name__ == '__main__':
     if OPTION == "cqcc":
         trainloader, testloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
     else:
-        trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, custom_path=DATA_ROOT)
+        trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, custom_path=DATA_ROOT,
+                                            multi_proc=False)
 
     winner, config, stats = run(config_path, 100)
 
