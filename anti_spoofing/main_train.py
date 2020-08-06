@@ -28,10 +28,6 @@ if sys.platform.find("win") >= 0:
     DATA_ROOT = './data'
 else:
     DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
-    print(DATA_ROOT)
-    print(os.path.abspath(DATA_ROOT))
-    print(os.path.isdir(DATA_ROOT))
-    exit(8)
 
 
 def run(config_file, n_gen):
