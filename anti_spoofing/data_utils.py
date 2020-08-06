@@ -20,8 +20,6 @@ import platform
 from anti_spoofing.utils_ASV import whiten
 from anti_spoofing.mfcc import mfcc
 
-# tells us if one is using a linux or a windows machine
-current_os = platform.system()
 
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
@@ -137,7 +135,7 @@ class ASVDataset(Dataset):
         self.protocols_fname = 'eval.trl' if is_eval else 'train.trn' if is_train else 'dev.trl'
         self.protocols_dir = os.path.join(self.data_root,
                                           '{}_protocols/'.format(self.prefix))
-        self.files_dir = os.path.join(self.data_root, '{}_{}'.format(
+        self.files_dir = os.path.join(self.data_root, track, '{}_{}'.format(
             self.prefix, self.dset_name) + v1_suffix, 'flac')
 
         self.protocols_fname = os.path.join(custom_path, track, 'ASVspoof2019_{}_cm_protocols'.format(track),
