@@ -50,12 +50,12 @@ def run(config_file, n_gen):
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
-    # sine_scheduler = SineScheduler(config_, period=500, final_values={
-    #     "node_add_prob": 0.0,
-    #     "conn_add_prob": 0.0,
-    #     "node_delete_prob": 0.0,
-    #     "conn_delete_prob": 0.0
-    # })
+    sine_scheduler = SineScheduler(config_, period=500, final_values={
+        "node_add_prob": 0.0,
+        "conn_add_prob": 0.0,
+        "node_delete_prob": 0.0,
+        "conn_delete_prob": 0.0
+    })
     # mutate_scheduler = MutateScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                "node_delete_prob", "conn_delete_prob"],
     #                                    patience=2, momentum=0.99)
@@ -74,7 +74,7 @@ def run(config_file, n_gen):
     #                                            "node_delete_prob", "conn_delete_prob"],
     #                                verbose=1, patience=10, factor=0.995, momentum=0.99)
     # p.add_reporter(mutate_scheduler)
-    # p.add_reporter(sine_scheduler)
+    p.add_reporter(sine_scheduler)
     # p.add_reporter(scheduler2)
     # p.add_reporter(impulse_scheduler)
     complexity_reporter = ComplexityReporter()
@@ -153,7 +153,7 @@ if __name__ == '__main__':
         trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, custom_path=DATA_ROOT,
                                             multi_proc=False)
 
-    winner, config, stats = run(config_path, 100)
+    winner, config, stats = run(config_path, 10000)
 
     eer, accuracy = evaluate(winner, config, testloader)
 
@@ -161,4 +161,4 @@ if __name__ == '__main__':
     print("equal error rate", eer)
     print("accuracy", accuracy)
 
-    make_visualize(winner, config, stats)
+    make_visualize(winner, config, stats, topology=False)

@@ -219,12 +219,13 @@ def evaluate_acc_eer(net, data_loader):
     return float(correct) / total, eer
 
 
-def make_visualize(winner_, config_, stats_):
+def make_visualize(winner_, config_, stats_, topology=True):
     """
     Plot and draw:
         - the graph of the topology
         - the fitness evolution over generations
         - the speciation evolution over generations
+    :param topology: is the topology displayed?
     :param winner_: genome
     :param config_: configuration file
     :param stats_: statistics from reporter
@@ -235,7 +236,8 @@ def make_visualize(winner_, config_, stats_):
                   4: "Conventional vocoder MERLIN", 5: "Unit selection system MaryTTS",
                   6: "Voice conversion using neural networks", 7: "transform function-based voice conversion"}
 
-    visualize.draw_net(config_, winner_, True, node_names=node_names)
+    if topology:
+        visualize.draw_net(config_, winner_, True, node_names=node_names)
     visualize.plot_stats(stats_, ylog=False, view=True)
     visualize.plot_species(stats_, view=True)
 
