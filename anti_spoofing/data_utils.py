@@ -143,6 +143,7 @@ class ASVDataset(Dataset):
         self.protocols_fname = os.path.join(custom_path, track, 'ASVspoof2019_{}_cm_protocols'.format(track),
                                             'ASVspoof2019.{}.cm.{}.txt'.format(track, self.protocols_fname))
 
+        print("protocols path: ", self.protocols_fname)
         assert os.path.isfile(self.protocols_fname)
 
         self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
