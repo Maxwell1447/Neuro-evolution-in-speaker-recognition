@@ -43,7 +43,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
                     self.meta[i] = int(meta)
 
             for i, job in enumerate(jobs):
-                self.X[i] = job.get(timeout=None)
+                self.X[i] = job.get(timeout=10)
 
     def __getitem__(self, index):
         if self.meta is not None:
