@@ -1,6 +1,7 @@
 from neat.reporting import BaseReporter
 from math import cos, pi
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class ExponentialScheduler(BaseReporter):
@@ -58,7 +59,7 @@ class SineScheduler(BaseReporter):
         * for the weights/biases: weight_mutate_power and bias_mutate_power
     """
 
-    def __init__(self, conf, period=500, final_values=None, verbose=0):
+    def __init__(self, conf, period=500, final_values=None, verbose=0, monitor=True):
         """
         period: number of generation required to loop
         verbose: if 1, print the current values of the parameters
@@ -75,6 +76,13 @@ class SineScheduler(BaseReporter):
 
         for key in self.final_values:
             self.init_values[key] = getattr(conf.genome_config, key)
+
+        if monitor:
+            self.values = {}
+            for key in self.final_values:
+                self.values[key] = []
+
+        self.monitor = monitor
 
     def end_generation(self, conf, population, species_set):
         """
@@ -94,7 +102,21 @@ class SineScheduler(BaseReporter):
 
             setattr(conf.genome_config, key, value)
 
-            self.gen += 1
+            if self.monitor:
+                self.values[key].append(value)
+        self.gen += 1
+
+    def display(self):
+
+        assert self.monitor
+
+        plt.figure()
+        plt.xlabel("generations")
+        plt.ylabel("parameter values")
+        plt.title("Parameter scheduling")
+        for key in self.final_values:
+            plt.plot(self.values[key], label=key)
+        plt.show()
 
 
 class OnPlateauScheduler(BaseReporter):
@@ -152,7 +174,7 @@ class OnPlateauScheduler(BaseReporter):
                 print(key, getattr(config.genome_config, key))
 
 
-class MutateSchecduler(BaseReporter):
+class MutateScheduler(BaseReporter):
     """
     Scheduler that mutates the learning rate when on a plateau
     The 'learning rate' is decomposed for NEAT:
@@ -160,7 +182,7 @@ class MutateSchecduler(BaseReporter):
         * for the weights/biases: weight_mutate_power and bias_mutate_power
     """
 
-    def __init__(self, parameters=None, verbose=0, patience=5, momentum=0.99):
+    def __init__(self, parameters=None, verbose=0, patience=5, momentum=0.99, monitor=True):
         """
         parameters: name of affected parameters
         verbose: if 1, print the current values of the parameters
@@ -177,6 +199,12 @@ class MutateSchecduler(BaseReporter):
         self.mu = momentum
         self.w = 1.
         self.s = 0.
+        self.monitor = monitor
+
+        if monitor:
+            self.values = {}
+            for key in parameters:
+                self.values[key] = []
 
     def post_evaluate(self, config, population, species, best_genome):
         v = best_genome.fitness
@@ -200,12 +228,28 @@ class MutateSchecduler(BaseReporter):
                 self.last_fitness = smoothed_fitness
                 self.cpt = 0
 
+        if self.monitor:
+            for key in self.parameters:
+                self.values[key].append(getattr(config.genome_config, key))
+
         else:
             self.last_fitness = smoothed_fitness
 
         if self.verbose:
             for key in self.parameters:
                 print(key, getattr(config.genome_config, key))
+
+    def display(self):
+
+        assert self.monitor
+
+        plt.figure()
+        plt.xlabel("generations")
+        plt.ylabel("parameter values")
+        plt.title("Parameter scheduling")
+        for key in self.parameters:
+            plt.plot(self.values[key], label=key)
+        plt.show()
 
 
 class ImpulseScheduler(BaseReporter):
@@ -216,7 +260,8 @@ class ImpulseScheduler(BaseReporter):
         * for the weights/biases: weight_mutate_power and bias_mutate_power
     """
 
-    def __init__(self, parameters=None, verbose=0, patience=5, momentum=0.99, impulse_duration=10, impulse_factor=2):
+    def __init__(self, parameters=None, verbose=0, patience=5, momentum=0.99, impulse_duration=10, impulse_factor=2,
+                 monitor=True):
         """
         parameters: name of affected parameters
         verbose: if 1, print the current values of the parameters
@@ -236,6 +281,11 @@ class ImpulseScheduler(BaseReporter):
         self.impulse_cpt = 0
         self.impulse_duration = impulse_duration
         self.impulse_factor = impulse_factor
+        self.monitor = monitor
+        if monitor:
+            self.values = {}
+            for key in self.parameters:
+                self.values[key] = []
 
     def post_evaluate(self, config, population, species, best_genome):
         v = best_genome.fitness
@@ -274,3 +324,19 @@ class ImpulseScheduler(BaseReporter):
         if self.verbose:
             for key in self.parameters:
                 print(key, getattr(config.genome_config, key))
+
+        if self.monitor:
+            for key in self.parameters:
+                self.values[key].append(getattr(config.genome_config, key))
+
+    def display(self):
+
+        assert self.monitor
+
+        plt.figure()
+        plt.xlabel("generations")
+        plt.ylabel("parameter values")
+        plt.title("Parameter scheduling")
+        for key in self.parameters:
+            plt.plot(self.values[key], label=key)
+        plt.show()
