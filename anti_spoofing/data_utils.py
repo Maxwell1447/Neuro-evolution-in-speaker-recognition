@@ -35,7 +35,9 @@ class ASVDataset(Dataset):
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 metadata=True, custom_path="./data"):
+                 metadata=True, custom_path="./data", n_fft=2048, do_mrf=False):
+
+
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -78,14 +80,18 @@ class ASVDataset(Dataset):
         and not the raw audio files. This version does not use librosa.
         :param custom_path: str
         directory when ASV data in a specific folder
+        :param n_fft: int or list of int
+        length of the FFT window
+        :param do_mrf: bool
+        If yes, will use Multi-Resolution Feature Maps
         """
         data_root = custom_path
         if is_logical:
             track = 'LA'
         else:
             track = 'PA'
-        if is_eval:
-            data_root = os.path.join('eval_data', data_root)
+        # if is_eval:
+        #     data_root = os.path.join('eval_data', data_root)
         self.fragment_length = length
         self.track = track
         self.metadata = metadata
@@ -100,8 +106,12 @@ class ASVDataset(Dataset):
         self.chroma_cqt = do_chroma_cqt
         self.chroma_stft = do_chroma_stft
         self.m_mfcc = do_self_mfcc
+        self.n_fft = n_fft
+        self.mrf = do_mrf
         if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt or self.m_mfcc):
             raise ValueError("You cannot specify a length if you are using pre-processing functions")
+        if self.chroma_stft + self.mfcc + self.chroma_cqt + self.m_mfcc >= 2:
+            raise ValueError("You cannot use several preprocessing algorithms at the same time")
         v1_suffix = ''
         if is_eval and track == 'PA':
             v1_suffix = '_v1'
@@ -183,25 +193,45 @@ class ASVDataset(Dataset):
         # self.files_meta[idx]
 
     def read_file(self, meta):
-        if self.is_train:
-            tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
-        elif self.is_eval:
-            tmp_path = meta.path[10:15] + os.path.join(self.track, meta.path[15:])
-        else:
-            tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
+        # print()
+        # print("meta path", meta.path)
+        # print(meta.path[:5])  # data
+        # print(meta.path[10:15])  #
+        # print(meta.path[15:])
+        # print()
+        # if self.is_train:
+        #     tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
+        # elif self.is_eval:
+        #     tmp_path = meta.path[10:15] + os.path.join(self.track, meta.path[15:])
+        # else:
+        #     tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
+
+        tmp_path = meta.path
 
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:
-            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24)
+            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
         if self.chroma_cqt:
             data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate, n_chroma=24)
         if self.chroma_stft:
-            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24)
+            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
         if self.m_mfcc:
-            data_x = mfcc(data_x, num_cep=24)
+            data_x = mfcc(data_x, num_cep=24, nfft=self.n_fft)
         if self.standardize:
             data_x = whiten(data_x)
+        if self.mrf:
+            copy_data_x = data_x[:]
+            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft[0])
+            if self.standardize:
+                data_x = whiten(data_x)
+            for index_n_fft in range(1, len(self.n_fft)):
+                fft_data_x = librosa.feature.chroma_stft(y=copy_data_x, sr=sample_rate,
+                                                         n_chroma=24, n_fft=self.n_fft[index_n_fft])
+                if self.standardize:
+                    fft_data_x = whiten(fft_data_x)
+                data_x = np.concatenate((data_x, fft_data_x))
+
         # to make all data to have the same length
         if self.fragment_length:
             if data_x.size < self.fragment_length:

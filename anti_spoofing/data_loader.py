@@ -13,7 +13,7 @@ from torch.utils.data.dataloader import DataLoader
 
 
 def preprocess_function(s):
-    return torch.from_numpy(preprocess(s, option=OPTION, bins=BINS, sr=16000))
+    return preprocess(s, option=OPTION, bins=BINS, sr=16000)
 
 
 class PreprocessedASVDataset(torch.utils.data.Dataset):
@@ -28,7 +28,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
             self.meta = None
 
         if multi_proc:
-            torch.multiprocessing.set_sharing_strategy('file_descriptor')
+            # torch.multiprocessing.set_sharing_strategy('file_descriptor')
 
             with Pool(multiprocessing.cpu_count()) as pool:
                 jobs = []
@@ -44,7 +44,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
                         self.meta[i] = int(meta)
 
                 for i, job in tqdm(enumerate(jobs), total=self.len):
-                    self.X[i] = job.get(timeout=30)
+                    self.X[i] = torch.from_numpy(job.get(timeout=30))
         else:
             for i in tqdm(range(self.len)):
                 if dataset.metadata:

@@ -37,7 +37,7 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    # p.add_reporter(neat.Checkpointer(generation_interval=100, time_interval_seconds=None))
+    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc,
@@ -66,7 +66,7 @@ def evaluate(g, conf, data):
     net.reset()
     for i in range(len(data)):
         batch = next(data_iter)
-        input, output, _ = batch
+        input, output = batch
         input = input[0]
         xo = sigmoid(net.activate(input))
         score = xo[:, 1]
@@ -103,10 +103,10 @@ if __name__ == '__main__':
 
     eer_list = []
     accuracy_list = []
-    for iterations in range(20):
+    for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 500)
+        winner, config, stats = run(config_path, 100)
 
         eer, accuracy = evaluate(winner, config, testloader)
         eer_list.append(eer)

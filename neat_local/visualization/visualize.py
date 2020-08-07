@@ -11,7 +11,7 @@ from utils import smooth
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):
     plot_stats_single(statistics, ylog=ylog, view=view, filename=filename, momentum=0)
-    plot_stats_single(statistics, ylog=ylog, view=view, filename=filename, momentum=momentum)
+    plot_stats_single(statistics, ylog=ylog, view=view, filename='avg_fitness_smooth.svg', momentum=momentum)
 
 
 def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.svg', momentum=0.99):

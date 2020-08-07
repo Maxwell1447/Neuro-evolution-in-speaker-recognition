@@ -25,19 +25,19 @@ class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
         for ignored_genome_id, genome in genomes:
             jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch)))
 
+        _, outputs = batch
+
         self.G = len(genomes)
-        self.l_s_n = []
+        self.l_s_n = np.zeros((int(outputs.sum().item()), self.G))
 
         pseudo_genome_id = 0
         # return ease of classification for each genome
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
-            self.l_s_n.append(job.get(timeout=self.timeout))
+            self.l_s_n[:, pseudo_genome_id] = job.get(timeout=self.timeout)
             pseudo_genome_id += 1
 
         # compute the fitness
-        self.l_s_n = np.array(self.l_s_n)
-
-        p_s = np.sum(self.l_s_n, axis=0).reshape(-1, 1) / self.G
+        p_s = np.sum(self.l_s_n, axis=1).reshape(-1, 1) / self.G
 
         F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / np.sum(1 - p_s)
 
@@ -160,7 +160,7 @@ def eval_genome_eoc(g, conf, batch):
     non_target_scores = prediction[outputs == 0].numpy()  # select with mask when target == 0
 
     if target_scores.size == 0:
-        return np.zeros(1)
+        return np.zeros(0)
 
     l_s_n = np.zeros(target_scores.size)
 

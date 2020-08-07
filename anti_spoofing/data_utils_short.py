@@ -18,6 +18,7 @@ import librosa
 import platform
 
 from anti_spoofing.utils_ASV import whiten
+from anti_spoofing.mfcc import mfcc
 
 # tells us if one is using a linux or a windows machine
 current_os = platform.system()
@@ -36,7 +37,8 @@ class ASVDatasetshort(Dataset):
     def __init__(self, length, nb_samples=2538, random_samples=False,
                  sample_size=None,
                  save_cache=False, index_list=None,
-                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False):
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_m_mfcc=False,
+                 n_fft=2048, do_mrf=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -67,6 +69,10 @@ class ASVDatasetshort(Dataset):
         :param do_chroma_stft: bool
         If True will return the chromagram, Short-time Fourier transform (stft), from the audio files
         and not the raw audio files.
+        :param n_fft: int or list of int
+        length of the FFT window
+        :param do_mrf: bool
+        If yes, will use Multi-Resolution Feature Maps
         """
         data_root = DATA_ROOT
         track = 'LA'
@@ -80,6 +86,9 @@ class ASVDatasetshort(Dataset):
         self.mfcc = do_mfcc
         self.chroma_cqt = do_chroma_cqt
         self.chroma_stft = do_chroma_stft
+        self.m_mfcc = do_m_mfcc
+        self.n_fft = n_fft
+        self.mrf = do_mrf
         if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt):
             raise ValueError("You cannot specify a length if you are using pre-processing functions")
         v1_suffix = ''
@@ -149,21 +158,35 @@ class ASVDatasetshort(Dataset):
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:
-            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24)
+            data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
         if self.chroma_cqt:
             data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate, n_chroma=24)
         if self.chroma_stft:
-            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24)
+            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
+        if self.m_mfcc:
+            data_x = mfcc(data_x, num_cep=24, nfft=self.n_fft)
         if self.standardize:
             data_x = whiten(data_x)
+        if self.mrf:
+            copy_data_x = data_x[:]
+            data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft[0])
+            if self.standardize:
+                data_x = whiten(data_x)
+            for index_n_fft in range(1, len(self.n_fft)):
+                fft_data_x = librosa.feature.chroma_stft(y=copy_data_x, sr=sample_rate,
+                                                         n_chroma=24, n_fft=self.n_fft[index_n_fft])
+                if self.standardize:
+                    fft_data_x = whiten(fft_data_x)
+                data_x = np.concatenate((data_x, fft_data_x))
+
         # to make all data to have the same length
         if self.fragment_length:
             if data_x.size < self.fragment_length:
                 nb_iter = self.fragment_length // data_x.size + 1
-                data_x_copy = data_x[:]
-                for _ in range(nb_iter):
-                    data_x = np.concatenate((data_x, data_x_copy))
-            return data_x[:self.fragment_length], float(data_y)
+                data_x = np.tile(data_x, nb_iter)
+
+            begin = np.random.randint(0, data_x.size - self.fragment_length)
+            return data_x[begin: begin + self.fragment_length], float(data_y)
         else:
             return data_x, float(data_y)
         # to add meta data    
