@@ -9,7 +9,8 @@ from tqdm import tqdm
 
 from anti_spoofing.utils_ASV import make_visualize
 from anti_spoofing.data_loader import load_data, load_data_cqcc
-from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator
+from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator, feed_and_predict, \
+    evaluate_eer_acc
 from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
@@ -105,49 +106,6 @@ def run(config_file, n_gen):
     return winner_, config_, stats_
 
 
-def evaluate(g, conf, data):
-    """
-    returns the equal error rate and the accuracy
-    """
-    data_iter = iter(data)
-
-    target_scores = []
-    non_target_scores = []
-
-    jitter = 1e-8
-    correct = 0
-    total = 0
-
-    net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
-    for _ in tqdm(range(len(data))):
-        net.reset()
-        batch = next(data_iter)
-        input, output = batch
-        input = input[0]
-        xo = net.activate(input)
-        score = xo[:, 1]
-        confidence = xo[:, 0]
-        contribution = (score * confidence).sum() / (jitter + confidence.sum())
-
-        if output == 1:
-            target_scores.append(contribution)
-        else:
-            non_target_scores.append(contribution)
-
-        correct += ((contribution > 0.5) == output).item()
-        total += 1
-
-    accuracy = correct / total
-
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    return eer, accuracy
-
-
 if __name__ == '__main__':
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
@@ -159,16 +117,16 @@ if __name__ == '__main__':
         trainloader, testloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
     else:
         trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, custom_path=DATA_ROOT,
-                                            multi_proc=True, balanced=True, batch_size_test=1)
+                                            multi_proc=True, balanced=True, batch_size_test=100)
 
     eer_list = []
     accuracy_list = []
-    for iterations in range(20):
+    for iterations in range(10):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 500)
+        winner, config, stats = run(config_path, 100)
 
-        eer, accuracy = evaluate(winner, config, testloader)
+        eer, accuracy = evaluate_eer_acc(winner, config, testloader)
         eer_list.append(eer)
         accuracy_list.append(accuracy)
 

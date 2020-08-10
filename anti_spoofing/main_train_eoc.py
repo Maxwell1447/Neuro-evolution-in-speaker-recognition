@@ -1,5 +1,7 @@
 import os
 import neat
+
+from anti_spoofing.eval_functions import feed_and_predict, evaluate_eer_acc
 from neat_local.nn.recurrent_net import RecurrentNet
 import torch
 from torch import sigmoid
@@ -50,53 +52,6 @@ def run(config_file, n_gen):
     return winner_, config_, stats_
 
 
-def evaluate(g, conf, data):
-    """
-    returns the equal error rate and the accuracy
-    """
-    data_iter = iter(data)
-
-    target_scores = []
-    non_target_scores = []
-
-    jitter = 1e-8
-    correct = 0
-    total = len(data)
-
-    net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
-
-    for _ in tqdm(range(total)):
-        net.reset()
-        batch = next(data_iter)
-        input,  output = batch
-        input = input.transpose(0, 1)
-        norm = torch.zeros(1)
-        contribution = torch.zeros(1)
-        for input_t in input:
-            xo = net.activate(input_t)  # 1 x 8
-            score = xo[:, 1]
-            confidence = sigmoid(xo[:, 0])
-            contribution += score * confidence  # 7 x 1
-            norm += confidence  # 1
-        prediction = contribution / (norm + jitter)
-        if output == 1:
-            target_scores.append(prediction)
-        else:
-            non_target_scores.append(prediction)
-
-        correct += ((prediction > 0.5) == output).item()
-
-    accuracy = correct/total
-
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-
-    return eer, accuracy
-
-
 if __name__ == '__main__':
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
@@ -104,16 +59,17 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
-    trainloader, testloader = load_data(batch_size=100, length=3*16000, num_train=10000)
+    trainloader, testloader = load_data(batch_size=100, length=3*16000, num_train=10000, batch_size_test=100)
 
     eer_list = []
     accuracy_list = []
     for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 500)
+        winner, config, stats = run(config_path, 1)
 
-        eer, accuracy = evaluate(winner, config, testloader)
+        with torch.no_grad():
+            eer, accuracy = evaluate_eer_acc(winner, config, testloader)
         eer_list.append(eer)
         accuracy_list.append(accuracy)
 

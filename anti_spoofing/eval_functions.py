@@ -1,6 +1,8 @@
 import torch
 from torch import sigmoid
 import numpy as np
+from tqdm import tqdm
+
 from neat_local.nn.recurrent_net import RecurrentNet
 import neat
 
@@ -118,3 +120,62 @@ def eval_genome_eer(g, conf, batch):
     eer = rocch2eer(pmiss, pfa)
 
     return 2 * (.5 - eer)
+
+
+def feed_and_predict(data, g, conf):
+    """
+    returns predictions + targets in 2 numpy arrays
+    """
+    data_iter = iter(data)
+
+    jitter = 1e-8
+    total = len(data)
+
+    net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
+
+    predictions = []
+    targets = []
+
+    for _ in tqdm(range(total)):
+        net.reset()
+        batch = next(data_iter)
+        input, output = batch  # input: batch x t x BIN; output: batch
+        input = input.transpose(0, 1)  # input: t x batch x BIN
+        batch_size = output.shape[0]
+        norm = torch.zeros(batch_size)
+        contribution = torch.zeros(batch_size)
+        for input_t in input:
+            xo = net.activate(input_t)  # batch x 2
+            score = xo[:, 1]  # batch
+            confidence = sigmoid(xo[:, 0])  # batch
+            contribution += score * confidence  # batch
+            norm += confidence  # batch
+        prediction = contribution / (norm + jitter)  # batch
+
+        predictions.append(prediction.numpy())
+        targets.append(output.numpy())
+
+    predictions = np.concatenate(predictions)
+    targets = np.concatenate(targets)
+
+    return predictions, targets
+
+
+def evaluate_eer_acc(g, conf, data):
+    """
+    returns the equal error rate and the accuracy
+    """
+    predictions, targets = feed_and_predict(data, g, conf)
+
+    accuracy = np.mean(np.abs(predictions - targets) < 0.5)
+
+    target_scores = predictions[targets == 1]
+    non_target_scores = predictions[targets == 0]
+
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+
+    return eer, accuracy
