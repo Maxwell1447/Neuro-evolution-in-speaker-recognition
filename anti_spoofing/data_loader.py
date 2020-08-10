@@ -18,10 +18,13 @@ def preprocess_function(s):
 
 class PreprocessedASVDataset(torch.utils.data.Dataset):
 
-    def __init__(self, dataset: ASVDataset, multi_proc=True):
+    def __init__(self, dataset: ASVDataset, multi_proc=True, balanced=True):
         self.len = len(dataset)
+        self.balanced = balanced
         self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
+        self.data_idx_s = None
+        self.data_idx_b = None
         if dataset.metadata:
             self.meta = torch.empty(self.len, dtype=torch.int64)
         else:
@@ -49,14 +52,28 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
             for i in tqdm(range(self.len)):
                 if dataset.metadata:
                     x, t, meta = dataset[i]
+                    self.meta[i] = int(meta)
                 else:
                     x, t = dataset[i]
                 self.X[i] = preprocess_function(x.astype(np.float32))
                 self.t[i] = float(t)
-                if dataset.metadata:
-                    self.meta[i] = int(meta)
+
+        self.set_balance(balanced)
 
     def __getitem__(self, index):
+        if self.balanced:
+            if index < self.len // 2:
+                idx_s = self.data_idx_s[index]
+                assert self.t[idx_s] < 0.5
+                return self.get_data(idx_s)
+            else:
+                idx_b = self.data_idx_b[index % len(self.data_idx_b)]
+                assert self.t[idx_b] > 0.5
+                return self.get_data(idx_b)
+        else:
+            return self.get_data(index)
+
+    def get_data(self, index):
         if self.meta is not None:
             return self.X[index], self.t[index], self.meta[index]
         else:
@@ -65,9 +82,19 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.len
 
+    def set_balance(self, value: bool):
+        self.balanced = value
+        if self.balanced:
+            idxs = torch.arange(len(self.t))
+            self.data_idx_s = idxs[self.t < 0.5]  # N
+            self.data_idx_b = idxs[self.t > 0.5]  # n << N
+            self.len = 2 * len(self.data_idx_s)
+        else:
+            self.len = len(self.t)
+
 
 def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000, custom_path='./data',
-              multi_proc=True):
+              multi_proc=True, balanced=True):
     """
     loads the data and puts it in PyTorch DataLoader.
     Librispeech uses Index caching to access the data more rapidly.
@@ -77,9 +104,9 @@ def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=1000
     """
 
     train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type="train",
-                                    custom_path=custom_path, multi_proc=multi_proc)
+                                    custom_path=custom_path, multi_proc=multi_proc, balanced=balanced)
     test_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_test, data_type="test",
-                                   custom_path=custom_path, multi_proc=multi_proc)
+                                   custom_path=custom_path, multi_proc=multi_proc, balanced=balanced)
 
     return train_loader, test_loader
 
@@ -102,7 +129,7 @@ def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=10
 
 
 def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data",
-                     multi_proc=True):
+                     multi_proc=True, balanced=True):
     option = OPTION
 
     shuffle = data_type == "train"
@@ -113,6 +140,7 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
                                    "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data))):
         data = torch.load(os.path.join(local_dir,
                                        "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data)))
+        data.set_balance(balanced)
         dataloader = DataLoader(data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
         return dataloader
 
@@ -127,7 +155,7 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
                           metadata=False, custom_path=custom_path)
 
     print("preprocessing_tools {} set".format(data_type))
-    pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc)
+    pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc, balanced=balanced)
     torch.save(pp_data, os.path.join(local_dir,
                                      "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data)))
     dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)

@@ -16,6 +16,7 @@ from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
     ImpulseScheduler, SineScheduler, MutateScheduler
 from neat_local.reporters import ComplexityReporter
+from anti_spoofing.select_best import get_true_winner
 import os
 import sys
 
@@ -50,33 +51,36 @@ def run(config_file, n_gen):
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+
     # sine_scheduler = SineScheduler(config_, period=500, final_values={
     #     "node_add_prob": 0.0,
     #     "conn_add_prob": 0.0,
     #     "node_delete_prob": 0.0,
     #     "conn_delete_prob": 0.0
     # })
+    # p.add_reporter(sine_scheduler)
     # mutate_scheduler = MutateScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                "node_delete_prob", "conn_delete_prob"],
     #                                    patience=2, momentum=0.99)
+    # p.add_reporter(mutate_scheduler)
+
     scheduler = ExponentialScheduler(semi_gen=2000, final_values={
         "node_add_prob": 0.,
         "conn_add_prob": 0.
     })
+    p.add_reporter(scheduler)
     scheduler2 = ExponentialScheduler(semi_gen=3000, final_values={
         "node_delete_prob": 0.,
         "conn_delete_prob": 0.
     })
+    p.add_reporter(scheduler2)
     # impulse_scheduler = ImpulseScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                  "node_delete_prob", "conn_delete_prob"],
     #                                      verbose=1, patience=10, impulse_factor=2., momentum=0.99, monitor=True)
     # scheduler = OnPlateauScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                            "node_delete_prob", "conn_delete_prob"],
     #                                verbose=1, patience=10, factor=0.995, momentum=0.99)
-    # p.add_reporter(mutate_scheduler)
-    # p.add_reporter(sine_scheduler)
-    p.add_reporter(scheduler)
-    p.add_reporter(scheduler2)
+
     # p.add_reporter(impulse_scheduler)
     complexity_reporter = ComplexityReporter()
     p.add_reporter(complexity_reporter)
@@ -88,7 +92,10 @@ def run(config_file, n_gen):
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
-    complexity_reporter.display()
+    winner_ = get_true_winner(config_, p.population, trainloader, max_batch=10)
+
+    # complexity_reporter.display()
+
     # impulse_scheduler.display()
     # sine_scheduler.display()
     # mutate_scheduler.display()
@@ -152,14 +159,35 @@ if __name__ == '__main__':
         trainloader, testloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
     else:
         trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, custom_path=DATA_ROOT,
-                                            multi_proc=True)
+                                            multi_proc=True, balanced=True, batch_size_test=1)
 
-    winner, config, stats = run(config_path, 1000)
+    eer_list = []
+    accuracy_list = []
+    for iterations in range(20):
+        print(iterations)
+        print(eer_list)
+        winner, config, stats = run(config_path, 500)
 
-    eer, accuracy = evaluate(winner, config, testloader)
+        eer, accuracy = evaluate(winner, config, testloader)
+        eer_list.append(eer)
+        accuracy_list.append(accuracy)
+
+        # make_visualize(winner, config, stats, topology=False)
 
     print("\n")
-    print("equal error rate", eer)
-    print("accuracy", accuracy)
+    print("equal error rate", eer_list)
+    print("accuracy", accuracy_list)
 
-    make_visualize(winner, config, stats, topology=False)
+    print("\n")
+
+    array_eer = np.array(eer_list)
+
+    print("min =", array_eer.min())
+    print("max =", array_eer.max())
+    print("median =", np.median(array_eer))
+    print("average =", array_eer.mean())
+    print("std =", array_eer.std())
+
+
+
+
