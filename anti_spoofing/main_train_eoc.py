@@ -49,6 +49,7 @@ def run(config_file, n_gen):
 
     return winner_, config_, stats_
 
+
 def evaluate(g, conf, data):
     """
     returns the equal error rate and the accuracy
@@ -60,26 +61,30 @@ def evaluate(g, conf, data):
 
     jitter = 1e-8
     correct = 0
-    total = 0
+    total = len(data)
 
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
-    net.reset()
-    for i in range(len(data)):
+
+    for _ in tqdm(range(total)):
+        net.reset()
         batch = next(data_iter)
-        input, output = batch
-        input = input[0]
-        xo = sigmoid(net.activate(input))
-        score = xo[:, 1]
-        confidence = xo[:, 0]
-        contribution = (score * confidence).sum() / (jitter + confidence).sum()
-
+        input,  output = batch
+        input = input.transpose(0, 1)
+        norm = torch.zeros(1)
+        contribution = torch.zeros(1)
+        for input_t in input:
+            xo = net.activate(input_t)  # 1 x 8
+            score = xo[:, 1]
+            confidence = sigmoid(xo[:, 0])
+            contribution += score * confidence  # 7 x 1
+            norm += confidence  # 1
+        prediction = contribution / (norm + jitter)
         if output == 1:
-            target_scores.append(contribution)
+            target_scores.append(prediction)
         else:
-            non_target_scores.append(contribution)
+            non_target_scores.append(prediction)
 
-        correct += ((contribution > 0.5) == output).item()
-        total += 1
+        correct += ((prediction > 0.5) == output).item()
 
     accuracy = correct/total
 
@@ -106,7 +111,7 @@ if __name__ == '__main__':
     for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 100)
+        winner, config, stats = run(config_path, 500)
 
         eer, accuracy = evaluate(winner, config, testloader)
         eer_list.append(eer)

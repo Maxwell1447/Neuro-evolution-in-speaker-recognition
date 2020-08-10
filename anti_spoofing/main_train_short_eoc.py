@@ -225,10 +225,10 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    n_fft_list = [512, 1024, 2048]
-    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mrf=True, n_fft=n_fft_list, do_standardize=True)
-    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test,
-                             do_mrf=True, n_fft=n_fft_list, do_standardize=True)
+    # n_fft_list = [512, 1024, 2048]
+    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True, n_fft=4096, do_standardize=True)
+    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test, do_mfcc=True,
+                             n_fft=4096, do_standardize=True)
 
     winner, config, stats = run(config_path, n_generation)
     make_visualize(winner, config, stats)

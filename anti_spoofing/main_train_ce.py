@@ -66,21 +66,26 @@ def evaluate(g, conf, data):
 
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
 
-    for i in range(total):
+    for _ in tqdm(range(total)):
         net.reset()
         batch = next(data_iter)
         input, _, output = batch
-        input = input[0]
-        xo = net.activate(input)  # batch_size x 8
-        score = xo[:, 1:].reshape(torch.Size((7, -1)))
-        confidence = sigmoid(xo[:, 0])
-        contribution = (score * confidence).sum(axis=1) / (jitter + confidence).sum()
+        input = input.transpose(0, 1)
+        norm = torch.zeros(1)
+        contribution = torch.zeros(1, 7)
+        for input_t in input:
+            xo = net.activate(input_t)  # 1 x 8
+            score = xo[:, 1:]
+            confidence = sigmoid(xo[:, 0])
+            contribution += score * confidence  # 7 x 1
+            norm += confidence  # 1
+        prediction = contribution / (norm + jitter)
         if output == 0:
-            target_scores.append(contribution[0].item())
-            correct_anti_spoofing += (contribution.argmax() == 0).item()
+            target_scores.append(prediction[0][0].item())
+            correct_anti_spoofing += (prediction[0].argmax() == 0).item()
         else:
-            non_target_scores.append(contribution[0].item())
-            correct_anti_spoofing += (contribution.argmax() > 0).item()
+            non_target_scores.append(prediction[0][0].item())
+            correct_anti_spoofing += (prediction[0].argmax() > 0).item()
 
         correct += (contribution.argmax() == output).item()
 
@@ -111,7 +116,7 @@ if __name__ == '__main__':
     for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 1000)
+        winner, config, stats = run(config_path, 500)
 
         eer, accuracy, anti_spoofing_accuracy = evaluate(winner, config, testloader)
         eer_list.append(eer)
