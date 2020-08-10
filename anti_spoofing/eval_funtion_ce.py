@@ -52,24 +52,32 @@ def eval_genome_ce(g, conf, batch):
     inputs = inputs.transpose(0, 1)
 
     jitter = 1e-8
+    batch_size = list(outputs.size())[0]
     cross_entropy = 0
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
     net.reset()
-    for (input_t, output) in zip(inputs, outputs):
+
+    contribution = torch.zeros((len(outputs)), 7)
+    norm = torch.zeros(len(outputs))
+
+    for input_t in inputs:
         # input_t: batch_size x bins
 
         # Usage of batch evaluation provided by PyTorch-NEAT
         xo = net.activate(input_t)  # batch_size x 8
-        score = xo[:, 1:].reshape(torch.Size((7, -1)))
+        score = xo[:, 1:]
         confidence = sigmoid(xo[:, 0])
-        contribution = (score * confidence).sum(axis=1) / (jitter + confidence).sum()
-        contribution[np.isinf(contribution)] = 100
-        contribution[np.isnan(contribution)] = 100
-        scores = contribution.exp()
-        scores = scores / scores.sum()
-        cross_entropy -= np.log(scores[int(output.item())] + jitter)
+        contribution += score * confidence.reshape((-1, 1))  # batch_size x 7
+        norm += confidence  # batch_size x 7
 
-    batch_size = list(outputs.size())[0]
+    prediction = contribution / (norm.reshape((batch_size, 1)) + jitter)  # batch_size x 7
+
+    prediction = prediction.exp()
+    prediction = prediction / prediction.sum(axis=1).reshape((-1, 1))
+
+    for index_audio in range(batch_size):
+        cross_entropy -= np.log(prediction[index_audio][int(outputs[index_audio].item())] + jitter)
+
     normalize_fitness = - batch_size * np.log(1 / 7)
 
     return float(1 - cross_entropy / normalize_fitness)

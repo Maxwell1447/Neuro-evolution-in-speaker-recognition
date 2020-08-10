@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 from anti_spoofing.utils_ASV import make_visualize
-from anti_spoofing.data_loader import load_data
+from anti_spoofing.data_loader import load_metadata
 from anti_spoofing.eval_funtion_ce import eval_genome_ce, ProcessedASVEvaluator
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
@@ -38,7 +38,7 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    # p.add_reporter(neat.Checkpointer(generation_interval=100, time_interval_seconds=None))
+    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_ce, trainloader)
@@ -61,11 +61,13 @@ def evaluate(g, conf, data):
 
     jitter = 1e-8
     correct = 0
-    total = 0
+    correct_anti_spoofing = 0
+    total = len(data)
 
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
-    net.reset()
-    for i in range(len(data)):
+
+    for i in range(total):
+        net.reset()
         batch = next(data_iter)
         input, _, output = batch
         input = input[0]
@@ -75,12 +77,15 @@ def evaluate(g, conf, data):
         contribution = (score * confidence).sum(axis=1) / (jitter + confidence).sum()
         if output == 0:
             target_scores.append(contribution[0].item())
+            correct_anti_spoofing += (contribution.argmax() == 0).item()
         else:
             non_target_scores.append(contribution[0].item())
+            correct_anti_spoofing += (contribution.argmax() > 0).item()
 
         correct += (contribution.argmax() == output).item()
-        total += 1
+
     accuracy = correct / total
+    anti_spoofing_accuracy = correct_anti_spoofing / total
 
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
@@ -88,7 +93,7 @@ def evaluate(g, conf, data):
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    return eer, accuracy
+    return eer, accuracy, anti_spoofing_accuracy
 
 
 if __name__ == '__main__':
@@ -98,20 +103,33 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed_ce.cfg')
 
-    trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, num_test=10000)
+    trainloader, testloader = load_metadata(batch_size=100, length=3 * 16000, num_train=10000)
 
     eer_list = []
     accuracy_list = []
-    for iterations in range(20):
-        winner, config, stats = run(config_path, 500)
+    anti_spoofing_accuracy_list = []
+    for iterations in range(1):
+        print(iterations)
+        print(eer_list)
+        winner, config, stats = run(config_path, 1000)
 
-        eer, accuracy = evaluate(winner, config, testloader)
+        eer, accuracy, anti_spoofing_accuracy = evaluate(winner, config, testloader)
         eer_list.append(eer)
         accuracy_list.append(accuracy)
-        print("\n ********** iterations", iterations, "***********")
+        anti_spoofing_accuracy_list.append(anti_spoofing_accuracy)
 
     print("\n")
     print("equal error rate", eer_list)
     print("accuracy", accuracy_list)
+    print("accuracy", anti_spoofing_accuracy_list)
 
-    # make_visualize(winner, config, stats)
+    print("\n")
+
+    array_eer = np.array(eer_list)
+
+    print("min =", array_eer.min())
+    print("max =", array_eer.max())
+    print("median =", np.median(array_eer))
+    print("average =", array_eer.mean())
+    print("std =", array_eer.std())
+    make_visualize(winner, config, stats)

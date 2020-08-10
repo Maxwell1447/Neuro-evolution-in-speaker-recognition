@@ -36,8 +36,6 @@ class ASVDataset(Dataset):
                  save_cache=False, index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
                  metadata=True, custom_path="./data", n_fft=2048, do_mrf=False):
-
-
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
