@@ -20,11 +20,6 @@ import platform
 from anti_spoofing.utils_ASV import whiten
 from anti_spoofing.mfcc import mfcc
 
-# tells us if one is using a linux or a windows machine
-current_os = platform.system()
-
-# the audio files should be located in anti_spoofing/data, change this parameter according to your needs
-DATA_ROOT = 'data'
 
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
@@ -40,7 +35,9 @@ class ASVDataset(Dataset):
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 metadata=True, n_fft=2048, do_mrf=False):
+                 metadata=True, custom_path="./data", n_fft=2048, do_mrf=False):
+
+
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -81,18 +78,20 @@ class ASVDataset(Dataset):
         :param do_self_mfcc: bool
         If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
         and not the raw audio files. This version does not use librosa.
+        :param custom_path: str
+        directory when ASV data in a specific folder
         :param n_fft: int or list of int
         length of the FFT window
         :param do_mrf: bool
         If yes, will use Multi-Resolution Feature Maps
         """
-        data_root = DATA_ROOT
+        data_root = custom_path
         if is_logical:
             track = 'LA'
         else:
             track = 'PA'
-        if is_eval:
-            data_root = os.path.join('eval_data', data_root)
+        # if is_eval:
+        #     data_root = os.path.join('eval_data', data_root)
         self.fragment_length = length
         self.track = track
         self.metadata = metadata
@@ -146,17 +145,15 @@ class ASVDataset(Dataset):
         self.protocols_fname = 'eval.trl' if is_eval else 'train.trn' if is_train else 'dev.trl'
         self.protocols_dir = os.path.join(self.data_root,
                                           '{}_protocols/'.format(self.prefix))
-        self.files_dir = os.path.join(self.data_root, '{}_{}'.format(
+        self.files_dir = os.path.join(self.data_root, track, '{}_{}'.format(
             self.prefix, self.dset_name) + v1_suffix, 'flac')
-        if current_os == "Windows":
-            self.protocols_fname = 'data\\{}\\ASVspoof2019_{}_cm_protocols\\ASVspoof2019.{}.cm.{}.txt'.format(track,
-                                                                                                              track,
-                                                                                                              track,
-                                                                                                              self.protocols_fname)
-        else:
-            self.protocols_fname = 'data/{}/ASVspoof2019_{}_cm_protocols/ASVspoof2019.{}.cm.{}.txt'.format(track, track,
-                                                                                                           track,
-                                                                                                           self.protocols_fname)
+
+        self.protocols_fname = os.path.join(custom_path, track, 'ASVspoof2019_{}_cm_protocols'.format(track),
+                                            'ASVspoof2019.{}.cm.{}.txt'.format(track, self.protocols_fname))
+
+        print("protocols path: ", self.protocols_fname)
+        assert os.path.isfile(self.protocols_fname)
+
         self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
         if os.path.exists(self.cache_fname):
             # self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
@@ -196,26 +193,27 @@ class ASVDataset(Dataset):
         # self.files_meta[idx]
 
     def read_file(self, meta):
-        if current_os == "Windows":
-            if self.is_train:
-                tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
-            elif self.is_eval:
-                tmp_path = meta.path[10:15] + self.track + "\\" + meta.path[15:]
-            else:
-                tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
-        else:
-            if self.is_train:
-                tmp_path = meta.path[:5] + self.track + "/" + meta.path[5:]
-            elif self.is_eval:
-                tmp_path = meta.path[10:15] + self.track + "/" + meta.path[15:]
-            else:
-                tmp_path = meta.path[:5] + self.track + "/" + meta.path[5:]
+        # print()
+        # print("meta path", meta.path)
+        # print(meta.path[:5])  # data
+        # print(meta.path[10:15])  #
+        # print(meta.path[15:])
+        # print()
+        # if self.is_train:
+        #     tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
+        # elif self.is_eval:
+        #     tmp_path = meta.path[10:15] + os.path.join(self.track, meta.path[15:])
+        # else:
+        #     tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
+
+        tmp_path = meta.path
+
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:
             data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
         if self.chroma_cqt:
-            data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate,  n_chroma=24)
+            data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate, n_chroma=24)
         if self.chroma_stft:
             data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
         if self.m_mfcc:
@@ -237,12 +235,11 @@ class ASVDataset(Dataset):
         # to make all data to have the same length
         if self.fragment_length:
             if data_x.size < self.fragment_length:
-
                 nb_iter = self.fragment_length // data_x.size + 1
                 data_x = np.tile(data_x, nb_iter)
 
             begin = np.random.randint(0, data_x.size - self.fragment_length)
-            return data_x[begin: begin+self.fragment_length], float(data_y)
+            return data_x[begin: begin + self.fragment_length], float(data_y)
         else:
             return data_x, float(data_y)
         # to add meta data    

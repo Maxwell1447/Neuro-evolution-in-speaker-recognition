@@ -13,11 +13,21 @@ from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, Proce
 from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
-from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, ImpulseScheduler
+from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
+    ImpulseScheduler, SineScheduler, MutateScheduler
+from neat_local.reporters import ComplexityReporter
+import os
+import sys
 
 """
 NEAT APPLIED TO ASVspoof 2019
 """
+
+
+if sys.platform.find("win") >= 0:
+    DATA_ROOT = './data'
+else:
+    DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
 
 
 def run(config_file, n_gen):
@@ -39,7 +49,16 @@ def run(config_file, n_gen):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=100, time_interval_seconds=None))
+    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+    # sine_scheduler = SineScheduler(config_, period=500, final_values={
+    #     "node_add_prob": 0.0,
+    #     "conn_add_prob": 0.0,
+    #     "node_delete_prob": 0.0,
+    #     "conn_delete_prob": 0.0
+    # })
+    # mutate_scheduler = MutateScheduler(parameters=["node_add_prob", "conn_add_prob",
+    #                                                "node_delete_prob", "conn_delete_prob"],
+    #                                    patience=2, momentum=0.99)
     scheduler = ExponentialScheduler(semi_gen=2000, final_values={
         "node_add_prob": 0.,
         "conn_add_prob": 0.
@@ -50,20 +69,29 @@ def run(config_file, n_gen):
     })
     # impulse_scheduler = ImpulseScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                  "node_delete_prob", "conn_delete_prob"],
-    #                                      verbose=1, patience=10, impulse_factor=2., momentum=0.99)
+    #                                      verbose=1, patience=10, impulse_factor=2., momentum=0.99, monitor=True)
     # scheduler = OnPlateauScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                            "node_delete_prob", "conn_delete_prob"],
     #                                verbose=1, patience=10, factor=0.995, momentum=0.99)
+    # p.add_reporter(mutate_scheduler)
+    # p.add_reporter(sine_scheduler)
     p.add_reporter(scheduler)
     p.add_reporter(scheduler2)
     # p.add_reporter(impulse_scheduler)
+    complexity_reporter = ComplexityReporter()
+    p.add_reporter(complexity_reporter)
 
     # Run for up to n_gen generations.
-    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc, trainloader,
-    #                                            getattr(config_, "pop_size"))
+    # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
+    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc, trainloader,
+                                               getattr(config_, "pop_size"))
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
+
+    complexity_reporter.display()
+    # impulse_scheduler.display()
+    # sine_scheduler.display()
+    # mutate_scheduler.display()
 
     print("run finished")
 
@@ -84,8 +112,8 @@ def evaluate(g, conf, data):
     total = 0
 
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
-    net.reset()
-    for i in range(len(data)):
+    for _ in tqdm(range(len(data))):
+        net.reset()
         batch = next(data_iter)
         input, output = batch
         input = input[0]
@@ -123,9 +151,10 @@ if __name__ == '__main__':
     if OPTION == "cqcc":
         trainloader, testloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
     else:
-        trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000)
+        trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, custom_path=DATA_ROOT,
+                                            multi_proc=True)
 
-    winner, config, stats = run(config_path, 5000)
+    winner, config, stats = run(config_path, 1000)
 
     eer, accuracy = evaluate(winner, config, testloader)
 
@@ -133,4 +162,4 @@ if __name__ == '__main__':
     print("equal error rate", eer)
     print("accuracy", accuracy)
 
-    make_visualize(winner, config, stats)
+    make_visualize(winner, config, stats, topology=False)
