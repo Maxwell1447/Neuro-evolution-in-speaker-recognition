@@ -79,7 +79,7 @@ class ProcessedASVEvaluatorEoc2(neat.parallel.ParallelEvaluator):
         _, outputs = batch
 
         self.G = len(genomes)
-        self.l_s_n = np.zeros(len(outputs), self.G)
+        self.l_s_n = np.empty((len(outputs), self.G))
 
         pseudo_genome_id = 0
         # return ease of classification for each genome
@@ -142,7 +142,7 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         # compute the fitness
         self.l_s_n = np.array(self.l_s_n)
         p_s = np.sum(self.l_s_n, axis=0).reshape(-1, 1) / self.G
-        F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / np.sum(1 - p_s)
+        F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / (np.sum(1 - p_s) + 1e-8)
 
         pseudo_genome_id = 0
         # assign the fitness back to each genome
@@ -257,18 +257,20 @@ def eval_genome_eoc_2(g, conf, batch):
     jitter = 1e-8
     prediction = contribution / (norm + jitter)          # batch_size
 
-    target_scores = prediction[outputs == 1].numpy()  # select with mask when target == 1
-    non_target_scores = prediction[outputs == 0].numpy()  # select with mask when target == 0
+    target_scores = prediction[outputs == 1].numpy()  # bonafide scores
+    non_target_scores = prediction[outputs == 0].numpy()  # spoofed scores
 
     if target_scores.size == 0:
         return np.zeros(0)
 
     l_s_n = np.empty_like(prediction)
+    prediction = prediction.numpy()
 
-    for i, prediction, out in enumerate(zip(prediction, outputs)):
-        if out:
-            l_s_n[i] = 1 - (target_scores < prediction).sum() / target_scores.size
-        else:
-            l_s_n[i] = 1 - (non_target_scores > prediction).sum() / non_target_scores.size
+    for i, (pred, out) in enumerate(zip(prediction, outputs)):
+
+        if out:  # if bonafide
+            l_s_n[i] = 1 - np.sum(non_target_scores >= pred) / non_target_scores.size
+        else:  # if spoofed
+            l_s_n[i] = 1 - np.sum(target_scores <= pred) / target_scores.size
 
     return l_s_n

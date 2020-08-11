@@ -11,7 +11,8 @@ from anti_spoofing.utils_ASV import make_visualize
 from anti_spoofing.data_loader import load_data, load_data_cqcc
 from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator, feed_and_predict, \
     evaluate_eer_acc
-from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc
+from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc, \
+    ProcessedASVEvaluatorEoc2, eval_genome_eoc_2
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
@@ -25,7 +26,6 @@ import sys
 NEAT APPLIED TO ASVspoof 2019
 """
 
-
 if sys.platform.find("win") >= 0:
     DATA_ROOT = './data'
 else:
@@ -37,7 +37,7 @@ def run(config_file, n_gen):
     Launches a run until convergence or max number of generation reached
     :param config_file: path to the config file
     :param n_gen: lax number of generation
-    :return: the best genontype (winner), the configs, the stats of the run and the accuracy on the testing set
+    :return: the best genotype (winner), the configs, the stats of the run and the accuracy on the testing set
     """
     # Load configuration.
     config_ = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -88,12 +88,12 @@ def run(config_file, n_gen):
 
     # Run for up to n_gen generations.
     # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc, trainloader,
-                                               getattr(config_, "pop_size"))
+    multi_evaluator = ProcessedASVEvaluatorEoc2(multiprocessing.cpu_count(), eval_genome_eoc_2, trainloader,
+                                                getattr(config_, "pop_size"))
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
-    winner_ = get_true_winner(config_, p.population, trainloader, max_batch=10)
+    # winner_ = get_true_winner(config_, p.population, trainloader, max_batch=10)
 
     # complexity_reporter.display()
 
@@ -121,16 +121,16 @@ if __name__ == '__main__':
 
     eer_list = []
     accuracy_list = []
-    for iterations in range(10):
+    for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 100)
+        winner, config, stats = run(config_path, 300)
 
         eer, accuracy = evaluate_eer_acc(winner, config, testloader)
         eer_list.append(eer)
         accuracy_list.append(accuracy)
 
-        # make_visualize(winner, config, stats, topology=False)
+        make_visualize(winner, config, stats, topology=False)
 
     print("\n")
     print("equal error rate", eer_list)
@@ -145,7 +145,3 @@ if __name__ == '__main__':
     print("median =", np.median(array_eer))
     print("average =", array_eer.mean())
     print("std =", array_eer.std())
-
-
-
-
