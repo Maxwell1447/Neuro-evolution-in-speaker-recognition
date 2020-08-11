@@ -260,9 +260,6 @@ def eval_genome_eoc_2(g, conf, batch):
     target_scores = prediction[outputs == 1].numpy()  # bonafide scores
     non_target_scores = prediction[outputs == 0].numpy()  # spoofed scores
 
-    if target_scores.size == 0:
-        return np.zeros(0)
-
     l_s_n = np.empty_like(prediction)
     prediction = prediction.numpy()
 
