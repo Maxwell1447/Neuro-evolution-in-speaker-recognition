@@ -129,16 +129,14 @@ def feed_and_predict(data, g, conf):
     data_iter = iter(data)
 
     jitter = 1e-8
-    total = len(data)
 
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
 
     predictions = []
     targets = []
 
-    for _ in tqdm(range(total)):
+    for batch in tqdm(data_iter, total=len(data)):
         net.reset()
-        batch = next(data_iter)
         input, output = batch  # input: batch x t x BIN; output: batch
         input = input.transpose(0, 1)  # input: t x batch x BIN
         batch_size = output.shape[0]

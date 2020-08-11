@@ -5,7 +5,7 @@ from neat_local.nn.recurrent_net import RecurrentNet
 import neat
 
 
-class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
+class ProcessedASVEvaluatorEoc2(neat.parallel.ParallelEvaluator):
     """
     Allows parallel batch evaluation using an Iterator model with next().
     The eval function itself is not defined here.
@@ -28,7 +28,7 @@ class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
         _, outputs = batch
 
         self.G = len(genomes)
-        self.l_s_n = np.zeros((int(outputs.sum().item()), self.G))
+        self.l_s_n = np.empty((len(outputs), self.G))
 
         pseudo_genome_id = 0
         # return ease of classification for each genome
@@ -91,7 +91,7 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         # compute the fitness
         self.l_s_n = np.array(self.l_s_n)
         p_s = np.sum(self.l_s_n, axis=0).reshape(-1, 1) / self.G
-        F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / np.sum(1 - p_s)
+        F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / (np.sum(1 - p_s) + 1e-8)
 
         pseudo_genome_id = 0
         # assign the fitness back to each genome
@@ -156,15 +156,17 @@ def eval_genome_eoc(g, conf, batch):
     jitter = 1e-8
     prediction = contribution / (norm + jitter)          # batch_size
 
-    target_scores = prediction[outputs == 1].numpy()  # select with mask when target == 1
-    non_target_scores = prediction[outputs == 0].numpy()  # select with mask when target == 0
+    target_scores = prediction[outputs == 1].numpy()  # bonafide scores
+    non_target_scores = prediction[outputs == 0].numpy()  # spoofed scores
 
-    if target_scores.size == 0:
-        return np.zeros(0)
+    l_s_n = np.empty_like(prediction)
+    prediction = prediction.numpy()
 
-    l_s_n = np.zeros(target_scores.size)
+    for i, (pred, out) in enumerate(zip(prediction, outputs)):
 
-    for i in range(target_scores.size):
-        l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / non_target_scores.size
+        if out:  # if bonafide
+            l_s_n[i] = 1 - np.sum(non_target_scores >= pred) / non_target_scores.size
+        else:  # if spoofed
+            l_s_n[i] = 1 - np.sum(target_scores <= pred) / target_scores.size
 
-    return 1 - l_s_n
+    return l_s_n
