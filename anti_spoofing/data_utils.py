@@ -15,11 +15,11 @@ from torch.utils.data import Dataset
 import numpy as np
 import random
 import librosa
+from spafe.features.lfcc import lfcc
 import platform
 
 from anti_spoofing.utils_ASV import whiten
 from anti_spoofing.mfcc import mfcc
-
 
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
@@ -35,7 +35,7 @@ class ASVDataset(Dataset):
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 metadata=True, custom_path="./data", n_fft=2048, do_mrf=False):
+                 do_lfcc=False, metadata=True, custom_path="./data", n_fft=2048, do_mrf=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -76,12 +76,14 @@ class ASVDataset(Dataset):
         :param do_self_mfcc: bool
         If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
         and not the raw audio files. This version does not use librosa.
+        :param do_lfcc: bool
+        If True, compute the linear-frequency cepstral coefﬁcients (GFCC features) from the audio signal.
         :param custom_path: str
         directory when ASV data in a specific folder
         :param n_fft: int or list of int
         length of the FFT window
         :param do_mrf: bool
-        If yes, will use Multi-Resolution Feature Maps
+        If True, will use Multi-Resolution Feature Maps
         """
         data_root = custom_path
         if is_logical:
@@ -106,6 +108,7 @@ class ASVDataset(Dataset):
         self.m_mfcc = do_self_mfcc
         self.n_fft = n_fft
         self.mrf = do_mrf
+        self.lfcc = do_lfcc
         if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt or self.m_mfcc):
             raise ValueError("You cannot specify a length if you are using pre-processing functions")
         if self.chroma_stft + self.mfcc + self.chroma_cqt + self.m_mfcc >= 2:
@@ -208,6 +211,13 @@ class ASVDataset(Dataset):
 
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
+        # to make all data to have the same length
+        if self.fragment_length:
+            if data_x.size < self.fragment_length:
+                nb_iter = self.fragment_length // data_x.size + 1
+                data_x = np.tile(data_x, nb_iter)
+            begin = np.random.randint(0, data_x.size - self.fragment_length+1)
+            data_x = data_x[begin: begin + self.fragment_length]
         if self.mfcc:
             data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
         if self.chroma_cqt:
@@ -216,6 +226,10 @@ class ASVDataset(Dataset):
             data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
         if self.m_mfcc:
             data_x = mfcc(data_x, num_cep=24, nfft=self.n_fft)
+        if self.lfcc:
+            data_x = lfcc(data_x, fs=sample_rate, num_ceps=20, pre_emph=0, pre_emph_coeff=0.97, win_len=0.030,
+                          win_hop=0.015, win_type="hamming", nfilts=70, nfft=1024, low_freq=0, high_freq=8000,
+                          scale="constant", dct_type=2, use_energy=False, lifter=22, normalize=0)
         if self.standardize:
             data_x = whiten(data_x)
         if self.mrf:
@@ -230,16 +244,7 @@ class ASVDataset(Dataset):
                     fft_data_x = whiten(fft_data_x)
                 data_x = np.concatenate((data_x, fft_data_x))
 
-        # to make all data to have the same length
-        if self.fragment_length:
-            if data_x.size < self.fragment_length:
-                nb_iter = self.fragment_length // data_x.size + 1
-                data_x = np.tile(data_x, nb_iter)
-
-            begin = np.random.randint(0, data_x.size - self.fragment_length)
-            return data_x[begin: begin + self.fragment_length], float(data_y)
-        else:
-            return data_x, float(data_y)
+        return data_x, float(data_y)
         # to add meta data    
         # meta.sys_id
 
@@ -266,4 +271,4 @@ class ASVDataset(Dataset):
 
 if __name__ == '__main__':
     trainset = ASVDataset(is_train=True, nb_samples=20, do_mfcc=False, random_samples=True)
-    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=2538, do_mfcc=True)
+    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=10000, length=4800, do_lfcc=True)

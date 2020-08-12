@@ -15,6 +15,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import random
 import librosa
+from spafe.features.lfcc import lfcc
 import platform
 
 from anti_spoofing.utils_ASV import whiten
@@ -37,8 +38,8 @@ class ASVDatasetshort(Dataset):
     def __init__(self, length, nb_samples=2538, random_samples=False,
                  sample_size=None,
                  save_cache=False, index_list=None,
-                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_m_mfcc=False,
-                 n_fft=2048, do_mrf=False):
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
+                 do_lfcc=False, n_fft=2048, do_mrf=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -69,6 +70,11 @@ class ASVDatasetshort(Dataset):
         :param do_chroma_stft: bool
         If True will return the chromagram, Short-time Fourier transform (stft), from the audio files
         and not the raw audio files.
+        :param do_self_mfcc: bool
+        If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
+        and not the raw audio files. This version does not use librosa.
+        :param do_lfcc: bool
+        If True, compute the linear-frequency cepstral coefﬁcients (GFCC features) from the audio signal.
         :param n_fft: int or list of int
         length of the FFT window
         :param do_mrf: bool
@@ -86,9 +92,10 @@ class ASVDatasetshort(Dataset):
         self.mfcc = do_mfcc
         self.chroma_cqt = do_chroma_cqt
         self.chroma_stft = do_chroma_stft
-        self.m_mfcc = do_m_mfcc
+        self.m_mfcc = do_self_mfcc
         self.n_fft = n_fft
         self.mrf = do_mrf
+        self.lfcc = do_lfcc
         if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt):
             raise ValueError("You cannot specify a length if you are using pre-processing functions")
         v1_suffix = ''
@@ -165,6 +172,10 @@ class ASVDatasetshort(Dataset):
             data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
         if self.m_mfcc:
             data_x = mfcc(data_x, num_cep=24, nfft=self.n_fft)
+        if self.lfcc:
+            data_x = lfcc(data_x, fs=sample_rate, num_ceps=20, pre_emph=0, pre_emph_coeff=0.97, win_len=0.030,
+                          win_hop=0.015, win_type="hamming", nfilts=70, nfft=1024, low_freq=0, high_freq=8000,
+                          scale="constant", dct_type=2, use_energy=False, lifter=22, normalize=0)
         if self.standardize:
             data_x = whiten(data_x)
         if self.mrf:
@@ -214,4 +225,4 @@ class ASVDatasetshort(Dataset):
 
 
 if __name__ == '__main__':
-    train_loader = ASVDatasetshort(length=None, nb_samples=2530, do_mfcc=False)
+    train_loader = ASVDatasetshort(length=None, nb_samples=2530, do_lfcc=True, do_standardize=True)

@@ -59,14 +59,15 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
-    trainloader, testloader = load_data(batch_size=100, length=3*16000, num_train=10000, batch_size_test=100)
+    trainloader, testloader = load_data(batch_size=100, length=3*16000, num_train=10000,
+                                        batch_size_test=100, option="lfcc", multi_proc=True)
 
     eer_list = []
     accuracy_list = []
     for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 1)
+        winner, config, stats = run(config_path, 100)
 
         with torch.no_grad():
             eer, accuracy = evaluate_eer_acc(winner, config, testloader)
