@@ -11,8 +11,7 @@ from anti_spoofing.utils_ASV import make_visualize
 from anti_spoofing.data_loader import load_data, load_data_cqcc
 from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator, feed_and_predict, \
     evaluate_eer_acc
-from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc, \
-    ProcessedASVEvaluatorEoc2, eval_genome_eoc_2
+from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
@@ -88,8 +87,8 @@ def run(config_file, n_gen):
 
     # Run for up to n_gen generations.
     # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    multi_evaluator = ProcessedASVEvaluatorEoc2(multiprocessing.cpu_count(), eval_genome_eoc_2, trainloader,
-                                                getattr(config_, "pop_size"))
+    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc, trainloader,
+                                               getattr(config_, "pop_size"))
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
@@ -114,31 +113,54 @@ if __name__ == '__main__':
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
     if OPTION == "cqcc":
-        trainloader, testloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
+        trainloader, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
+        evalloader = None
     else:
-        trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, custom_path=DATA_ROOT,
-                                            multi_proc=True, balanced=True, batch_size_test=100)
+        trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
+                                                       custom_path=DATA_ROOT, multi_proc=True, balanced=True,
+                                                       batch_size_test=100, include_eval=True)
 
-    eer_list = []
-    accuracy_list = []
-    for iterations in range(1):
-        print(iterations)
-        print(eer_list)
-        winner, config, stats = run(config_path, 300)
+    dev_eer_list = []
+    dev_accuracy_list = []
+    eval_eer_list = []
+    eval_accuracy_list = []
+    for i in range(20):
+        print(i)
+        print(dev_eer_list)
+        winner, config, stats = run(config_path, 200)
 
-        eer, accuracy = evaluate_eer_acc(winner, config, testloader)
-        eer_list.append(eer)
-        accuracy_list.append(accuracy)
+        eer, accuracy = evaluate_eer_acc(winner, config, devloader)
+        dev_eer_list.append(eer)
+        dev_accuracy_list.append(accuracy)
 
-        make_visualize(winner, config, stats, topology=False)
+        eer, accuracy = evaluate_eer_acc(winner, config, evalloader)
+        eval_eer_list.append(eer)
+        eval_accuracy_list.append(accuracy)
+
+        if i == 0:
+            make_visualize(winner, config, stats, topology=False)
 
     print("\n")
-    print("equal error rate", eer_list)
-    print("accuracy", accuracy_list)
+    print("DEV equal error rate", dev_eer_list)
+    print("accuracy", dev_accuracy_list)
 
     print("\n")
 
-    array_eer = np.array(eer_list)
+    array_eer = np.array(dev_eer_list)
+
+    print("min =", array_eer.min())
+    print("max =", array_eer.max())
+    print("median =", np.median(array_eer))
+    print("average =", array_eer.mean())
+    print("std =", array_eer.std())
+
+    print("\n")
+    print("EVAL equal error rate", eval_eer_list)
+    print("accuracy", eval_accuracy_list)
+
+    print("\n")
+
+    array_eer = np.array(eval_eer_list)
 
     print("min =", array_eer.min())
     print("max =", array_eer.max())

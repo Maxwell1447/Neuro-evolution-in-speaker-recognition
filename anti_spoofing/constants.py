@@ -1,5 +1,5 @@
 BINS = 20
-OPTION = "mfcc"
+OPTION = "lfcc"
 
 # Case CQCC
 B = 96

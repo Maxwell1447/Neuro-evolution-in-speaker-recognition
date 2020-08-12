@@ -18,7 +18,6 @@ class LinearModel(torch.nn.Module):
         self.fc = torch.nn.Linear(20, 2)
 
     def forward(self, x: torch.Tensor):
-
         # x: batch_size x t x bins
         xt = x.transpose(0, 1)  # x: t x batch_size x bins
 
@@ -66,7 +65,7 @@ def get_eer_acc(y, out):
     target_scores = out[y == 1].numpy()
     non_target_scores = out[y == 0].numpy()
 
-    acc = ((y - out).abs()).sum() / len(y)
+    acc = ((y - out).abs() < 0.5).float().mean()
 
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
@@ -75,27 +74,26 @@ def get_eer_acc(y, out):
 
 
 def evaluate(model, data):
-
-    target_scores = []
-    non_target_scores = []
+    scores = []
+    targets = []
 
     for batch in tqdm(iter(data), total=len(data)):
         x, y = batch
         out = model(x)
 
-        if y[0]:
-            target_scores.append(out[0].numpy())
-        else:
-            non_target_scores.append(out[0].numpy())
+        scores.append(out.numpy())
+        targets.append(y.numpy())
 
-    target_scores = np.array(target_scores).flatten()
-    non_target_scores = np.array(non_target_scores).flatten()
+    scores = np.concatenate(scores)
+    targets = np.concatenate(targets)
+
+    target_scores = scores[targets == 1]
+    non_target_scores = scores[targets == 0]
 
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    acc = (target_scores > 0.5).sum() + (non_target_scores < 0.5).sum()
-    acc = acc / (len(target_scores) + len(non_target_scores))
+    acc = np.mean(np.abs(scores - targets) < 0.5)
 
     return eer, acc
 
@@ -108,17 +106,19 @@ if __name__ == '__main__':
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
     if OPTION == "cqcc":
-        trainloader, testloader = load_data_cqcc(batch_size=100, batch_size_test=100, num_train=10000, num_test=10000,
-                                                 balanced=True)
+        trainloader, devloader = load_data_cqcc(batch_size=100, batch_size_test=100, num_train=10000,
+                                                num_test=10000, balanced=True)
+        evalloader = None
     else:
-        trainloader, testloader = load_data(batch_size=100, batch_size_test=100, num_train=10000, num_test=10000)
+        trainloader, devloader, evalloader = load_data(batch_size=100, batch_size_test=100, num_train=10000,
+                                                       num_test=10000, balanced=True, include_eval=True)
 
     writer = SummaryWriter('./runs/{}'.format(OPTION))
     model = LinearModel2()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.BCELoss()
 
-    for epoch in range(30):
+    for epoch in range(10):
         print("EPOCH ", epoch)
         for batch in tqdm(iter(trainloader), total=len(trainloader)):
             optimizer.zero_grad()
@@ -134,11 +134,19 @@ if __name__ == '__main__':
             writer.add_scalar('training accuracy', acc)
             writer.add_scalar('training eer', eer)
 
-    print("TESTING")
+    print("TESTING on dev")
     with torch.no_grad():
-        eer, acc = evaluate(model, testloader)
+        eer, acc = evaluate(model, devloader)
 
-    print("TESTING EER / ACC:")
+    print("DEV EER / ACC:")
     print(eer)
     print(acc)
 
+    if evalloader is not None:
+        print("TESTING on eval")
+        with torch.no_grad():
+            eer, acc = evaluate(model, evalloader)
+
+        print("EVAL EER / ACC:")
+        print(eer)
+        print(acc)

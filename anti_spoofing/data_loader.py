@@ -22,7 +22,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
         self.len = len(dataset)
         self.balanced = balanced
         if option == "lfcc":
-            self.X = torch.empty(self.len, 199, BINS, dtype=torch.float32)
+            self.X = torch.empty(self.len, 16000 * 3 // 512 - 1, BINS, dtype=torch.float32)
         else:
             self.X = torch.empty(self.len, 16000 * 3 // 512 + 1, BINS, dtype=torch.float32)
         self.t = torch.empty(self.len, dtype=torch.float32)
@@ -98,7 +98,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
 
 
 def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000, custom_path='./data',
-              multi_proc=True, balanced=True, option=OPTION):
+              multi_proc=True, balanced=True, option=OPTION, metadata=False, include_eval=False):
     """
     loads the data and puts it in PyTorch DataLoader.
 
@@ -107,11 +107,19 @@ def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=1000
     """
 
     train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type="train",
-                                    custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option)
-    test_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_test, data_type="test",
-                                   custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option)
+                                    custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option,
+                                    metadata=metadata)
+    dev_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_test, data_type="dev",
+                                  custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option,
+                                  metadata=metadata)
 
-    return train_loader, test_loader
+    if include_eval:
+        eval_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_test, data_type="eval",
+                                       custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option,
+                                       metadata=metadata)
+        return train_loader, dev_loader, eval_loader
+
+    return train_loader, dev_loader
 
 
 def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=1000, balanced=False):
@@ -131,35 +139,18 @@ def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=10
     return train_dataloader, dev_dataloader
 
 
-def load_metadata(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000,
-                  custom_path='./data', option=OPTION,
-                  multi_proc=True):
-    """
-    loads the data and the metadata and puts it in PyTorch DataLoader.
-
-    If a data loader has not been saved already,
-    a data loader is created, then saved for train and test sets.
-    """
-
-    train_loader = load_single_metadata(batch_size=batch_size, length=length, num_data=num_train, data_type="train",
-                                        custom_path=custom_path, multi_proc=multi_proc, option=option)
-    test_loader = load_single_metadata(batch_size=batch_size_test, length=length, num_data=num_test, data_type="test",
-                                       custom_path=custom_path, multi_proc=multi_proc, option=option)
-
-    return train_loader, test_loader
-
-
 def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data",
-                     multi_proc=True, balanced=True, option=OPTION):
-
+                     multi_proc=True, balanced=True, option=OPTION, metadata=False):
     is_train = data_type == "train"
 
     local_dir = os.path.dirname(__file__)
 
     if os.path.exists(os.path.join(local_dir,
-                                   "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data))):
+                                   "data/preprocessed/{}_{}_{}_{}.torch"
+                                   .format(data_type, option, num_data, metadata))):
         data = torch.load(os.path.join(local_dir,
-                                       "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data)))
+                                       "data/preprocessed/{}_{}_{}_{}.torch"
+                                       .format(data_type, option, num_data, metadata)))
         data.set_balance(balanced and is_train)
         dataloader = DataLoader(data, batch_size=batch_size, num_workers=4, shuffle=is_train, drop_last=is_train)
         return dataloader
@@ -168,16 +159,22 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
         os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
     if data_type == "train":
-        data = ASVDataset(length=length, nb_samples=num_data, random_samples=True, metadata=False,
-                          custom_path=custom_path)
-    else:
+        data = ASVDataset(length=length, is_train=True, is_eval=False, nb_samples=num_data, random_samples=True,
+                          metadata=metadata, custom_path=custom_path)
+    elif data_type == "dev":
         data = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_data, random_samples=True,
-                          metadata=False, custom_path=custom_path)
+                          metadata=metadata, custom_path=custom_path)
+    elif data_type == "eval":
+        data = ASVDataset(length=length, is_train=False, is_eval=True, nb_samples=num_data, random_samples=True,
+                          metadata=metadata, custom_path=custom_path)
+    else:
+        raise ValueError("data type {} not recognized".format(data_type))
 
     print("preprocessing_tools {} set".format(data_type))
     pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc, balanced=is_train and balanced, option=option)
     torch.save(pp_data, os.path.join(local_dir,
-                                     "data/preprocessed/{}_{}_{}.torch".format(data_type, option, num_data)))
+                                     "data/preprocessed/{}_{}_{}_{}.torch"
+                                     .format(data_type, option, num_data, metadata)))
     dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=is_train, drop_last=is_train)
 
     return dataloader
@@ -190,7 +187,7 @@ def load_single_data_cqcc(batch_size=50, num_data=1000, balanced=False, data_typ
 
     if os.path.exists(
             os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}_{}"
-                    .format(data_type, B, d, cf, ZsdD, balanced))):
+                                                            .format(data_type, B, d, cf, ZsdD, balanced))):
         print("{} data found locally".format(data_type))
         cqcc_data = torch.load("./data/preprocessed/{}_cqcc_{}_{}_{}_{}_{}"
                                .format(data_type, B, d, cf, ZsdD, balanced))
@@ -215,38 +212,5 @@ def load_single_data_cqcc(batch_size=50, num_data=1000, balanced=False, data_typ
 
     dataloader = torch.utils.data.DataLoader(cqcc_data, batch_size=batch_size,
                                              num_workers=0, shuffle=is_train, drop_last=True)
-
-    return dataloader
-
-
-def load_single_metadata(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data",
-                         multi_proc=True, option=OPTION):
-
-    shuffle = data_type == "train"
-
-    local_dir = os.path.dirname(__file__)
-
-    if os.path.exists(os.path.join(local_dir,
-                                   "data/preprocessed/{}_{}_{}_metadata.torch".format(data_type, option, num_data))):
-        data = torch.load(os.path.join(local_dir,
-                                       "data/preprocessed/{}_{}_{}_metadata.torch".format(data_type, option, num_data)))
-        dataloader = DataLoader(data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
-        return dataloader
-
-    if not os.path.isdir(os.path.join(local_dir, 'data/preprocessed')):
-        os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
-
-    if data_type == "train":
-        data = ASVDataset(length=length, nb_samples=num_data, random_samples=True, metadata=True,
-                          custom_path=custom_path)
-    else:
-        data = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_data, random_samples=True,
-                          metadata=True, custom_path=custom_path)
-
-    print("preprocessing_tools {} set".format(data_type))
-    pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc, balanced=False, option=option)
-    torch.save(pp_data, os.path.join(local_dir,
-                                     "data/preprocessed/{}_{}_{}_metadata.torch".format(data_type, option, num_data)))
-    dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
 
     return dataloader

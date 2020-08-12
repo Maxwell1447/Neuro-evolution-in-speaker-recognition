@@ -8,15 +8,16 @@ import multiprocessing
 from tqdm import tqdm
 import warnings
 
-warnings.filterwarnings("ignore", category=UserWarning)
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
 
 from anti_spoofing.utils_ASV import make_visualize
-from anti_spoofing.data_loader import load_metadata
+from anti_spoofing.data_loader import load_data
 from anti_spoofing.eval_funtion_ce import eval_genome_ce, ProcessedASVEvaluator
 from anti_spoofing.metrics_utils import rocch2eer, rocch
+warnings.filterwarnings("ignore", category=UserWarning)
+
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed_ce.cfg')
 
-    trainloader, testloader = load_metadata(batch_size=100, length=3 * 16000, num_train=10000)
+    trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, metadata=True)
 
     eer_list = []
     accuracy_list = []
