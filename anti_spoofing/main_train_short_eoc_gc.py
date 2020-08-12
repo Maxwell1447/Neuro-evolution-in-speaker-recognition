@@ -72,7 +72,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.bona_fide_index = 0
         self.spoofed_index = 0
         self.G = config.pop_size
-        self.l_s_n = np.zeros((self.batch_size//2, self.G))
+        self.l_s_n = np.zeros((self.batch_size, self.G))
         self.gc = []  # grand champion list
         self.gc_eval = gc_eval
 
@@ -92,7 +92,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             jobs.append(self.pool.apply_async(self.eval_function, (genome, self.config, batch_data)))
         
         self.G = len(genomes)
-        self.l_s_n = np.zeros((self.batch_size//2, self.G))
+        self.l_s_n = np.zeros((self.batch_size, self.G))
         
         pseudo_genome_id = 0
         # return ease of classification for each genome
@@ -162,7 +162,7 @@ def eval_genome(genome, config, batch_data):
     net = neat.nn.RecurrentNetwork.create(genome, config)
     target_scores = []
     non_target_scores = []
-    l_s_n = np.zeros(batch_size // 2)
+    l_s_n = np.zeros(batch_size)
     for data in batch_data:
         inputs, output = data[0], data[1]
         inputs = whiten(inputs)
@@ -181,8 +181,11 @@ def eval_genome(genome, config, batch_data):
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
 
-    for i in range(batch_size//2):
+    for i in range(batch_size // 2):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
+
+    for i in range(batch_size // 2):
+        l_s_n[i + batch_size // 2] = (target_scores >= non_target_scores[i]).sum() / (batch_size // 2)
 
     return 1 - l_s_n
 

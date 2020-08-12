@@ -5,7 +5,7 @@ from neat_local.nn.recurrent_net import RecurrentNet
 import neat
 
 
-class ProcessedASVEvaluatorEoc2(neat.parallel.ParallelEvaluator):
+class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
     """
     Allows parallel batch evaluation using an Iterator model with next().
     The eval function itself is not defined here.

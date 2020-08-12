@@ -4,7 +4,6 @@ import numpy as np
 import random as rd
 import multiprocessing
 from tqdm import tqdm
-import librosa
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
@@ -22,7 +21,7 @@ nb_samples_test = 7000  # number of audio files used for testing
 batch_size = 128  # size of the batch used for training, choose an even number
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
-n_generation = 500  # number of generations
+n_generation = 10  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
 # for testing
@@ -57,7 +56,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.bona_fide_index = 0
         self.spoofed_index = 0
         self.G = pop
-        self.l_s_n = np.zeros((self.batch_size//2, self.G))
+        self.l_s_n = np.zeros((self.batch_size, self.G))
 
     def evaluate(self, genomes, config):
         """
@@ -75,8 +74,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch_data)))
         
         self.G = len(genomes)
-        self.l_s_n = np.zeros((self.batch_size//2, self.G))
-
+        self.l_s_n = np.zeros((self.batch_size, self.G))
         pseudo_genome_id = 0
         # return ease of classification for each genome
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
@@ -133,7 +131,7 @@ def eval_genome(genome, config, batch_data):
     net = neat.nn.RecurrentNetwork.create(genome, config)
     target_scores = []
     non_target_scores = []
-    l_s_n = np.zeros(batch_size // 2)
+    l_s_n = np.zeros(batch_size)
     for data in batch_data:
         inputs, output = data[0], data[1]
         net.reset()
@@ -156,6 +154,9 @@ def eval_genome(genome, config, batch_data):
 
     for i in range(batch_size//2):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
+
+    for i in range(batch_size//2):
+        l_s_n[i+batch_size//2] = (target_scores >= non_target_scores[i]).sum() / (batch_size // 2)
 
     return 1 - l_s_n
 

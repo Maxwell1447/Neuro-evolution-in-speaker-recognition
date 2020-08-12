@@ -7,7 +7,11 @@ import numpy as np
 import multiprocessing
 from tqdm import tqdm
 import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning)
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from anti_spoofing.utils_ASV import make_visualize
 from anti_spoofing.data_loader import load_metadata
@@ -63,7 +67,8 @@ def evaluate(g, conf, data):
     correct = 0
     correct_anti_spoofing = 0
     total = len(data)
-
+    y_true = []
+    y_pred = []
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
 
     for _ in tqdm(range(total)):
@@ -88,6 +93,8 @@ def evaluate(g, conf, data):
             correct_anti_spoofing += (prediction[0].argmax() > 0).item()
 
         correct += (contribution.argmax() == output).item()
+        y_true.append(output.item())
+        y_pred.append(prediction[0].argmax().item())
 
     accuracy = correct / total
     anti_spoofing_accuracy = correct_anti_spoofing / total
@@ -98,7 +105,9 @@ def evaluate(g, conf, data):
     pmiss, pfa = rocch(target_scores, non_target_scores)
     eer = rocch2eer(pmiss, pfa)
 
-    return eer, accuracy, anti_spoofing_accuracy
+    c_matrix = confusion_matrix(y_true, y_pred, normalize="pred")
+
+    return eer, accuracy, anti_spoofing_accuracy, c_matrix
 
 
 if __name__ == '__main__':
@@ -116,9 +125,9 @@ if __name__ == '__main__':
     for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 500)
+        winner, config, stats = run(config_path, 10000)
 
-        eer, accuracy, anti_spoofing_accuracy = evaluate(winner, config, testloader)
+        eer, accuracy, anti_spoofing_accuracy, c_matrix = evaluate(winner, config, testloader)
         eer_list.append(eer)
         accuracy_list.append(accuracy)
         anti_spoofing_accuracy_list.append(anti_spoofing_accuracy)
@@ -138,3 +147,11 @@ if __name__ == '__main__':
     print("average =", array_eer.mean())
     print("std =", array_eer.std())
     make_visualize(winner, config, stats)
+
+    plt.figure(figsize=(14, 7))
+    yticklabels = ["bona fide", "Wavenet vocoder", "Conventional vocoder WORLD",
+                   "Conventional vocoder MERLIN", "Unit selection system MaryTTS",
+                   "Voice conversion using neural networks", "transform function-based voice conversion"]
+    plt.title("Confusion matrix bonafide, spoofed", fontsize=16)
+    sns.heatmap(c_matrix, annot=True, linewidths=.5, cmap="coolwarm", fmt=".2%", yticklabels=yticklabels)
+    plt.show()

@@ -243,7 +243,7 @@ def load_single_metadata(batch_size=50, length=3 * 16000, num_data=10000, data_t
                           metadata=True, custom_path=custom_path)
 
     print("preprocessing_tools {} set".format(data_type))
-    pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc)
+    pp_data = PreprocessedASVDataset(data, multi_proc=multi_proc, balanced=False)
     torch.save(pp_data, os.path.join(local_dir,
                                      "data/preprocessed/{}_{}_{}_metadata.torch".format(data_type, option, num_data)))
     dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=shuffle, drop_last=True)
