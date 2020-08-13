@@ -126,7 +126,6 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         for job, genome in zip(jobs, generation_champions):
             champions_eer[index_grand_champion] = job.get(timeout=self.timeout)
             index_grand_champion += 1
-
         if champions_eer.min() < self.eer_gc:
             self.gc = generation_champions[np.argmin(champions_eer)]
             self.eer_gc = champions_eer.min()

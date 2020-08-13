@@ -12,12 +12,12 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from anti_spoofing.utils_ASV import make_visualize
+from anti_spoofing.utils_ASV import make_visualize, show_stats
 from anti_spoofing.data_loader import load_data
-from anti_spoofing.eval_funtion_ce import eval_genome_ce, ProcessedASVEvaluator
+from anti_spoofing.eval_funtion_ce import eval_genome_ce, ProcessedASVEvaluator, feed_and_predict_ce
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-warnings.filterwarnings("ignore", category=UserWarning)
 
+warnings.filterwarnings("ignore", category=UserWarning)
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -57,56 +57,27 @@ def run(config_file, n_gen):
 
 def evaluate(g, conf, data):
     """
-    returns the equal error rate and the accuracy
+    returns the equal error rate, the accuracy (both multi class and binary class) and the confusion matrix
     """
-    data_iter = iter(data)
+    predictions, targets = feed_and_predict_ce(data, g, conf)
 
-    target_scores = []
-    non_target_scores = []
-
-    jitter = 1e-8
-    correct = 0
-    correct_anti_spoofing = 0
-    total = len(data)
-    y_true = []
-    y_pred = []
-    net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
-
-    for _ in tqdm(range(total)):
-        net.reset()
-        batch = next(data_iter)
-        input, _, output = batch
-        input = input.transpose(0, 1)
-        norm = torch.zeros(1)
-        contribution = torch.zeros(1, 7)
-        for input_t in input:
-            xo = net.activate(input_t)  # 1 x 8
-            score = xo[:, 1:]
-            confidence = sigmoid(xo[:, 0])
-            contribution += score * confidence  # 7 x 1
-            norm += confidence  # 1
-        prediction = contribution / (norm + jitter)
-        if output == 0:
-            target_scores.append(prediction[0][0].item())
-            correct_anti_spoofing += (prediction[0].argmax() == 0).item()
-        else:
-            non_target_scores.append(prediction[0][0].item())
-            correct_anti_spoofing += (prediction[0].argmax() > 0).item()
-
-        correct += (contribution.argmax() == output).item()
-        y_true.append(output.item())
-        y_pred.append(prediction[0].argmax().item())
-
-    accuracy = correct / total
-    anti_spoofing_accuracy = correct_anti_spoofing / total
-
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-
-    pmiss, pfa = rocch(target_scores, non_target_scores)
+    target_scores = predictions[targets == 0]
+    non_target_scores = predictions[targets > 0]
+    print("target_scores", target_scores.shape[0])
+    print("target_scores", non_target_scores.shape[0])
+    pmiss, pfa = rocch(target_scores[0], non_target_scores[0])
     eer = rocch2eer(pmiss, pfa)
 
-    c_matrix = confusion_matrix(y_true, y_pred, normalize="pred")
+    predictions = np.argmax(predictions, axis=1)
+    print("predictions", predictions)
+    accuracy = (predictions == targets).sum() / len(data)
+
+    c_matrix = confusion_matrix(targets, predictions, normalize="pred")
+
+    predictions[predictions > 0] = 1
+    targets[targets > 0] = 1
+
+    anti_spoofing_accuracy = (predictions == targets).sum() / len(data)
 
     return eer, accuracy, anti_spoofing_accuracy, c_matrix
 
@@ -118,7 +89,8 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed_ce.cfg')
 
-    trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, metadata=True)
+    trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, metadata=True,
+                                        batch_size_test=100, option="lfcc", multi_proc=True)
 
     eer_list = []
     accuracy_list = []
@@ -126,7 +98,7 @@ if __name__ == '__main__':
     for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 10000)
+        winner, config, stats = run(config_path, 30)
 
         eer, accuracy, anti_spoofing_accuracy, c_matrix = evaluate(winner, config, testloader)
         eer_list.append(eer)
@@ -140,13 +112,8 @@ if __name__ == '__main__':
 
     print("\n")
 
-    array_eer = np.array(eer_list)
+    show_stats(np.array(eer_list))
 
-    print("min =", array_eer.min())
-    print("max =", array_eer.max())
-    print("median =", np.median(array_eer))
-    print("average =", array_eer.mean())
-    print("std =", array_eer.std())
     make_visualize(winner, config, stats)
 
     plt.figure(figsize=(14, 7))
