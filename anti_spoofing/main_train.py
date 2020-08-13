@@ -16,7 +16,7 @@ from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
     ImpulseScheduler, SineScheduler, MutateScheduler
-from neat_local.reporters import ComplexityReporter
+from neat_local.reporters import ComplexityReporter, EERReporter
 from anti_spoofing.select_best import get_true_winner
 import os
 import sys
@@ -51,6 +51,8 @@ def run(config_file, n_gen):
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+    eer_acc_reporter = EERReporter(devloader, period=5)
+    p.add_reporter(eer_acc_reporter)
 
     # sine_scheduler = SineScheduler(config_, period=500, final_values={
     #     "node_add_prob": 0.0,
@@ -64,16 +66,24 @@ def run(config_file, n_gen):
     #                                    patience=2, momentum=0.99)
     # p.add_reporter(mutate_scheduler)
 
-    scheduler = ExponentialScheduler(semi_gen=2000, final_values={
+    scheduler = ExponentialScheduler(semi_gen=100, final_values={
         "node_add_prob": 0.,
         "conn_add_prob": 0.
     })
     p.add_reporter(scheduler)
-    scheduler2 = ExponentialScheduler(semi_gen=3000, final_values={
+    scheduler2 = ExponentialScheduler(semi_gen=150, final_values={
         "node_delete_prob": 0.,
         "conn_delete_prob": 0.
     })
     p.add_reporter(scheduler2)
+
+    scheduler3 = SineScheduler(conf=config_, period=100, final_values={
+        "weight_mutate_power": 0.,
+        "bias_mutate_power": 0.,
+        "weight_mutate_rate": 0.2,
+        "bias_mutate_rate": 0.1
+    })
+    p.add_reporter(scheduler3)
     # impulse_scheduler = ImpulseScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                  "node_delete_prob", "conn_delete_prob"],
     #                                      verbose=1, patience=10, impulse_factor=2., momentum=0.99, monitor=True)
@@ -94,11 +104,13 @@ def run(config_file, n_gen):
 
     # winner_ = get_true_winner(config_, p.population, trainloader, max_batch=10)
 
-    # complexity_reporter.display()
+    complexity_reporter.display()
 
     # impulse_scheduler.display()
     # sine_scheduler.display()
     # mutate_scheduler.display()
+
+    eer_acc_reporter.display(momentum=0.9)
 
     print("run finished")
 
@@ -124,10 +136,10 @@ if __name__ == '__main__':
     dev_accuracy_list = []
     eval_eer_list = []
     eval_accuracy_list = []
-    for i in range(20):
+    for i in range(1):
         print(i)
         print(dev_eer_list)
-        winner, config, stats = run(config_path, 200)
+        winner, config, stats = run(config_path, 2)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader)
         dev_eer_list.append(eer)
