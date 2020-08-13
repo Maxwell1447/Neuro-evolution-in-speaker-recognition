@@ -145,7 +145,7 @@ def feed_and_predict(data, g, conf):
         for input_t in input:
             xo = net.activate(input_t)  # batch x 2
             score = xo[:, 1]  # batch
-            confidence = sigmoid(xo[:, 0])  # batch
+            confidence = xo[:, 0]  # batch
             contribution += score * confidence  # batch
             norm += confidence  # batch
         prediction = contribution / (norm + jitter)  # batch

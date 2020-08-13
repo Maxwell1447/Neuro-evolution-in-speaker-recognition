@@ -3,6 +3,7 @@ import librosa
 from spafe.features.lfcc import lfcc
 from anti_spoofing.constants import *
 import torch
+from anti_spoofing.constants import WIN_LEN, HOP_LEN
 
 
 def preprocess(y, option=OPTION, bins=BINS, sr=16000, win_length=WIN_LEN, hop_length=HOP_LEN):
@@ -19,7 +20,7 @@ def preprocess(y, option=OPTION, bins=BINS, sr=16000, win_length=WIN_LEN, hop_le
     elif option == "lfcc":
         z = lfcc(sig=y, fs=sr, num_ceps=bins, pre_emph=0, pre_emph_coeff=0.97, win_len=win_length/16000,
                  win_hop=hop_length/16000,
-                 win_type="hamming", nfilts=70, nfft=win_length, low_freq=0, high_freq=8000, scale="constant",
+                 win_type="hamming", nfilts=70, nfft=win_length*2, low_freq=0, high_freq=8000, scale="constant",
                  dct_type=2, use_energy=False, lifter=22, normalize=0)
     else:
         raise ValueError("option {} not defined".format(option))

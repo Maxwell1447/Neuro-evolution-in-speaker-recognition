@@ -3,6 +3,10 @@ from torch import sigmoid
 import numpy as np
 from neat_local.nn.recurrent_net import RecurrentNet
 import neat
+from anti_spoofing.metrics_utils import rocch2eer, rocch
+from time import time
+from timeit import timeit
+from copy import copy
 
 
 class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
@@ -70,8 +74,11 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         self.G = pop
         self.l_s_n = []
         self.validation_data = validation_data
+        self.val_data_iter = iter(validation_data)
         self.gc_eval = gc_eval
         self.config = config
+        self.gc = None
+        self.eer_gc = 1
 
     def evaluate(self, genomes, config):
         batch = self.next()
@@ -79,19 +86,21 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         for ignored_genome_id, genome in genomes:
             jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch)))
 
+        _, outputs = batch
+
         self.G = len(genomes)
-        self.l_s_n = []
+        self.l_s_n = np.empty((len(outputs), self.G))
 
         pseudo_genome_id = 0
         # return ease of classification for each genome
         for job, (ignored_genome_id, genome) in zip(jobs, genomes):
-            self.l_s_n.append(job.get(timeout=self.timeout))
+            self.l_s_n[:, pseudo_genome_id] = job.get(timeout=self.timeout)
             pseudo_genome_id += 1
 
         # compute the fitness
-        self.l_s_n = np.array(self.l_s_n)
-        p_s = np.sum(self.l_s_n, axis=0).reshape(-1, 1) / self.G
-        F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / (np.sum(1 - p_s) + 1e-8)
+        p_s = np.sum(self.l_s_n, axis=1).reshape(-1, 1) / self.G
+
+        F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / np.sum(1 - p_s)
 
         pseudo_genome_id = 0
         # assign the fitness back to each genome
@@ -100,16 +109,27 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
             pseudo_genome_id += 1
 
         champion_indexes = np.argpartition(F, -10)[-10:]
-        champions_eer = np.zeros(10)
 
-        index_grand_champion = 0
+        generation_champions = []
         for champion_index in champion_indexes:
             genome_id, genome = genomes[champion_index]
-            champions_eer[index_grand_champion] = self.gc_eval(genome, self.config, self.validation_data)
+            generation_champions.append(genome)
+
+        batch = self.next_val()
+        champions_eer = np.zeros(10)
+
+        jobs = []
+        for genome in generation_champions:
+            jobs.append(self.pool.apply_async(self.gc_eval, (genome, config, batch)))
+
+        index_grand_champion = 0
+        for job, genome in zip(jobs, generation_champions):
+            champions_eer[index_grand_champion] = job.get(timeout=self.timeout)
             index_grand_champion += 1
 
-        grand_champion = genomes[champion_indexes[np.argmax(champions_eer)]]
-        self.gc.append(grand_champion)
+        if champions_eer.min() < self.eer_gc:
+            self.gc = generation_champions[np.argmin(champions_eer)]
+            self.eer_gc = champions_eer.min()
 
     def next(self):
         try:
@@ -117,6 +137,14 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
             return batch
         except StopIteration:
             self.data_iter = iter(self.data)
+        return next(self.data_iter)
+
+    def next_val(self):
+        try:
+            batch = next(self.val_data_iter)
+            return batch
+        except StopIteration:
+            self.val_data_iter = iter(self.validation_data)
         return next(self.data_iter)
 
 
@@ -154,7 +182,7 @@ def eval_genome_eoc(g, conf, batch):
         norm += confidence  # batch_size
 
     jitter = 1e-8
-    prediction = contribution / (norm + jitter)          # batch_size
+    prediction = contribution / (norm + jitter)  # batch_size
 
     target_scores = prediction[outputs == 1].numpy()  # bonafide scores
     non_target_scores = prediction[outputs == 0].numpy()  # spoofed scores
@@ -170,3 +198,32 @@ def eval_genome_eoc(g, conf, batch):
             l_s_n[i] = 1 - np.sum(target_scores <= pred) / target_scores.size
 
     return l_s_n
+
+
+def eval_eer_gc(g, config, batch):
+    jitter = 1e-8
+    net = RecurrentNet.create(g, config, device="cpu", dtype=torch.float32)
+    net.reset()
+    input, output = batch  # input: batch x t x BIN; output: batch
+    input = input.transpose(0, 1)  # input: t x batch x BIN
+    batch_size = output.shape[0]
+    norm = torch.zeros(batch_size)
+    contribution = torch.zeros(batch_size)
+    for input_t in input:
+        xo = net.activate(input_t)  # batch x 2
+        score = xo[:, 1]  # batch
+        confidence = xo[:, 0]  # batch
+        contribution += score * confidence  # batch
+        norm += confidence  # batch
+
+    predictions = contribution / (norm + jitter)  # batch
+
+    target_scores = predictions[output == 1]
+    non_target_scores = predictions[output == 0]
+
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+    return eer
