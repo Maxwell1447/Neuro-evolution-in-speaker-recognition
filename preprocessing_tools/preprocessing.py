@@ -1,10 +1,11 @@
 import numpy as np
 import librosa
 from spafe.features.lfcc import lfcc
+from anti_spoofing.constants import *
 import torch
 
 
-def preprocess(y, option="stft", bins=24, sr=16000, win_length=1024, hop_length=512):
+def preprocess(y, option=OPTION, bins=BINS, sr=16000, win_length=WIN_LEN, hop_length=HOP_LEN):
     # y seq_len
 
     if option == "stft":

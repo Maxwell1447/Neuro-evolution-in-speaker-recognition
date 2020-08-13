@@ -66,12 +66,12 @@ def run(config_file, n_gen):
     #                                    patience=2, momentum=0.99)
     # p.add_reporter(mutate_scheduler)
 
-    scheduler = ExponentialScheduler(semi_gen=100, final_values={
+    scheduler = ExponentialScheduler(semi_gen=200, final_values={
         "node_add_prob": 0.,
         "conn_add_prob": 0.
     })
     p.add_reporter(scheduler)
-    scheduler2 = ExponentialScheduler(semi_gen=150, final_values={
+    scheduler2 = ExponentialScheduler(semi_gen=300, final_values={
         "node_delete_prob": 0.,
         "conn_delete_prob": 0.
     })
@@ -96,9 +96,9 @@ def run(config_file, n_gen):
     p.add_reporter(complexity_reporter)
 
     # Run for up to n_gen generations.
-    # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc, trainloader,
-                                               getattr(config_, "pop_size"))
+    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
+    # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc, trainloader,
+    #                                            getattr(config_, "pop_size"))
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     for i in range(1):
         print(i)
         print(dev_eer_list)
-        winner, config, stats = run(config_path, 2)
+        winner, config, stats = run(config_path, 1000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader)
         dev_eer_list.append(eer)
