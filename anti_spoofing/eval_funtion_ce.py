@@ -53,7 +53,7 @@ def eval_genome_ce(g, conf, batch):
     inputs = inputs.transpose(0, 1)
 
     jitter = 1e-8
-    batch_size = list(outputs.size())[0]
+    batch_size = outputs.shape[0]
     cross_entropy = 0
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
     net.reset()
@@ -112,8 +112,6 @@ def feed_and_predict_ce(data, g, conf):
 
         predictions.append(prediction.numpy())
         targets.append(output.numpy())
-    print(output)
-    print(prediction)
     predictions = np.concatenate(predictions)
     targets = np.concatenate(targets)
 
