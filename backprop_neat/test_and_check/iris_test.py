@@ -1,6 +1,10 @@
 from __future__ import print_function
 import torch
 import os
+
+from graphviz import Digraph
+from torch.autograd import Variable
+
 import neat_local.visualization.visualize as visualize
 import backprop_neat
 from sklearn import datasets
@@ -65,23 +69,36 @@ def eval_genomes(genomes, config):
     :param config: config from the config file
     """
     for genome_id, genome in genomes:
-        optimizer = torch.optim.Adam(genome.get_params(), lr=0.1)
+        # print(genome)
+        optimizer = torch.optim.SGD(genome.get_params(), lr=config.genome_config.learning_rate)
         optimizer.zero_grad()
-        net = backprop_neat.nn.RecurrentNet.create(genome, config, dtype=torch.float32)
+        net = backprop_neat.nn.RecurrentNet.create(genome, config, dtype=torch.float32, use_current_activs=True)
         # net = RecurrentNet.create(genome, config, device=device)
 
         outputs = net.activate(inputs)
         # update the fitness of each individual:
         # fitness = 30 - MSE_all_data
         loss = torch.nn.MSELoss()(outputs, targets)
+
         loss.backward()
+        # params = genome.get_params(key_id=True)
+        # for p in params:
+        #     print(p, params[p].grad)
+        # # print(loss.grad)
+        # exit(8)
+
+        # make_dot(loss)
+
         genome.fitness = (1 / (1. + loss.detach().item()))
 
-
         # params = genome.get_params()
-        # print("before", params[0].detach().item())
+        # print("before", params[-1].detach().item())
         optimizer.step()
-        # print("after", params[0].detach().item())
+
+        # print("after", params[-1].detach().item())
+
+        # exit(8)
+
         #
         #
         # with torch.no_grad():
@@ -122,7 +139,7 @@ def run(config_file, n_gen):
 
     # Show output of the most fit genome against training data.
     print('\n')
-    winner_net = backprop_neat.nn.RecurrentNet.create(winner, config, dtype=torch.float32)
+    winner_net = backprop_neat.nn.RecurrentNet.create(winner, config, dtype=torch.float32, use_current_activs=True)
 
     accuracy = 0
     x_test, y_test = torch.from_numpy(data["X_test"]).float(), data["y_test"]
@@ -197,9 +214,9 @@ def make_visualize(winner_, config_, stats_, decision_surface=True):
     :param decision_surface:
     :return:
     """
-    winner_net = backprop_neat.nn.RecurrentNet.create(winner_, config_, dtype=torch.float32)
-    if decision_surface:
-        plot_decision(winner_net)
+    # winner_net = backprop_neat.nn.RecurrentNet.create(winner_, config_, dtype=torch.float32)
+    # if decision_surface:
+    #     plot_decision(winner_net)
 
     node_names = {0: names[0], 1: names[1], 2: names[2]}
     for i in range(len(features)):
@@ -207,7 +224,7 @@ def make_visualize(winner_, config_, stats_, decision_surface=True):
 
     visualize.draw_net(config_, winner_, True, node_names=node_names)
     visualize.plot_stats(stats_, ylog=False, view=True)
-    visualize.plot_species(stats_, view=True)
+    # visualize.plot_species(stats_, view=True)
 
 
 def general_stats(n, config_path):
@@ -247,6 +264,34 @@ def general_stats(n, config_path):
     print(np.mean(np.array(accuracies)))
 
 
+def make_dot(x):
+    node_attr = dict(style='filled',
+                     shape='box',
+                     align='left',
+                     fontsize='12',
+                     ranksep='0.1',
+                     height='0.2')
+    dot = Digraph(node_attr=node_attr, graph_attr=dict(size="12,12"))
+    seen = set()
+
+    def add_nodes(var, val=None):
+        if var not in seen:
+            if isinstance(var, Variable):
+                value = '('+(', ').join(['%d'% v for v in var.size()])+')'
+                dot.node(str(id(var)), str(value), fillcolor='lightblue')
+            else:
+                extra = str(val) if val else ""
+                dot.node(str(id(var)), str(type(var).__name__)+"\n grad="+extra)
+            seen.add(var)
+            if hasattr(var, 'next_functions'):
+                for u in var.next_functions:
+                    dot.edge(str(id(u[0])), str(id(var)))
+                    add_nodes(u[0], val=u[1])
+    add_nodes(x.grad_fn, val=x.grad)
+    dot.render(filename=None, view=True)
+    return dot
+
+
 if __name__ == '__main__':
 
     features = [0, 2]         # features indices we choose to keep (subset of [0, 1, 2, 3])
@@ -263,5 +308,5 @@ if __name__ == '__main__':
 
     # for the result of just one run
     random.seed(0)
-    winner, config, stats, acc = run(config_path, 40)
+    winner, config, stats, acc = run(config_path, 100)
     make_visualize(winner, config, stats, decision_surface=(len(features) == 2))

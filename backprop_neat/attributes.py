@@ -35,9 +35,9 @@ class FloatAttribute(BaseAttribute):
     _config_items = {"init_mean": [float, None],
                      "init_stdev": [float, None],
                      "init_type": [str, 'gaussian'],
-                     "replace_rate": [float, None],
-                     "mutate_rate": [float, None],
-                     "mutate_power": [float, None],
+                     # "replace_rate": [float, None],
+                     # "mutate_rate": [float, None],
+                     # "mutate_power": [float, None],
                      "max_value": [float, None],
                      "min_value": [float, None]}
 

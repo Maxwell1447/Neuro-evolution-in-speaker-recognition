@@ -40,7 +40,8 @@ class DefaultGenomeConfig(object):
                         ConfigParameter('node_delete_prob', float),
                         ConfigParameter('single_structural_mutation', bool, 'false'),
                         ConfigParameter('structural_mutation_surer', str, 'default'),
-                        ConfigParameter('initial_connection', str, 'unconnected')]
+                        ConfigParameter('initial_connection', str, 'unconnected'),
+                        ConfigParameter('learning_rate', float)]
 
         # Gather configuration data from the gene classes.
         self.node_gene_type = params['node_gene_type']
@@ -575,12 +576,22 @@ class DefaultGenome(object):
             connection = self.create_connection(config, input_id, output_id)
             self.connections[connection.key] = connection
 
-    def get_params(self):
-        params = []
-        for key in self.connections:
-            params.append(self.connections[key].weight)
+    def get_params(self, key_id=False):
+        if key_id:
+            params = {}
+            for key in self.connections:
+                params[key] = self.connections[key].weight
 
-        for key in self.nodes:
-            params.append(self.nodes[key].bias)
+            for key in self.nodes:
+                params[key] = self.nodes[key].bias
 
-        return params
+            return params
+        else:
+            params = []
+            for key in self.connections:
+                params.append(self.connections[key].weight)
+
+            for key in self.nodes:
+                params.append(self.nodes[key].bias)
+
+            return params

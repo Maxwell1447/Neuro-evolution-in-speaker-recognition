@@ -84,9 +84,6 @@ class BaseGene(object):
         return new_gene
 
 
-# TODO: Should these be in the nn module?  iznn and ctrnn can have additional attributes.
-
-
 class DefaultNodeGene(BaseGene):
     _gene_attributes = [FloatAttribute('bias'),
                         StringAttribute('activation', options='sigmoid'),
@@ -105,12 +102,6 @@ class DefaultNodeGene(BaseGene):
         return d * config.compatibility_weight_coefficient
 
 
-# TODO: Do an ablation study to determine whether the enabled setting is
-# important--presumably mutations that set the weight to near zero could
-# provide a similar effect depending on the weight range, mutation rate,
-# and aggregation function. (Most obviously, a near-zero weight for the
-# `product` aggregation function is rather more important than one giving
-# an output of 1 from the connection, for instance!)
 class DefaultConnectionGene(BaseGene):
     _gene_attributes = [FloatAttribute('weight'),
                         BoolAttribute('enabled')]

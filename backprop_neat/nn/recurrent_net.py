@@ -26,6 +26,7 @@ def dense_from_coo(shape, conns, dtype=torch.float64, device="cpu"):
 
     for (row, col), weight in zip(conns[0], conns[1]):
         assert isinstance(weight, torch.Tensor) and weight.requires_grad
+        # print(row, col, "weight added")
         mat[row, col] = weight
     return mat
 
@@ -67,9 +68,13 @@ class RecurrentNet:
             (n_outputs, n_outputs), output_to_output, dtype=dtype, device=self.device)
 
         if n_hidden > 0:
-            self.hidden_biases = torch.tensor(hidden_biases, dtype=dtype, device=self.device)
+            self.hidden_biases = torch.empty(len(hidden_biases), dtype=dtype)
+            for i, bias in enumerate(hidden_biases):
+                self.hidden_biases[i] = bias
 
-        self.output_biases = torch.tensor(output_biases, dtype=dtype, device=self.device)
+        self.output_biases = torch.empty(len(output_biases), dtype=dtype)
+        for i, bias in enumerate(output_biases):
+            self.output_biases[i] = bias
 
         self.reset(batch_size)
 

@@ -32,6 +32,10 @@ def relu_activation(z):
     return z if z > 0.0 else torch.tensor(0.)
 
 
+def leaky_relu_activation(z):
+    return z if z > 0.0 else 0.01 * z
+
+
 def softplus_activation(z):
     z = torch.clamp(5 * z, -60, 60)
     return 0.2 * torch.log(1 + torch.exp(z))
@@ -100,6 +104,7 @@ class ActivationFunctionSet(object):
         self.add('sin', sin_activation)
         self.add('gauss', gauss_activation)
         self.add('relu', relu_activation)
+        self.add('leaky_relu', leaky_relu_activation)
         self.add('softplus', softplus_activation)
         self.add('identity', identity_activation)
         self.add('clamped', clamped_activation)
