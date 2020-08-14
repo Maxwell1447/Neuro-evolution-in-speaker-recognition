@@ -1,18 +1,14 @@
 """A NEAT (NeuroEvolution of Augmenting Topologies) implementation"""
-import neat.nn as nn
-import neat.ctrnn as ctrnn
-import neat.iznn as iznn
-import neat.distributed as distributed
+import backprop_neat.nn as nn
 
-from neat.config import Config
-from neat.population import Population, CompleteExtinctionException
-from neat.genome import DefaultGenome
-from neat.reproduction import DefaultReproduction
-from neat.stagnation import DefaultStagnation
-from neat.reporting import StdOutReporter
-from neat.species import DefaultSpeciesSet
-from neat.statistics import StatisticsReporter
-from neat.parallel import ParallelEvaluator
-from neat.distributed import DistributedEvaluator, host_is_local
-from neat.threaded import ThreadedEvaluator
-from neat.checkpoint import Checkpointer
+
+from backprop_neat.config import Config
+from backprop_neat.population import Population, CompleteExtinctionException
+from backprop_neat.genome import DefaultGenome
+from backprop_neat.reproduction import DefaultReproduction
+from backprop_neat.stagnation import DefaultStagnation
+from backprop_neat.reporting import StdOutReporter
+from backprop_neat.species import DefaultSpeciesSet
+from backprop_neat.statistics import StatisticsReporter
+from backprop_neat.parallel import ParallelEvaluator
+from backprop_neat.threaded import ThreadedEvaluator

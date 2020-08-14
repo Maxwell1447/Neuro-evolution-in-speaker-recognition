@@ -9,7 +9,7 @@ import types
 
 
 def sigmoid_activation(z):
-    z = torch.clamp(5 * z, -60, 60)
+    z = torch.clamp(z, -60, 60)
     return torch.sigmoid(z)
 
 

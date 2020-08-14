@@ -7,12 +7,12 @@ from random import choice, random, shuffle
 import sys
 
 import torch
-from neat.activations import ActivationFunctionSet
-from neat.aggregations import AggregationFunctionSet
-from neat.config import ConfigParameter, write_pretty_params
-from neat.genes import DefaultConnectionGene, DefaultNodeGene
-from neat.graphs import creates_cycle
-from neat.six_util import iteritems, iterkeys
+from backprop_neat.activations import ActivationFunctionSet
+from backprop_neat.aggregations import AggregationFunctionSet
+from backprop_neat.config import ConfigParameter, write_pretty_params
+from backprop_neat.genes import DefaultConnectionGene, DefaultNodeGene
+from backprop_neat.graphs import creates_cycle
+from backprop_neat.six_util import iteritems, iterkeys
 
 
 class DefaultGenomeConfig(object):
@@ -261,7 +261,7 @@ class DefaultGenome(object):
             assert key not in self.nodes
             if ng2 is None:
                 # Extra gene: copy from the fittest parent
-                self.nodes[key] = ng1.clone().detach().requires_grad_(True)  # TODO: check if .copy() adapted
+                self.nodes[key] = ng1.copy()
             else:
                 # Homologous gene: combine genes from both parents.
                 self.nodes[key] = ng1.crossover(ng2)
@@ -582,4 +582,5 @@ class DefaultGenome(object):
 
         for key in self.nodes:
             params.append(self.nodes[key].bias)
-            params.append(self.nodes[key].bias)
+
+        return params

@@ -2,8 +2,8 @@
 from random import choice, gauss, random, uniform
 
 import torch
-from neat.config import ConfigParameter
-from neat.six_util import iterkeys, iteritems
+from backprop_neat.config import ConfigParameter
+from backprop_neat.six_util import iterkeys, iteritems
 
 # TODO: There is probably a lot of room for simplification of these classes using metaprogramming.
 

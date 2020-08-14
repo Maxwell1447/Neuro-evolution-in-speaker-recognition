@@ -3,13 +3,16 @@ import warnings
 from random import random
 
 import torch
-from neat.attributes import FloatAttribute, BoolAttribute, StringAttribute
-
-# TODO: There is probably a lot of room for simplification of these classes using metaprogramming.
-# TODO: Evaluate using __slots__ for performance/memory usage improvement.
+from backprop_neat.attributes import FloatAttribute, BoolAttribute, StringAttribute
 
 
 def tensorize(param):
+    if isinstance(param, torch.Tensor):
+        return param.clone().detach().requires_grad_(True)
+    return param
+
+
+def tensor_copy(param):
     if isinstance(param, torch.Tensor):
         return param.clone().detach().requires_grad_(True)
     return param
@@ -61,7 +64,7 @@ class BaseGene(object):
     def copy(self):
         new_gene = self.__class__(self.key)
         for a in self._gene_attributes:
-            setattr(new_gene, a.name, getattr(self, a.name))
+            setattr(new_gene, a.name, tensor_copy(getattr(self, a.name)))
 
         return new_gene
 

@@ -24,7 +24,7 @@ def dense_from_coo(shape, conns, dtype=torch.float64, device="cpu"):
     # mat[torch.LongTensor(rows), torch.LongTensor(cols)] = torch.tensor(
     #         weights, dtype=dtype, device=device)
 
-    for (col, row), weight in conns:
+    for (row, col), weight in zip(conns[0], conns[1]):
         assert isinstance(weight, torch.Tensor) and weight.requires_grad
         mat[row, col] = weight
     return mat
@@ -88,24 +88,23 @@ class RecurrentNet:
 
         returns: (batch_size, n_outputs)
         '''
-        with torch.no_grad():
-            activs_for_output = self.activs
-            if self.n_hidden > 0:
-                for _ in range(self.n_internal_steps):
-                    self.activs = self.activation((
-                        self.input_to_hidden.mm(inputs.t()).t() +
-                        self.hidden_to_hidden.mm(self.activs.t()).t() +
-                        self.output_to_hidden.mm(self.outputs.t()).t()) +
-                        self.hidden_biases)
-                if self.use_current_activs:
-                    activs_for_output = self.activs
-            output_inputs = (self.input_to_output.mm(inputs.t()).t() +
-                             self.output_to_output.mm(self.outputs.t()).t())
-            if self.n_hidden > 0:
-                output_inputs += self.hidden_to_output.mm(
-                    activs_for_output.t()).t()
-            self.outputs = self.activation(
-                output_inputs + self.output_biases)
+        activs_for_output = self.activs
+        if self.n_hidden > 0:
+            for _ in range(self.n_internal_steps):
+                self.activs = self.activation((
+                    self.input_to_hidden.mm(inputs.t()).t() +
+                    self.hidden_to_hidden.mm(self.activs.t()).t() +
+                    self.output_to_hidden.mm(self.outputs.t()).t()) +
+                    self.hidden_biases)
+            if self.use_current_activs:
+                activs_for_output = self.activs
+        output_inputs = (self.input_to_output.mm(inputs.t()).t() +
+                         self.output_to_output.mm(self.outputs.t()).t())
+        if self.n_hidden > 0:
+            output_inputs += self.hidden_to_output.mm(
+                activs_for_output.t()).t()
+        self.outputs = self.activation(
+            output_inputs + self.output_biases)
         return self.outputs
 
     @staticmethod

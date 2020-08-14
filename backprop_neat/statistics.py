@@ -5,9 +5,9 @@ the most-fit genomes and information on genome/species fitness and species sizes
 import copy
 import csv
 
-from neat.math_util import mean, stdev, median2
-from neat.reporting import BaseReporter
-from neat.six_util import iteritems
+from backprop_neat.math_util import mean, stdev, median2
+from backprop_neat.reporting import BaseReporter
+from backprop_neat.six_util import iteritems
 
 
 # (Maybe periodically write blocks of history to disk, or log stats in a database?)

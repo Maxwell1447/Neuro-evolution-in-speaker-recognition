@@ -1,9 +1,9 @@
 """Keeps track of whether species are making progress and helps remove ones that are not."""
 import sys
 
-from neat.config import ConfigParameter, DefaultClassConfig
-from neat.six_util import iteritems
-from neat.math_util import stat_functions
+from backprop_neat.config import ConfigParameter, DefaultClassConfig
+from backprop_neat.six_util import iteritems
+from backprop_neat.math_util import stat_functions
 
 
 class DefaultStagnation(DefaultClassConfig):

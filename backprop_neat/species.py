@@ -1,9 +1,10 @@
 """Divides the population into species based on genomic distances."""
 from itertools import count
 
-from neat.math_util import mean, stdev
-from neat.six_util import iteritems, iterkeys, itervalues
-from neat.config import ConfigParameter, DefaultClassConfig
+from backprop_neat.math_util import mean, stdev
+from backprop_neat.six_util import iteritems, iterkeys, itervalues
+from backprop_neat.config import ConfigParameter, DefaultClassConfig
+
 
 class Species(object):
     def __init__(self, key, generation):
