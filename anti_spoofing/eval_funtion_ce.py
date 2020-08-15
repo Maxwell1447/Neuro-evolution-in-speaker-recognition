@@ -3,6 +3,7 @@ from torch import sigmoid
 import numpy as np
 from neat_local.nn.recurrent_net import RecurrentNet
 import neat
+from tqdm import tqdm
 
 
 class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
@@ -52,7 +53,7 @@ def eval_genome_ce(g, conf, batch):
     inputs = inputs.transpose(0, 1)
 
     jitter = 1e-8
-    batch_size = list(outputs.size())[0]
+    batch_size = outputs.shape[0]
     cross_entropy = 0
     net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
     net.reset()
@@ -78,6 +79,40 @@ def eval_genome_ce(g, conf, batch):
     for index_audio in range(batch_size):
         cross_entropy -= np.log(prediction[index_audio][int(outputs[index_audio].item())] + jitter)
 
-    normalize_fitness = - batch_size * np.log(1 / 7)
+    return float(1 / (1 + cross_entropy))
 
-    return float(1 - cross_entropy / normalize_fitness)
+
+def feed_and_predict_ce(data, g, conf):
+    """
+    returns predictions + targets in 2 numpy arrays
+    """
+    data_iter = iter(data)
+
+    jitter = 1e-8
+
+    net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
+
+    predictions = []
+    targets = []
+
+    for batch in tqdm(data_iter, total=len(data)):
+        net.reset()
+        input, _, output = batch  # input: batch x t x BIN; output: batch
+        input = input.transpose(0, 1)  # input: t x batch x BIN
+        batch_size = output.shape[0]
+        contribution = torch.zeros((len(output)), 7)
+        norm = torch.zeros(len(output))
+        for input_t in input:
+            xo = net.activate(input_t)  # batch x 8
+            score = xo[:, 1:]  # batch x 7
+            confidence = sigmoid(xo[:, 0])  # batch
+            contribution += score * confidence.reshape((-1, 1))  # batch x 7
+            norm += confidence  # batch
+        prediction = contribution / (norm.reshape((batch_size, 1)) + jitter)  # batch x 7
+
+        predictions.append(prediction.numpy())
+        targets.append(output.numpy())
+    predictions = np.concatenate(predictions)
+    targets = np.concatenate(targets)
+
+    return predictions, targets

@@ -41,6 +41,14 @@ def softmax(scores):
     return exp_score / np.sum(exp_score)
 
 
+def show_stats(x):
+    print("min =", x.min())
+    print("max =", x.max())
+    print("median =", np.median(x))
+    print("average =", x.mean())
+    print("std =", x.std())
+
+
 def whiten(sample_input):
     """
     normalize the input (expectancy is equal to 0, standard deviation to 1)

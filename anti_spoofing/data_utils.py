@@ -271,4 +271,4 @@ class ASVDataset(Dataset):
 
 if __name__ == '__main__':
     trainset = ASVDataset(is_train=True, nb_samples=20, do_mfcc=False, random_samples=True)
-    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=10000, length=4800, do_lfcc=True)
+    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=10000, length=48000, do_lfcc=True)
