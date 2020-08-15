@@ -11,7 +11,8 @@ from anti_spoofing.utils_ASV import make_visualize
 from anti_spoofing.data_loader import load_data, load_data_cqcc
 from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator, feed_and_predict, \
     evaluate_eer_acc
-from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc
+from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc, \
+    quantified_eval_genome_eoc
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
@@ -51,7 +52,8 @@ def run(config_file, n_gen):
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
-    eer_acc_reporter = EERReporter(devloader, period=5)
+
+    eer_acc_reporter = EERReporter(devloader, period=2)
     p.add_reporter(eer_acc_reporter)
 
     # sine_scheduler = SineScheduler(config_, period=500, final_values={
@@ -66,24 +68,24 @@ def run(config_file, n_gen):
     #                                    patience=2, momentum=0.99)
     # p.add_reporter(mutate_scheduler)
 
-    scheduler = ExponentialScheduler(semi_gen=200, final_values={
-        "node_add_prob": 0.,
-        "conn_add_prob": 0.
-    })
-    p.add_reporter(scheduler)
-    scheduler2 = ExponentialScheduler(semi_gen=300, final_values={
-        "node_delete_prob": 0.,
-        "conn_delete_prob": 0.
-    })
-    p.add_reporter(scheduler2)
-
-    scheduler3 = SineScheduler(conf=config_, period=100, final_values={
-        "weight_mutate_power": 0.,
-        "bias_mutate_power": 0.,
-        "weight_mutate_rate": 0.2,
-        "bias_mutate_rate": 0.1
-    })
-    p.add_reporter(scheduler3)
+    # scheduler = ExponentialScheduler(semi_gen=200, final_values={
+    #     "node_add_prob": 0.,
+    #     "conn_add_prob": 0.
+    # })
+    # p.add_reporter(scheduler)
+    # scheduler2 = ExponentialScheduler(semi_gen=300, final_values={
+    #     "node_delete_prob": 0.,
+    #     "conn_delete_prob": 0.
+    # })
+    # p.add_reporter(scheduler2)
+    #
+    # scheduler3 = SineScheduler(conf=config_, period=100, final_values={
+    #     "weight_mutate_power": 0.,
+    #     "bias_mutate_power": 0.,
+    #     "weight_mutate_rate": 0.2,
+    #     "bias_mutate_rate": 0.1
+    # })
+    # p.add_reporter(scheduler3)
     # impulse_scheduler = ImpulseScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                  "node_delete_prob", "conn_delete_prob"],
     #                                      verbose=1, patience=10, impulse_factor=2., momentum=0.99, monitor=True)
@@ -96,9 +98,9 @@ def run(config_file, n_gen):
     p.add_reporter(complexity_reporter)
 
     # Run for up to n_gen generations.
-    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc, trainloader,
-    #                                            getattr(config_, "pop_size"))
+    # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
+    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, trainloader,
+                                               getattr(config_, "pop_size"))
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
@@ -139,7 +141,7 @@ if __name__ == '__main__':
     for i in range(1):
         print(i)
         print(dev_eer_list)
-        winner, config, stats = run(config_path, 1000)
+        winner, config, stats = run(config_path, 100)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader)
         dev_eer_list.append(eer)
@@ -160,6 +162,7 @@ if __name__ == '__main__':
 
     array_eer = np.array(dev_eer_list)
 
+    print("DEV EER stats")
     print("min =", array_eer.min())
     print("max =", array_eer.max())
     print("median =", np.median(array_eer))
@@ -174,6 +177,7 @@ if __name__ == '__main__':
 
     array_eer = np.array(eval_eer_list)
 
+    print("EVAL EER stats")
     print("min =", array_eer.min())
     print("max =", array_eer.max())
     print("median =", np.median(array_eer))

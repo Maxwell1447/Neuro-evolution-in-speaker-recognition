@@ -24,12 +24,13 @@ class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
     def evaluate(self, genomes, config):
         batch = self.next()
         jobs = []
-        for ignored_genome_id, genome in genomes:
-            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch)))
+        with torch.no_grad():
+            for ignored_genome_id, genome in genomes:
+                jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch)))
 
-        # assign the fitness back to each genome
-        for job, (ignored_genome_id, genome) in zip(jobs, genomes):
-            genome.fitness = job.get(timeout=self.timeout)
+            # assign the fitness back to each genome
+            for job, (ignored_genome_id, genome) in zip(jobs, genomes):
+                genome.fitness = job.get(timeout=self.timeout)
 
     def next(self):
         try:
