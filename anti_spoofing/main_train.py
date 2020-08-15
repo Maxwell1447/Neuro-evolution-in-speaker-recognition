@@ -12,7 +12,7 @@ from anti_spoofing.data_loader import load_data, load_data_cqcc
 from anti_spoofing.eval_functions import eval_genome_bce, eval_genome_eer, ProcessedASVEvaluator, feed_and_predict, \
     evaluate_eer_acc
 from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluatorEoc, ProcessedASVEvaluatorEocGc, \
-    quantified_eval_genome_eoc
+    quantified_eval_genome_eoc, double_quantified_eval_genome_eoc
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
@@ -30,6 +30,9 @@ if sys.platform.find("win") >= 0:
     DATA_ROOT = './data'
 else:
     DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
+
+
+backprop = True
 
 
 def run(config_file, n_gen):
@@ -99,8 +102,9 @@ def run(config_file, n_gen):
 
     # Run for up to n_gen generations.
     # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, trainloader,
-                                               getattr(config_, "pop_size"))
+    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
+                                               trainloader,
+                                               getattr(config_, "pop_size"), backprop=backprop)
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
@@ -143,11 +147,11 @@ if __name__ == '__main__':
         print(dev_eer_list)
         winner, config, stats = run(config_path, 100)
 
-        eer, accuracy = evaluate_eer_acc(winner, config, devloader)
+        eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop)
         dev_eer_list.append(eer)
         dev_accuracy_list.append(accuracy)
 
-        eer, accuracy = evaluate_eer_acc(winner, config, evalloader)
+        eer, accuracy = evaluate_eer_acc(winner, config, evalloader, backprop=backprop)
         eval_eer_list.append(eer)
         eval_accuracy_list.append(accuracy)
 

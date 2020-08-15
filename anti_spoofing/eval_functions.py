@@ -179,11 +179,12 @@ def feed_and_predict(data, g, conf, backprop):
     return predictions, targets
 
 
-def evaluate_eer_acc(g, conf, data):
+def evaluate_eer_acc(g, conf, data, backprop=False):
     """
     returns the equal error rate and the accuracy
     """
-    predictions, targets = feed_and_predict(data, g, conf)
+
+    predictions, targets = feed_and_predict(data, g, conf, backprop)
 
     accuracy = np.mean(np.abs(predictions - targets) < 0.5)
 
