@@ -206,7 +206,7 @@ def quantified_eval_genome_eoc(g, conf, batch):
     The input is already preprocessed with shape batch_size x t x bins
     t: index of the windows used for the pre-processing
     bins: number of features extracted --> corresponds to the number of input neurons of the recurrent net
-    Here the fitness function is the ease of classification
+    Here the fitness function is the quantified ease of classification
     """
 
     # inputs: batch_size x t x bins
@@ -247,18 +247,68 @@ def quantified_eval_genome_eoc(g, conf, batch):
         if out:  # if bonafide
             l_s_n[i] = 1 - np.sum(non_target_scores[non_target_scores >= pred] - pred + 1) \
                        / np.sum(np.abs(non_target_scores - pred) + 1)
-
-            # print("pred", pred)
-            # print(np.sum(non_target_scores >= pred))
-            # print(non_target_scores[non_target_scores >= pred])
-            # print(np.sum(non_target_scores[non_target_scores >= pred] - pred))
-            # print(l_s_n[i])
-            # exit(8)
         else:  # if spoofed
             l_s_n[i] = 1 - np.sum(pred - target_scores[target_scores <= pred] + 1) \
                        / np.sum(np.abs(target_scores - pred) + 1)
 
     return l_s_n
+
+
+def double_quantified_eval_genome_eoc(g, conf, batch):
+    """
+    Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
+    The input is already preprocessed with shape batch_size x t x bins
+    t: index of the windows used for the pre-processing
+    bins: number of features extracted --> corresponds to the number of input neurons of the recurrent net
+    Here the fitness function is the double quantified ease of classification
+    """
+
+    # inputs: batch_size x t x bins
+    # outputs: batch_size
+    if len(batch) == 3:
+        inputs, outputs, _ = batch
+    else:
+        inputs, outputs = batch
+    # inputs: t x batch_size x bins
+    inputs = inputs.transpose(0, 1)
+
+    net = RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
+    net.reset()
+
+    contribution = torch.zeros(len(outputs))
+    norm = torch.zeros(len(outputs))
+    for input_t in inputs:
+        # input_t: batch_size x bins
+
+        # Usage of batch evaluation provided by PyTorch-NEAT
+        xo = net.activate(input_t)  # batch_size x 2
+        score = xo[:, 1]
+        confidence = xo[:, 0]
+        contribution += score * confidence  # batch_size
+        norm += confidence  # batch_size
+
+    jitter = 1e-8
+    prediction = contribution / (norm + jitter)  # batch_size
+
+    target_scores = prediction[outputs == 1].numpy()  # bonafide scores
+    non_target_scores = prediction[outputs == 0].numpy()  # spoofed scores
+
+    l_s_n = np.empty_like(prediction)
+    prediction = prediction.numpy()
+
+    for i, (pred, out) in enumerate(zip(prediction, outputs)):
+
+        if out:  # if bonafide
+            l_s_n[i] = (np.sum(pred - non_target_scores[non_target_scores <= pred] + 1)
+                        - np.sum(non_target_scores[non_target_scores >= pred] - pred + 1)) \
+                       / np.sum(np.abs(non_target_scores - pred) + 1)
+        else:  # if spoofed
+            l_s_n[i] = (np.sum(target_scores[non_target_scores >= pred] - pred + 1)
+                        - np.sum(pred - target_scores[target_scores <= pred] + 1)) \
+                       / np.sum(np.abs(target_scores - pred) + 1)
+
+    return l_s_n
+
 
 def eval_eer_gc(g, config, batch):
     jitter = 1e-8
