@@ -11,8 +11,8 @@ from backprop_neat.activations import ActivationFunctionSet
 from backprop_neat.aggregations import AggregationFunctionSet
 from backprop_neat.config import ConfigParameter, write_pretty_params
 from backprop_neat.genes import DefaultConnectionGene, DefaultNodeGene
-from backprop_neat.graphs import creates_cycle
-from backprop_neat.six_util import iteritems, iterkeys
+from neat.graphs import creates_cycle
+from neat.six_util import iteritems, iterkeys
 
 
 class DefaultGenomeConfig(object):
@@ -329,7 +329,6 @@ class DefaultGenome(object):
         self.add_connection(config, new_node_id, o, conn_to_split.weight, True)
 
     def add_connection(self, config, input_key, output_key, weight, enabled):
-        # TODO: set weight to autogradable
         assert isinstance(input_key, int)
         assert isinstance(output_key, int)
         assert output_key >= 0

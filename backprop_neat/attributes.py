@@ -3,9 +3,7 @@ from random import choice, gauss, random, uniform
 
 import torch
 from backprop_neat.config import ConfigParameter
-from backprop_neat.six_util import iterkeys, iteritems
-
-# TODO: There is probably a lot of room for simplification of these classes using metaprogramming.
+from neat.six_util import iterkeys, iteritems
 
 
 class BaseAttribute(object):
@@ -26,7 +24,7 @@ class BaseAttribute(object):
                                 self._config_items[n][1])
                 for n in iterkeys(self._config_items)]
 
-# TODO: Attribute autograd
+
 class FloatAttribute(BaseAttribute):
     """
     Class for numeric attributes,
@@ -35,9 +33,6 @@ class FloatAttribute(BaseAttribute):
     _config_items = {"init_mean": [float, None],
                      "init_stdev": [float, None],
                      "init_type": [str, 'gaussian'],
-                     # "replace_rate": [float, None],
-                     # "mutate_rate": [float, None],
-                     # "mutate_power": [float, None],
                      "max_value": [float, None],
                      "min_value": [float, None]}
 

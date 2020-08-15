@@ -9,8 +9,8 @@ import random
 from itertools import count
 
 from backprop_neat.config import ConfigParameter, DefaultClassConfig
-from backprop_neat.math_util import mean
-from backprop_neat.six_util import iteritems, itervalues
+from neat.math_util import mean
+from neat.six_util import iteritems, itervalues
 
 
 

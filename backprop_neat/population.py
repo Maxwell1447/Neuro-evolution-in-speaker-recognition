@@ -1,9 +1,9 @@
 """Implements the core evolution algorithm."""
 from __future__ import print_function
 
-from backprop_neat.reporting import ReporterSet
-from backprop_neat.math_util import mean
-from backprop_neat.six_util import iteritems, itervalues
+from neat.reporting import ReporterSet
+from neat.math_util import mean
+from neat.six_util import iteritems, itervalues
 
 
 class CompleteExtinctionException(Exception):

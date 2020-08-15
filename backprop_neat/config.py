@@ -10,7 +10,7 @@ try:
 except ImportError:
     from ConfigParser import SafeConfigParser as ConfigParser
 
-from backprop_neat.six_util import iterkeys
+from neat.six_util import iterkeys
 
 class ConfigParameter(object):
     """Contains information about one configuration item."""
