@@ -7,6 +7,7 @@ import numpy as np
 import multiprocessing
 from tqdm import tqdm
 import warnings
+import pickle
 
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
@@ -60,17 +61,15 @@ def evaluate(g, conf, data):
     returns the equal error rate, the accuracy (both multi class and binary class) and the confusion matrix
     """
     predictions, targets = feed_and_predict_ce(data, g, conf)
-
+    print(predictions)
     target_scores = predictions[targets == 0]
     non_target_scores = predictions[targets > 0]
-    print("target_scores", target_scores.shape[0])
-    print("target_scores", non_target_scores.shape[0])
-    pmiss, pfa = rocch(target_scores[0], non_target_scores[0])
+    pmiss, pfa = rocch(target_scores[:, 0], non_target_scores[:, 0])
     eer = rocch2eer(pmiss, pfa)
 
     predictions = np.argmax(predictions, axis=1)
-    print("predictions", predictions)
     accuracy = (predictions == targets).sum() / len(data)
+
 
     c_matrix = confusion_matrix(targets, predictions, normalize="pred")
 
@@ -89,8 +88,9 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed_ce.cfg')
 
-    trainloader, testloader = load_data(batch_size=100, length=3 * 16000, num_train=10000, metadata=True,
-                                        batch_size_test=100, option="lfcc", multi_proc=True)
+    trainloader, testloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=30000, num_test=40000,
+                                                    metadata=True, batch_size_test=100, option="lfcc", multi_proc=True,
+                                                    include_eval=True)
 
     eer_list = []
     accuracy_list = []
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     for iterations in range(1):
         print(iterations)
         print(eer_list)
-        winner, config, stats = run(config_path, 30)
+        winner, config, stats = run(config_path, 100)
 
         eer, accuracy, anti_spoofing_accuracy, c_matrix = evaluate(winner, config, testloader)
         eer_list.append(eer)
