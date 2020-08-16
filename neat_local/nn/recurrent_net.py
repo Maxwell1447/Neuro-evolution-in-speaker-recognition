@@ -39,7 +39,6 @@ class RecurrentNet:
     def __init__(self, n_inputs, n_hidden, n_outputs,
                  input_to_hidden, hidden_to_hidden, output_to_hidden,
                  input_to_output, hidden_to_output, output_to_output,
-                 hidden_responses, output_responses,
                  hidden_biases, output_biases,
                  batch_size=1,
                  use_current_activs=False,
@@ -73,11 +72,8 @@ class RecurrentNet:
             (n_outputs, n_outputs), output_to_output, dtype=dtype, device=self.device)
 
         if n_hidden > 0:
-            self.hidden_responses = torch.tensor(hidden_responses, dtype=dtype, device=self.device)
             self.hidden_biases = torch.tensor(hidden_biases, dtype=dtype, device=self.device)
 
-        self.output_responses = torch.tensor(
-            output_responses, dtype=dtype, device=self.device)
         self.output_biases = torch.tensor(output_biases, dtype=dtype, device=self.device)
 
         self.reset(batch_size)
@@ -101,7 +97,7 @@ class RecurrentNet:
             activs_for_output = self.activs
             if self.n_hidden > 0:
                 for _ in range(self.n_internal_steps):
-                    self.activs = self.activation(self.hidden_responses * (
+                    self.activs = self.activation((
                         self.input_to_hidden.mm(inputs.t()).t() +
                         self.hidden_to_hidden.mm(self.activs.t()).t() +
                         self.output_to_hidden.mm(self.outputs.t()).t()) +
@@ -114,7 +110,7 @@ class RecurrentNet:
                 output_inputs += self.hidden_to_output.mm(
                     activs_for_output.t()).t()
             self.outputs = self.activation(
-                self.output_responses * output_inputs + self.output_biases)
+                output_inputs + self.output_biases)
         return self.outputs
 
     @staticmethod
@@ -134,9 +130,6 @@ class RecurrentNet:
         hidden_keys = [k for k in genome.nodes.keys()
                        if k not in genome_config.output_keys]
         output_keys = list(genome_config.output_keys)
-
-        hidden_responses = [genome.nodes[k].response for k in hidden_keys]
-        output_responses = [genome.nodes[k].response for k in output_keys]
 
         hidden_biases = [genome.nodes[k].bias for k in hidden_keys]
         output_biases = [genome.nodes[k].bias for k in output_keys]
@@ -205,7 +198,6 @@ class RecurrentNet:
         return RecurrentNet(n_inputs, n_hidden, n_outputs,
                             input_to_hidden, hidden_to_hidden, output_to_hidden,
                             input_to_output, hidden_to_output, output_to_output,
-                            hidden_responses, output_responses,
                             hidden_biases, output_biases,
                             batch_size=batch_size,
                             activation=activation,

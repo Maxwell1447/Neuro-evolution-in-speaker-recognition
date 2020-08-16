@@ -12,3 +12,4 @@ from neat.species import DefaultSpeciesSet
 from neat.statistics import StatisticsReporter
 from neat.parallel import ParallelEvaluator
 from neat.threaded import ThreadedEvaluator
+from neat import Checkpointer

@@ -340,3 +340,71 @@ class ImpulseScheduler(BaseReporter):
         for key in self.parameters:
             plt.plot(self.values[key], label=key)
         plt.show()
+
+
+class BackpropScheduler(BaseReporter):
+    """
+    """
+
+    def __init__(self, config, patience=100):
+        """
+        """
+        setattr(config.genome_config, "backprop", False)
+        self.patience = patience
+        self.cpt = 0
+
+    def end_generation(self, config, population, species_set):
+
+        if self.cpt == self.patience:
+            setattr(config.genome_config, "backprop", True)
+        else:
+            self.cpt += 1
+
+
+class EarlyExplorationScheduler(BaseReporter):
+
+    def __init__(self, conf, duration=20, values=None, verbose=0, reset=False):
+        """
+        period: number of generation required to loop
+        verbose: if 1, print the current values of the parameters
+        conf: NEAT config
+        """
+
+        if values is None:
+            values = {}
+        self.values = values
+        self.initial_values = {}
+
+        for key in values:
+            self.initial_values[key] = getattr(conf.genome_config, key)
+        self.duration = duration
+        self.gen = 0
+        self.verbose = verbose
+        self.reset = reset
+
+    def end_generation(self, conf, population, species_set):
+        """
+        Updates the parameters.
+        """
+
+        if self.gen < self.duration:
+            if self.verbose:
+                print()
+                print("--Scheduler Values--")
+
+            for key in self.values:
+
+                if self.verbose:
+                    print(key, self.values[key])
+
+                setattr(conf.genome_config, key, self.values[key])
+
+            self.gen += 1
+
+        elif self.gen == self.duration:
+
+            if self.reset:
+                for key in self.values:
+                    setattr(conf.genome_config, key, self.initial_values[key])
+
+            self.gen += 1

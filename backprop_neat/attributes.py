@@ -34,7 +34,10 @@ class FloatAttribute(BaseAttribute):
                      "init_stdev": [float, None],
                      "init_type": [str, 'gaussian'],
                      "max_value": [float, None],
-                     "min_value": [float, None]}
+                     "min_value": [float, None],
+                     "replace_rate": [float, None],
+                     "mutate_rate": [float, None],
+                     "mutate_power": [float, None]}
 
     def clamp(self, value, config):
         min_value = getattr(config, self.min_value_name)
@@ -61,6 +64,19 @@ class FloatAttribute(BaseAttribute):
                                                                     self.init_type_name))
 
     def mutate_value(self, value, config):
+
+        mutate_rate = getattr(config, self.mutate_rate_name)
+
+        r = random()
+        if r < mutate_rate:
+            mutate_power = getattr(config, self.mutate_power_name)
+            return torch.tensor(self.clamp(value.detach().item() + gauss(0.0, mutate_power), config),
+                                requires_grad=True)
+
+        replace_rate = getattr(config, self.replace_rate_name)
+
+        if r < replace_rate + mutate_rate:
+            return self.init_value(config)
 
         return value
 

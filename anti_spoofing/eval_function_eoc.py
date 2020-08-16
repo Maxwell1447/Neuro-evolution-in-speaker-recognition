@@ -1,6 +1,8 @@
 import torch
+from six import itervalues
 from torch import sigmoid
 import numpy as np
+from tqdm import tqdm
 
 import backprop_neat
 import neat_local
@@ -31,33 +33,38 @@ class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
         batch = self.next()
         jobs = []
 
-        for ignored_genome_id, genome in genomes:
-            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch, self.backprop)))
+
 
         _, outputs = batch
 
         self.G = len(genomes)
         self.l_s_n = torch.empty((len(outputs), self.G))
 
-        pseudo_genome_id = 0
         # return ease of classification for each genome
-        for job, (ignored_genome_id, genome) in zip(jobs, genomes):
-            self.l_s_n[:, pseudo_genome_id] = job.get(timeout=self.timeout)
-            pseudo_genome_id += 1
+        if self.backprop:
+            for i, (_, genome) in enumerate(genomes):
+                self.l_s_n[:, i] = self.eval_function(genome, config, batch, self.backprop)
+        else:
+            for ignored_genome_id, genome in genomes:
+                jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch, self.backprop)))
+            results = [job.get(timeout=self.timeout) for job in jobs]
+            for i, genome in enumerate(genomes):
+                self.l_s_n[:, i] = results[i]
 
         # compute the fitness
         p_s = torch.sum(self.l_s_n, dim=1).view(-1, 1) / self.G
 
-        F = torch.sum(self.l_s_n.view(p_s.shape[0], -1) * (torch.tensor(1.) - p_s), dim=0) \
-            / np.sum(torch.tensor(1.) - p_s)
+        F = torch.sum(self.l_s_n * (torch.tensor(1.) - p_s), dim=0) \
+            / (torch.sum(torch.tensor(1.) - p_s) + 1e-8)
 
         pseudo_genome_id = 0
         # assign the fitness back to each genome
-        for ignored_genome_id, genome in genomes:
+        for ignored_genome_id, genome in tqdm(genomes):
             if self.backprop:
                 optimizer = torch.optim.SGD(genome.get_params(), lr=config.genome_config.learning_rate)
+                optimizer.zero_grad()
                 loss = 1 - F[pseudo_genome_id]
-                loss.backward()
+                loss.backward(retain_graph=True)
                 optimizer.step()
 
                 genome.fitness = F[pseudo_genome_id].detach().item()
@@ -116,7 +123,7 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         # compute the fitness
         p_s = np.sum(self.l_s_n, axis=1).reshape(-1, 1) / self.G
 
-        F = np.sum(self.l_s_n.reshape(p_s.size, -1) * (1 - p_s), axis=0) / np.sum(1 - p_s)
+        F = np.sum(self.l_s_n * (1 - p_s), axis=0) / np.sum(1 - p_s)
 
         pseudo_genome_id = 0
         # assign the fitness back to each genome
@@ -318,7 +325,7 @@ def double_quantified_eval_genome_eoc(g, conf, batch, backprop):
                         - torch.sum(non_target_scores[non_target_scores >= pred] - pred + 1)) \
                        / torch.sum(torch.abs(non_target_scores - pred) + 1)
         else:  # if spoofed
-            l_s_n[i] = (torch.sum(target_scores[non_target_scores >= pred] - pred + 1)
+            l_s_n[i] = (torch.sum(target_scores[target_scores >= pred] - pred + 1)
                         - torch.sum(pred - target_scores[target_scores <= pred] + 1)) \
                        / torch.sum(torch.abs(target_scores - pred) + 1)
 

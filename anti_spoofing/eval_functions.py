@@ -17,21 +17,33 @@ class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
     """
 
     def __init__(self, num_workers, eval_function, data, timeout=None, backprop=False):
-        super().__init__(num_workers, eval_function, timeout)
+        if num_workers > 1:
+            super().__init__(num_workers, eval_function, timeout)
+        else:
+            self.eval_function = eval_function
+            self.num_workers = 1
         self.data = data  # PyTorch DataLoader
         self.data_iter = iter(data)
         self.timeout = timeout
         self.backprop = backprop
 
+    def __del__(self):
+        if self.num_workers > 1:
+            self.pool.close()  # should this be terminate?
+            self.pool.join()
+
     def evaluate(self, genomes, config):
         batch = self.next()
         jobs = []
-
-        for ignored_genome_id, genome in genomes:
-            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch, self.backprop)))
+        if self.num_workers == 1:
+            for _, genome in genomes:
+                genome.fitness = self.eval_function(genome, config, batch, self.backprop)
+        else:
+            for _, genome in genomes:
+                jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch, self.backprop)))
 
             # assign the fitness back to each genome
-            for job, (ignored_genome_id, genome) in zip(jobs, genomes):
+            for job, (_, genome) in zip(jobs, genomes):
                 genome.fitness = job.get(timeout=self.timeout)
 
     def next(self):
@@ -62,6 +74,12 @@ def eval_genome_bce(g, conf, batch, backprop, return_correct=False):
         net = backprop_neat.nn.RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
     else:
         net = neat_local.nn.RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
+
+    if not conf.genome_config.backprop:
+        ctx = torch.no_grad()
+        ctx.__enter__()
+    else:
+        ctx = None
     net.reset(len(targets))
     contribution = torch.zeros(len(targets))
     norm = torch.zeros(len(targets))
@@ -82,13 +100,19 @@ def eval_genome_bce(g, conf, batch, backprop, return_correct=False):
     if return_correct:
         return (prediction - targets).abs() < 0.5
 
-    if backprop:
+    if backprop and conf.genome_config.backprop:
         optimizer = torch.optim.SGD(g.get_params(), lr=conf.genome_config.learning_rate)
         loss = torch.nn.BCELoss()(prediction, targets)
         loss.backward()
         optimizer.step()
-
         return 1 / (1 + loss.detach().item())
+    elif backprop:
+
+        loss = torch.nn.BCELoss()(prediction, targets)
+        f = 1 / (1 + loss.detach().item())
+        if not conf.genome_config.backprop:
+            ctx.__exit__()
+        return f
 
     # return the fitness computed from the BCE loss
     with torch.no_grad():

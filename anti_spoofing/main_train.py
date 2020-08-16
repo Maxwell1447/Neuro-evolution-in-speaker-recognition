@@ -1,5 +1,5 @@
 import os
-import neat
+
 from neat_local.nn.recurrent_net import RecurrentNet
 import torch
 from torch import sigmoid
@@ -16,7 +16,7 @@ from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluat
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
-    ImpulseScheduler, SineScheduler, MutateScheduler
+    ImpulseScheduler, SineScheduler, MutateScheduler, BackpropScheduler, EarlyExplorationScheduler
 from neat_local.reporters import ComplexityReporter, EERReporter
 from anti_spoofing.select_best import get_true_winner
 import os
@@ -34,38 +34,39 @@ else:
 
 backprop = True
 
+if backprop:
+    import backprop_neat as neat
+else:
+    import neat
 
-def run(config_file, n_gen):
-    """
-    Launches a run until convergence or max number of generation reached
-    :param config_file: path to the config file
-    :param n_gen: lax number of generation
-    :return: the best genotype (winner), the configs, the stats of the run and the accuracy on the testing set
-    """
-    # Load configuration.
-    config_ = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                          config_file)
 
-    # Create the population, which is the top-level object for a NEAT run.
-    p = neat.Population(config_)
+def reporter_addition(p, config_):
 
+    displayable = []
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
-    eer_acc_reporter = EERReporter(devloader, period=2)
-    p.add_reporter(eer_acc_reporter)
+    # eer_acc_reporter = EERReporter(devloader, period=2)
+    # p.add_reporter(eer_acc_reporter)
 
-    # sine_scheduler = SineScheduler(config_, period=500, final_values={
-    #     "node_add_prob": 0.0,
-    #     "conn_add_prob": 0.0,
-    #     "node_delete_prob": 0.0,
-    #     "conn_delete_prob": 0.0
-    # })
-    # p.add_reporter(sine_scheduler)
+    exp_scheduler = ExponentialScheduler(semi_gen=200, final_values={
+        "node_add_prob": 0.0,
+        "conn_add_prob": 0.0,
+        "node_delete_prob": 0.0,
+        "conn_delete_prob": 0.0,
+        "learning_rate": 0.01
+    })
+    p.add_reporter(exp_scheduler)
+    mutation_rate_scheduler = ExponentialScheduler(semi_gen=200, final_values={
+        "bias_mutate_rate": 0.,
+        "weight_mutate_rate": 0.,
+        "bias_replace_rate": 0.,
+        "weight_replace_rate": 0.
+    })
+    p.add_reporter(mutation_rate_scheduler)
     # mutate_scheduler = MutateScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                "node_delete_prob", "conn_delete_prob"],
     #                                    patience=2, momentum=0.99)
@@ -97,26 +98,57 @@ def run(config_file, n_gen):
     #                                verbose=1, patience=10, factor=0.995, momentum=0.99)
 
     # p.add_reporter(impulse_scheduler)
+
+    early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=100,
+                                                            values={
+                                                                "node_add_prob": 0.4,
+                                                                "conn_add_prob": 0.6,
+                                                                "node_delete_prob": 0.1,
+                                                                "conn_delete_prob": 0.1,
+                                                            },
+                                                            reset=False)
+    p.add_reporter(early_exploration_scheduler)
+
     complexity_reporter = ComplexityReporter()
     p.add_reporter(complexity_reporter)
 
+    if backprop:
+        p.add_reporter(BackpropScheduler(config_, patience=100))
+
+    displayable.append(complexity_reporter)
+
+    return displayable, stats_
+
+def run(config_file, n_gen):
+    """
+    Launches a run until convergence or max number of generation reached
+    :param config_file: path to the config file
+    :param n_gen: lax number of generation
+    :return: the best genotype (winner), the configs, the stats of the run and the accuracy on the testing set
+    """
+    # Load configuration.
+    config_ = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                          config_file)
+
+    # Create the population, which is the top-level object for a NEAT run.
+    p = neat.Population(config_)
+
+    displayable, stats_ = reporter_addition(p, config_)
+
     # Run for up to n_gen generations.
-    # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
-                                               trainloader,
-                                               getattr(config_, "pop_size"), backprop=backprop)
+    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count()*0+1, eval_genome_bce, trainloader,
+                                            backprop=backprop)
+    # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
+    #                                            trainloader,
+    #                                            getattr(config_, "pop_size"), backprop=backprop)
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     # winner_ = get_true_winner(config_, p.population, trainloader, max_batch=10)
 
-    complexity_reporter.display()
-
-    # impulse_scheduler.display()
-    # sine_scheduler.display()
-    # mutate_scheduler.display()
-
-    eer_acc_reporter.display(momentum=0.9)
+    for reporter in displayable:
+        reporter.display()
 
     print("run finished")
 
@@ -128,14 +160,14 @@ if __name__ == '__main__':
     # here so that the script will run successfully regardless of the
     # current working directory.
     local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
+    config_path = os.path.join(local_dir, 'ASV_neat_preprocessed{}.cfg'.format('_backprop' if backprop else ''))
 
     if OPTION == "cqcc":
         trainloader, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
         evalloader = None
     else:
         trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
-                                                       custom_path=DATA_ROOT, multi_proc=True, balanced=True,
+                                                       custom_path=DATA_ROOT, multi_proc=False, balanced=True,
                                                        batch_size_test=100, include_eval=True)
 
     dev_eer_list = []
@@ -145,7 +177,7 @@ if __name__ == '__main__':
     for i in range(1):
         print(i)
         print(dev_eer_list)
-        winner, config, stats = run(config_path, 100)
+        winner, config, stats = run(config_path, 300)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop)
         dev_eer_list.append(eer)
@@ -156,7 +188,7 @@ if __name__ == '__main__':
         eval_accuracy_list.append(accuracy)
 
         if i == 0:
-            make_visualize(winner, config, stats, topology=False)
+            make_visualize(winner, config, stats, topology=True)
 
     print("\n")
     print("DEV equal error rate", dev_eer_list)

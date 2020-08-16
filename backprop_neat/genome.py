@@ -41,7 +41,8 @@ class DefaultGenomeConfig(object):
                         ConfigParameter('single_structural_mutation', bool, 'false'),
                         ConfigParameter('structural_mutation_surer', str, 'default'),
                         ConfigParameter('initial_connection', str, 'unconnected'),
-                        ConfigParameter('learning_rate', float)]
+                        ConfigParameter('learning_rate', float),
+                        ConfigParameter('backprop', bool)]
 
         # Gather configuration data from the gene classes.
         self.node_gene_type = params['node_gene_type']
