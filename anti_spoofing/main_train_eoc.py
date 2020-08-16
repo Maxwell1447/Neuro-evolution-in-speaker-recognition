@@ -45,11 +45,13 @@ def run(config_file, n_gen):
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     gc = multi_evaluator.gc
+    generations_gc = multi_evaluator.app_gc
+    print("Grand champion appeared at generation ", generations_gc)
 
     # Display the winning genome.
     # print('\nBest genome:\n{!s}'.format(winner_))
 
-    return gc, winner_, config_, stats_
+    return gc, winner_, config_, stats_, generations_gc
 
 
 if __name__ == '__main__':
@@ -59,9 +61,9 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
-    trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
-                                                   batch_size_test=10000, option="lfcc", multi_proc=True,
-                                                   include_eval=True)
+    trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=30000,
+                                                   num_test=40000, batch_size_test=24844, option="lfcc",
+                                                   multi_proc=True, include_eval=True)
 
     eer_list_gc = []
     accuracy_list_gc = []
@@ -75,10 +77,11 @@ if __name__ == '__main__':
 
     winner_list = []
     gc_list = []
+    generation_gc_list = []
 
-    for iterations in range(10):
-        print(iterations)
-        gc, winner, config, stats = run(config_path, 10)
+    for iterations in range(20):
+        print("iterations number =", iterations)
+        gc, winner, config, stats, gen_gc = run(config_path, 100)
 
         with torch.no_grad():
             eer, accuracy = evaluate_eer_acc(winner, config, devloader)
@@ -93,6 +96,7 @@ if __name__ == '__main__':
         accuracy_list_eval.append(accuracy_eval)
         eer_list_gc_eval.append(eer_gc_eval)
         accuracy_list_gc_eval.append(accuracy_gc_eval)
+        generation_gc_list.append(gen_gc)
 
     print("\n")
     print("equal error rate", eer_list)
@@ -110,4 +114,9 @@ if __name__ == '__main__':
     print("equal error rate gc eval", eer_list_gc_eval)
     show_stats(np.array(eer_list_gc_eval))
 
-    # make_visualize(winner, config, stats)
+    print("\n")
+    print("Grand champions appeared at generations", generation_gc_list)
+    show_stats(np.array(generation_gc_list))
+
+    make_visualize(winner, config, stats)
+    make_visualize(gc, config, stats)

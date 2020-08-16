@@ -80,6 +80,8 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         self.config = config
         self.gc = None
         self.eer_gc = 1
+        self.generations = 0
+        self.app_gc = 0
 
     def evaluate(self, genomes, config):
         batch = self.next()
@@ -130,6 +132,8 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         if champions_eer.min() < self.eer_gc:
             self.gc = generation_champions[np.argmin(champions_eer)]
             self.eer_gc = champions_eer.min()
+            self.app_gc = self.generations
+        self.generations += 1
 
     def next(self):
         try:
@@ -145,7 +149,7 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
             return batch
         except StopIteration:
             self.val_data_iter = iter(self.validation_data)
-        return next(self.data_iter)
+        return next(self.val_data_iter)
 
 
 def eval_genome_eoc(g, conf, batch):
