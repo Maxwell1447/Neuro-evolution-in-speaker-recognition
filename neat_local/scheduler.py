@@ -1,5 +1,5 @@
 from neat.reporting import BaseReporter
-from math import cos, pi
+from math import cos, pi, exp
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,16 +26,16 @@ class ExponentialScheduler(BaseReporter):
             final_values = {}
         self.final_values = final_values
         self.fade_factor = 0.5 ** (1 / semi_gen)
-        self.verbose= verbose
+        self.verbose = verbose
 
-    def end_generation(self, conf, population, species_set):
+    def post_evaluate(self, conf, population, species, best_genome):
         """
         Updates the parameters.
         """
 
         if self.verbose:
             print()
-            print("--Scheduler Values--")
+            print("--Exp Scheduler Values--")
         for key in self.final_values:
             prev_value = getattr(conf.genome_config, key)
 
@@ -84,7 +84,7 @@ class SineScheduler(BaseReporter):
 
         self.monitor = monitor
 
-    def end_generation(self, conf, population, species_set):
+    def post_evaluate(self, config, population, species, best_genome):
         """
         Updates the parameters.
         """
@@ -100,7 +100,83 @@ class SineScheduler(BaseReporter):
             if self.verbose:
                 print(key, value)
 
-            setattr(conf.genome_config, key, value)
+            setattr(config.genome_config, key, value)
+
+            if self.monitor:
+                self.values[key].append(value)
+        self.gen += 1
+
+    def display(self):
+
+        assert self.monitor
+
+        plt.figure()
+        plt.xlabel("generations")
+        plt.ylabel("parameter values")
+        plt.title("Parameter scheduling")
+        for key in self.final_values:
+            plt.plot(self.values[key], label=key)
+        plt.show()
+
+
+class SquashedSineScheduler(BaseReporter):
+    """
+    Scheduler with "squashed" sine variation over time: the parameters will oscillate between
+    there initial value and the corresponding value in 'final_value' with a period of
+    'period'.
+    The idea is that higher values of 'learning rate' are associated with exploratory phases
+    whereas lower values are associated to pruning and fine-tuning of the weights+biases.
+    The 'learning rate' is decomposed for NEAT:
+        * for the topology: node_add_prob and conn_add_prob
+        * for the weights/biases: weight_mutate_power and bias_mutate_power
+    """
+
+    def __init__(self, conf, period=500, final_values=None, alpha=1, verbose=0, monitor=True, offset=0):
+        """
+        period: number of generation required to loop
+        verbose: if 1, print the current values of the parameters
+        conf: NEAT config
+        alpha: squash factor of the sine. Greater alpha squashes more the sine.
+        """
+
+        if final_values is None:
+            final_values = {}
+        self.final_values = final_values
+        self.period = period
+        self.gen = 0
+        self.init_values = {}
+        self.verbose = verbose
+        self.alpha = alpha
+        self.offset = offset
+
+        for key in self.final_values:
+            self.init_values[key] = getattr(conf.genome_config, key)
+
+        if monitor:
+            self.values = {}
+            for key in self.final_values:
+                self.values[key] = []
+
+        self.monitor = monitor
+
+    def post_evaluate(self, config, population, species, best_genome):
+        """
+        Updates the parameters.
+        """
+
+        if self.verbose:
+            print()
+            print("--Squashed Sine Scheduler Values--")
+
+        for key in self.final_values:
+            a, b = self.final_values[key], self.init_values[key]
+            co = cos(2 * pi * (self.gen - self.offset) / self.period)
+            value = a + (b - a) * (exp(self.alpha * (co + 1)/2) - 1) / (exp(self.alpha) + 1)
+
+            if self.verbose:
+                print(key, value)
+
+            setattr(config.genome_config, key, value)
 
             if self.monitor:
                 self.values[key].append(value)
@@ -361,9 +437,54 @@ class BackpropScheduler(BaseReporter):
             self.cpt += 1
 
 
+class CyclicBackpropScheduler(BaseReporter):
+    """
+    """
+
+    def __init__(self, config, patience=100, period=200, offset=50, start=-1, monitor=False):
+        """
+        """
+        setattr(config.genome_config, "backprop", False)
+        self.patience = patience
+        self.offset = offset
+        self.cpt = 0
+        self.period = period
+        self.start = start
+        self.monitor = monitor
+        if monitor:
+            self.value = []
+
+    def end_generation(self, config, population, species_set):
+
+        if self.cpt > self.start:
+            if self.cpt % self.period == self.patience - self.offset:
+                setattr(config.genome_config, "backprop", True)
+
+            if self.cpt % self.period == -self.offset % self.period:
+                setattr(config.genome_config, "backprop", False)
+
+        if self.cpt == self.start:
+            setattr(config.genome_config, "backprop", True)
+
+        self.cpt += 1
+        if self.monitor:
+            self.value.append(getattr(config.genome_config, "backprop"))
+
+    def display(self):
+
+        assert self.monitor
+
+        plt.figure()
+        plt.xlabel("generations")
+        plt.ylabel("backprop")
+        plt.title("Backprop scheduling")
+        plt.plot(self.value)
+        plt.show()
+
+
 class EarlyExplorationScheduler(BaseReporter):
 
-    def __init__(self, conf, duration=20, values=None, verbose=0, reset=False):
+    def __init__(self, conf, duration=20, values=None, verbose=0, reset=False, monitor=False):
         """
         period: number of generation required to loop
         verbose: if 1, print the current values of the parameters
@@ -374,6 +495,11 @@ class EarlyExplorationScheduler(BaseReporter):
             values = {}
         self.values = values
         self.initial_values = {}
+        self.monitor = monitor
+        self.all_values = {}
+        if self.monitor:
+            for key in values:
+                self.all_values[key] = []
 
         for key in values:
             self.initial_values[key] = getattr(conf.genome_config, key)
@@ -382,22 +508,16 @@ class EarlyExplorationScheduler(BaseReporter):
         self.verbose = verbose
         self.reset = reset
 
-    def end_generation(self, conf, population, species_set):
+    def post_evaluate(self, config, population, species, best_genome):
         """
         Updates the parameters.
         """
 
         if self.gen < self.duration:
-            if self.verbose:
-                print()
-                print("--Scheduler Values--")
 
             for key in self.values:
 
-                if self.verbose:
-                    print(key, self.values[key])
-
-                setattr(conf.genome_config, key, self.values[key])
+                setattr(config.genome_config, key, self.values[key])
 
             self.gen += 1
 
@@ -405,6 +525,31 @@ class EarlyExplorationScheduler(BaseReporter):
 
             if self.reset:
                 for key in self.values:
-                    setattr(conf.genome_config, key, self.initial_values[key])
+                    setattr(config.genome_config, key, self.initial_values[key])
 
             self.gen += 1
+
+        if self.monitor:
+            if self.monitor:
+                for key in self.values:
+                    self.all_values[key].append(getattr(config.genome_config, key))
+
+        if self.verbose:
+            print()
+            print("--Early exploration Scheduler Values--")
+
+            for key in self.values:
+                print(key, getattr(config.genome_config, key))
+
+    def display(self):
+
+        assert self.monitor
+
+        for key in self.all_values:
+            plt.figure()
+            plt.xlabel("generations")
+            plt.ylabel("parameter values")
+            plt.title("{} scheduling".format(key))
+
+            plt.plot(self.all_values[key], label=key)
+            plt.show()

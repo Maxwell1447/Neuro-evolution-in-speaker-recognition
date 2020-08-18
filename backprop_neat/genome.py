@@ -275,6 +275,7 @@ class DefaultGenome(object):
             div = max(1, (config.node_add_prob + config.node_delete_prob +
                           config.conn_add_prob + config.conn_delete_prob))
             r = random()
+
             if r < (config.node_add_prob / div):
                 self.mutate_add_node(config)
             elif r < ((config.node_add_prob + config.node_delete_prob) / div):
@@ -595,3 +596,11 @@ class DefaultGenome(object):
                 params.append(self.nodes[key].bias)
 
             return params
+
+    def clamp(self, config):
+        for cg in self.connections.values():
+            cg.clamp(config)
+
+        # Mutate node genes (bias, response, etc.).
+        for ng in self.nodes.values():
+            ng.clamp(config)

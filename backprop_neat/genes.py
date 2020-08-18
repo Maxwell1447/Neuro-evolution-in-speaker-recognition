@@ -61,6 +61,13 @@ class BaseGene(object):
             v = getattr(self, a.name)
             setattr(self, a.name, a.mutate_value(v, config))
 
+    def clamp(self, config):
+        for a in self._gene_attributes:
+            v = getattr(self, a.name)
+            if isinstance(v, torch.Tensor):
+                v = v.detach().item()
+                setattr(self, a.name, torch.tensor(a.clamp(v, config), requires_grad=True))
+
     def copy(self):
         new_gene = self.__class__(self.key)
         for a in self._gene_attributes:

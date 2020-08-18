@@ -16,8 +16,9 @@ from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluat
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
-    ImpulseScheduler, SineScheduler, MutateScheduler, BackpropScheduler, EarlyExplorationScheduler
-from neat_local.reporters import ComplexityReporter, EERReporter
+    ImpulseScheduler, SineScheduler, MutateScheduler, BackpropScheduler, EarlyExplorationScheduler, \
+    SquashedSineScheduler, CyclicBackpropScheduler
+from neat_local.reporters import ComplexityReporter, EERReporter, StdOutReporter
 from anti_spoofing.select_best import get_true_winner
 import os
 import sys
@@ -31,7 +32,6 @@ if sys.platform.find("win") >= 0:
 else:
     DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
 
-
 backprop = True
 
 if backprop:
@@ -41,10 +41,9 @@ else:
 
 
 def reporter_addition(p, config_):
-
     displayable = []
     # Add a stdout reporter to show progress in the terminal.
-    p.add_reporter(neat.StdOutReporter(True))
+    p.add_reporter(StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
@@ -52,21 +51,39 @@ def reporter_addition(p, config_):
     # eer_acc_reporter = EERReporter(devloader, period=2)
     # p.add_reporter(eer_acc_reporter)
 
-    exp_scheduler = ExponentialScheduler(semi_gen=200, final_values={
-        "node_add_prob": 0.0,
-        "conn_add_prob": 0.0,
-        "node_delete_prob": 0.0,
-        "conn_delete_prob": 0.0,
-        "learning_rate": 0.01
-    })
-    p.add_reporter(exp_scheduler)
-    mutation_rate_scheduler = ExponentialScheduler(semi_gen=200, final_values={
-        "bias_mutate_rate": 0.,
-        "weight_mutate_rate": 0.,
-        "bias_replace_rate": 0.,
-        "weight_replace_rate": 0.
-    })
-    p.add_reporter(mutation_rate_scheduler)
+    # exp_scheduler = ExponentialScheduler(semi_gen=200, final_values={
+    #     "node_add_prob": 0.0,
+    #     "conn_add_prob": 0.0,
+    #     "node_delete_prob": 0.0,
+    #     "conn_delete_prob": 0.0,
+    #     "learning_rate": 0.01
+    # })
+    # p.add_reporter(exp_scheduler)
+    squashed_sine_scheduler = SquashedSineScheduler(config_, period=200,
+                                                    offset=0,
+                                                    final_values={
+                                                        "node_add_prob": 0.0,
+                                                        "conn_add_prob": 0.0,
+                                                        "node_delete_prob": 0.0,
+                                                        "conn_delete_prob": 0.0,
+                                                        "bias_mutate_rate": 0.,
+                                                        "weight_mutate_rate": 0.,
+                                                        "bias_replace_rate": 0.,
+                                                        "weight_replace_rate": 0.,
+                                                        "learning_rate": 0.01,
+                                                        "enabled_mutate_rate": 0.
+                                                    },
+                                                    alpha=6,
+                                                    verbose=0)
+    p.add_reporter(squashed_sine_scheduler)
+
+    # mutation_rate_scheduler = ExponentialScheduler(semi_gen=200, final_values={
+    #     "bias_mutate_rate": 0.,
+    #     "weight_mutate_rate": 0.,
+    #     "bias_replace_rate": 0.,
+    #     "weight_replace_rate": 0.
+    # })
+    # p.add_reporter(mutation_rate_scheduler)
     # mutate_scheduler = MutateScheduler(parameters=["node_add_prob", "conn_add_prob",
     #                                                "node_delete_prob", "conn_delete_prob"],
     #                                    patience=2, momentum=0.99)
@@ -99,25 +116,36 @@ def reporter_addition(p, config_):
 
     # p.add_reporter(impulse_scheduler)
 
-    early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=100,
+    early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=200,
                                                             values={
-                                                                "node_add_prob": 0.4,
-                                                                "conn_add_prob": 0.6,
+                                                                "node_add_prob": 0.5,
+                                                                "conn_add_prob": 0.8,
                                                                 "node_delete_prob": 0.1,
                                                                 "conn_delete_prob": 0.1,
+                                                                "bias_mutate_rate": 0.8,
+                                                                "weight_mutate_rate": 0.8,
+                                                                "bias_replace_rate": 0.1,
+                                                                "weight_replace_rate": 0.1,
                                                             },
-                                                            reset=False)
+                                                            reset=False,
+                                                            monitor=True,
+                                                            verbose=1)
     p.add_reporter(early_exploration_scheduler)
 
     complexity_reporter = ComplexityReporter()
     p.add_reporter(complexity_reporter)
 
     if backprop:
-        p.add_reporter(BackpropScheduler(config_, patience=100))
+        backprop_scheduler = CyclicBackpropScheduler(config_, patience=50, offset=25, period=200, start=200,
+                                                     monitor=True)
+        p.add_reporter(backprop_scheduler)
 
     displayable.append(complexity_reporter)
+    displayable.append(early_exploration_scheduler)
+    displayable.append(backprop_scheduler)
 
     return displayable, stats_
+
 
 def run(config_file, n_gen):
     """
@@ -137,7 +165,7 @@ def run(config_file, n_gen):
     displayable, stats_ = reporter_addition(p, config_)
 
     # Run for up to n_gen generations.
-    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count()*0+1, eval_genome_bce, trainloader,
+    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count() * 0 + 1, eval_genome_bce, trainloader,
                                             backprop=backprop)
     # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
     #                                            trainloader,
@@ -177,7 +205,7 @@ if __name__ == '__main__':
     for i in range(1):
         print(i)
         print(dev_eer_list)
-        winner, config, stats = run(config_path, 300)
+        winner, config, stats = run(config_path, 10000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop)
         dev_eer_list.append(eer)

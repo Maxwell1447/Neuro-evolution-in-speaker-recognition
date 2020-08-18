@@ -105,6 +105,7 @@ def eval_genome_bce(g, conf, batch, backprop, return_correct=False):
         loss = torch.nn.BCELoss()(prediction, targets)
         loss.backward()
         optimizer.step()
+        g.clamp(conf.genome_config)
         return 1 / (1 + loss.detach().item())
     elif backprop:
 
