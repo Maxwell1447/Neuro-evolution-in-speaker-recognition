@@ -214,9 +214,9 @@ def eval_genome_eoc(g, conf, batch, backprop):
     for i, (pred, out) in enumerate(zip(prediction, targets)):
 
         if out:  # if bonafide
-            l_s_n[i] = torch.tensor(1.) - torch.sum((non_target_scores >= pred).float()) / non_target_scores.size
+            l_s_n[i] = torch.tensor(1.) - torch.sum((non_target_scores >= pred).float()) / non_target_scores.shape[0]
         else:  # if spoofed
-            l_s_n[i] = torch.tensor(1.) - torch.sum((target_scores <= pred).float()) / target_scores.size
+            l_s_n[i] = torch.tensor(1.) - torch.sum((target_scores <= pred).float()) / target_scores.shape[0]
 
     return l_s_n
 
