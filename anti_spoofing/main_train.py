@@ -102,13 +102,13 @@ def run(config_file, n_gen):
     # Run for up to n_gen generations.
 
     if USE_DATASET:
-        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader,
+        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data,
         #                                                    batch_increment=10, initial_batch_size=100)
         multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
                                                    getattr(config_, "pop_size"),
                                                    batch_increment=50, initial_batch_size=100, batch_generations=50)
     else:
-        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
+        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data)
         multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
                                                    getattr(config_, "pop_size"))
 
