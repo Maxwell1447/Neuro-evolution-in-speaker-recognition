@@ -31,6 +31,8 @@ if sys.platform.find("win") >= 0:
 else:
     DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
 
+USE_DATASET = True
+
 
 def run(config_file, n_gen):
     """
@@ -53,8 +55,8 @@ def run(config_file, n_gen):
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
-    eer_acc_reporter = EERReporter(devloader, period=2)
-    p.add_reporter(eer_acc_reporter)
+    # eer_acc_reporter = EERReporter(devloader, period=2)
+    # p.add_reporter(eer_acc_reporter)
 
     # sine_scheduler = SineScheduler(config_, period=500, final_values={
     #     "node_add_prob": 0.0,
@@ -98,9 +100,17 @@ def run(config_file, n_gen):
     p.add_reporter(complexity_reporter)
 
     # Run for up to n_gen generations.
-    # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
-    multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, trainloader,
-                                               getattr(config_, "pop_size"))
+
+    if USE_DATASET:
+        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader,
+        #                                                    batch_increment=10, initial_batch_size=100)
+        multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
+                                                   getattr(config_, "pop_size"),
+                                                   batch_increment=50, initial_batch_size=100, batch_generations=50)
+    else:
+        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, trainloader)
+        multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
+                                                   getattr(config_, "pop_size"))
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
@@ -112,7 +122,7 @@ def run(config_file, n_gen):
     # sine_scheduler.display()
     # mutate_scheduler.display()
 
-    eer_acc_reporter.display(momentum=0.9)
+    # eer_acc_reporter.display(momentum=0.9)
 
     print("run finished")
 
@@ -127,12 +137,14 @@ if __name__ == '__main__':
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
     if OPTION == "cqcc":
-        trainloader, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
+        train_data, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
         evalloader = None
+
     else:
-        trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
-                                                       custom_path=DATA_ROOT, multi_proc=True, balanced=True,
-                                                       batch_size_test=100, include_eval=True)
+        train_data, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
+                                                      custom_path=DATA_ROOT, multi_proc=True, balanced=True,
+                                                      batch_size_test=100, include_eval=True,
+                                                      return_dataset=USE_DATASET)
 
     dev_eer_list = []
     dev_accuracy_list = []
@@ -141,7 +153,7 @@ if __name__ == '__main__':
     for i in range(1):
         print(i)
         print(dev_eer_list)
-        winner, config, stats = run(config_path, 100)
+        winner, config, stats = run(config_path, 200)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader)
         dev_eer_list.append(eer)

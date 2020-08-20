@@ -1,5 +1,6 @@
 import torch
 from torch import sigmoid
+from torch.utils.data.dataloader import DataLoader
 import numpy as np
 from tqdm import tqdm
 
@@ -15,9 +16,16 @@ class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
     The eval function itself is not defined here.
     """
 
-    def __init__(self, num_workers, eval_function, data, timeout=None):
+    def __init__(self, num_workers, eval_function, data, timeout=None, batch_increment=0, initial_batch_size=100,
+                 batch_generations=50):
         super().__init__(num_workers, eval_function, timeout)
-        self.data = data  # PyTorch DataLoader
+        self.data = data  # PyTorch DataLoader / Dataset
+        self.batch_size = initial_batch_size
+        self.batch_increment = batch_increment
+        self.gen = 0
+        self.batch_generation = batch_generations
+        if self.batch_increment > 0:
+            data = DataLoader(self.data, batch_size=self.batch_size, num_workers=4, shuffle=True, drop_last=True)
         self.data_iter = iter(data)
         self.timeout = timeout
 
@@ -35,9 +43,22 @@ class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
     def next(self):
         try:
             batch = next(self.data_iter)
+            if self.batch_increment > 0 and self.gen >= self.batch_generation:
+                raise StopIteration
+            self.gen += 1
             return batch
         except StopIteration:
-            self.data_iter = iter(self.data)
+            if self.batch_increment > 0:
+                self.batch_size += self.batch_increment
+                print("*****************")
+                print(self.batch_size)
+                print("*****************")
+                self.data_iter = iter(DataLoader(self.data, batch_size=self.batch_size,
+                                                 num_workers=4, shuffle=True, drop_last=True))
+                self.gen = 0
+            else:
+                self.data_iter = iter(self.data)
+        self.gen += 1
         return next(self.data_iter)
 
 

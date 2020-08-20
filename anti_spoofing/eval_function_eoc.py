@@ -1,6 +1,9 @@
 import torch
 from torch import sigmoid
 import numpy as np
+from torch.utils.data import DataLoader
+
+from anti_spoofing.eval_functions import ProcessedASVEvaluator
 from neat_local.nn.recurrent_net import RecurrentNet
 import neat
 from anti_spoofing.metrics_utils import rocch2eer, rocch
@@ -9,17 +12,17 @@ from timeit import timeit
 from copy import copy
 
 
-class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
+class ProcessedASVEvaluatorEoc(ProcessedASVEvaluator):
     """
     Allows parallel batch evaluation using an Iterator model with next().
     The eval function itself is not defined here.
     """
 
-    def __init__(self, num_workers, eval_function, data, pop, timeout=None):
-        super().__init__(num_workers, eval_function, timeout)
-        self.data = data  # PyTorch DataLoader
-        self.data_iter = iter(data)
-        self.timeout = timeout
+    def __init__(self, num_workers, eval_function, data, pop, timeout=None, batch_increment=0, initial_batch_size=100,
+                 batch_generations=50):
+        super().__init__(num_workers, eval_function, data, timeout=timeout, batch_increment=batch_increment,
+                         initial_batch_size=initial_batch_size, batch_generations=batch_generations)
+
         self.G = pop
         self.l_s_n = []
 
@@ -51,14 +54,6 @@ class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
         for ignored_genome_id, genome in genomes:
             genome.fitness = F[pseudo_genome_id]
             pseudo_genome_id += 1
-
-    def next(self):
-        try:
-            batch = next(self.data_iter)
-            return batch
-        except StopIteration:
-            self.data_iter = iter(self.data)
-        return next(self.data_iter)
 
 
 class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
