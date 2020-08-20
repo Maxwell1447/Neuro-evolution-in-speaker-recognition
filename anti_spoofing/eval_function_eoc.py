@@ -56,19 +56,18 @@ class ProcessedASVEvaluatorEoc(ProcessedASVEvaluator):
             pseudo_genome_id += 1
 
 
-class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
+class ProcessedASVEvaluatorEocGc(ProcessedASVEvaluatorEoc):
     """
     Allows parallel batch evaluation using an Iterator model with next().
     The eval function itself is not defined here.
     """
 
-    def __init__(self, num_workers, eval_function, data, validation_data, pop, gc_eval, config, timeout=None):
-        super().__init__(num_workers, eval_function, timeout)
-        self.data = data  # PyTorch DataLoader
-        self.data_iter = iter(data)
-        self.timeout = timeout
-        self.G = pop
-        self.l_s_n = []
+    def __init__(self, num_workers, eval_function, data, validation_data, pop, gc_eval, config, timeout=None,
+                 batch_increment=0, initial_batch_size=100,
+                 batch_generations=50):
+        super().__init__(num_workers, eval_function, data, timeout=timeout, batch_increment=batch_increment,
+                         initial_batch_size=initial_batch_size, batch_generations=batch_generations, pop=pop)
+
         self.validation_data = validation_data
         self.val_data_iter = iter(validation_data)
         self.gc_eval = gc_eval
@@ -129,14 +128,6 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
             self.eer_gc = champions_eer.min()
             self.app_gc = self.generations
         self.generations += 1
-
-    def next(self):
-        try:
-            batch = next(self.data_iter)
-            return batch
-        except StopIteration:
-            self.data_iter = iter(self.data)
-        return next(self.data_iter)
 
     def next_val(self):
         try:

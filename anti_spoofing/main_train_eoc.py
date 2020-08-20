@@ -1,16 +1,15 @@
 import os
 import neat
 
-from anti_spoofing.eval_functions import feed_and_predict, evaluate_eer_acc
-from neat_local.nn.recurrent_net import RecurrentNet
+from anti_spoofing.eval_functions import evaluate_eer_acc
 import torch
 import numpy as np
 import multiprocessing
-from tqdm import tqdm
 
 from anti_spoofing.utils_ASV import make_visualize, show_stats
 from anti_spoofing.data_loader import load_data
-from anti_spoofing.eval_function_eoc import eval_genome_eoc, eval_eer_gc, ProcessedASVEvaluatorEocGc
+from anti_spoofing.eval_function_eoc import eval_genome_eoc, quantified_eval_genome_eoc, eval_eer_gc, \
+    ProcessedASVEvaluatorEocGc
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -21,7 +20,7 @@ def run(config_file, n_gen):
     """
     Launches a run until convergence or max number of generation reached
     :param config_file: path to the config file
-    :param n_gen: lax number of generation
+    :param n_gen: max number of generation
     :return: the best genontype (winner), the configs, the stats of the run and the accuracy on the testing set
     """
     # Load configuration.
@@ -39,9 +38,16 @@ def run(config_file, n_gen):
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
-    multi_evaluator = ProcessedASVEvaluatorEocGc(multiprocessing.cpu_count(), eval_genome_eoc,
-                                                 data=trainloader, pop=config_.pop_size, config=config_,
-                                                 gc_eval=eval_eer_gc, validation_data=devloader)
+    if USE_DATASET:
+        multi_evaluator = ProcessedASVEvaluatorEocGc(multiprocessing.cpu_count(), eval_genome_eoc, data=trainloader,
+                                                     pop=config_.pop_size, config=config_,
+                                                     gc_eval=eval_eer_gc, validation_data=devloader,
+                                                   batch_increment=2, initial_batch_size=100, batch_generations=2)
+    else:
+        multi_evaluator = ProcessedASVEvaluatorEocGc(multiprocessing.cpu_count(), eval_genome_eoc, data=trainloader,
+                                                     pop=config_.pop_size, config=config_,
+                                                     gc_eval=eval_eer_gc, validation_data=devloader)
+
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     gc = multi_evaluator.gc
@@ -61,9 +67,11 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed.cfg')
 
-    trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=30000,
-                                                   num_test=40000, batch_size_test=24844, option="lfcc",
-                                                   multi_proc=True, include_eval=True)
+    USE_DATASET = True
+
+    trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=40000,
+                                                   num_test=40000, batch_size_test=5000, option="lfcc",
+                                                   multi_proc=True, include_eval=True, return_dataset=USE_DATASET)
 
     eer_list_gc = []
     accuracy_list_gc = []
@@ -81,7 +89,7 @@ if __name__ == '__main__':
 
     for iterations in range(20):
         print("iterations number =", iterations)
-        gc, winner, config, stats, gen_gc = run(config_path, 100)
+        gc, winner, config, stats, gen_gc = run(config_path, 200)
 
         with torch.no_grad():
             eer, accuracy = evaluate_eer_acc(winner, config, devloader)
@@ -118,5 +126,5 @@ if __name__ == '__main__':
     print("Grand champions appeared at generations", generation_gc_list)
     show_stats(np.array(generation_gc_list))
 
-    make_visualize(winner, config, stats)
-    make_visualize(gc, config, stats)
+    # make_visualize(winner, config, stats)
+    # make_visualize(gc, config, stats)
