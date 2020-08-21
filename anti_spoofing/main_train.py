@@ -1,5 +1,7 @@
 import os
 
+from torch.utils.tensorboard import SummaryWriter
+
 from neat_local.nn.recurrent_net import RecurrentNet
 import torch
 from torch import sigmoid
@@ -18,7 +20,7 @@ from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
     ImpulseScheduler, SineScheduler, MutateScheduler, BackpropScheduler, EarlyExplorationScheduler, \
     SquashedSineScheduler, CyclicBackpropScheduler
-from neat_local.reporters import ComplexityReporter, EERReporter, StdOutReporter
+from neat_local.reporters import ComplexityReporter, EERReporter, StdOutReporter, WriterReporter
 from anti_spoofing.select_best import get_true_winner
 import os
 import sys
@@ -48,6 +50,8 @@ def reporter_addition(p, config_):
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
+    p.add_reporter(WriterReporter(writer, ["conn_add_prob"]))
+
     # eer_acc_reporter = EERReporter(devloader, period=2)
     # p.add_reporter(eer_acc_reporter)
 
@@ -59,24 +63,6 @@ def reporter_addition(p, config_):
     #     "learning_rate": 0.01
     # })
     # p.add_reporter(exp_scheduler)
-    if backprop:
-        squashed_sine_scheduler = SquashedSineScheduler(config_, period=200,
-                                                        offset=0,
-                                                        final_values={
-                                                            "node_add_prob": 0.0,
-                                                            "conn_add_prob": 0.0,
-                                                            "node_delete_prob": 0.0,
-                                                            "conn_delete_prob": 0.0,
-                                                            "bias_mutate_rate": 0.,
-                                                            "weight_mutate_rate": 0.,
-                                                            "bias_replace_rate": 0.,
-                                                            "weight_replace_rate": 0.,
-                                                            "learning_rate": 0.01,
-                                                            "enabled_mutate_rate": 0.
-                                                        },
-                                                        alpha=6,
-                                                        verbose=0)
-        p.add_reporter(squashed_sine_scheduler)
 
     # mutation_rate_scheduler = ExponentialScheduler(semi_gen=200, final_values={
     #     "bias_mutate_rate": 0.,
@@ -118,6 +104,24 @@ def reporter_addition(p, config_):
     # p.add_reporter(impulse_scheduler)
 
     if backprop:
+        squashed_sine_scheduler = SquashedSineScheduler(config_, period=300,
+                                                        offset=200,
+                                                        final_values={
+                                                            "node_add_prob": 0.0,
+                                                            "conn_add_prob": 0.0,
+                                                            "node_delete_prob": 0.0,
+                                                            "conn_delete_prob": 0.0,
+                                                            "bias_mutate_rate": 0.,
+                                                            "weight_mutate_rate": 0.,
+                                                            "bias_replace_rate": 0.,
+                                                            "weight_replace_rate": 0.,
+                                                            "learning_rate": 0.01,
+                                                            "enabled_mutate_rate": 0.
+                                                        },
+                                                        alpha=6,
+                                                        verbose=0)
+        p.add_reporter(squashed_sine_scheduler)
+
         early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=200,
                                                                 values={
                                                                     "node_add_prob": 0.5,
@@ -138,7 +142,7 @@ def reporter_addition(p, config_):
     p.add_reporter(complexity_reporter)
 
     if backprop:
-        backprop_scheduler = CyclicBackpropScheduler(config_, patience=50, offset=25, period=200, start=200,
+        backprop_scheduler = CyclicBackpropScheduler(config_, patience=50, offset=25, period=300, start=200,
                                                      monitor=True)
         p.add_reporter(backprop_scheduler)
 
@@ -207,6 +211,7 @@ if __name__ == '__main__':
     eval_eer_list = []
     eval_accuracy_list = []
     for i in range(1):
+        writer = SummaryWriter('./runs/NEAT/{}'.format(i))
         print(i)
         print(dev_eer_list)
         winner, config, stats = run(config_path, 3000)

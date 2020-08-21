@@ -163,3 +163,15 @@ class StdOutReporter(BaseReporter):
             cplx.append(len(species.members[key].connections))
 
         return int(mean(cplx))
+
+
+class WriterReporter(neat.reporting.BaseReporter):
+
+    def __init__(self, writer, params=None):
+        self.writer = writer
+        self.params = params if params is not None else []
+
+    def post_evaluate(self, config, population, species, best_genome):
+        self.writer.add_scalar("best fitness", best_genome.fitness)
+        for p in self.params:
+            self.writer.add_scalar(p, getattr(config.genome_config, p))
