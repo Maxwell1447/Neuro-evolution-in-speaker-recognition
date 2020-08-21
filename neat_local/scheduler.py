@@ -553,3 +553,82 @@ class EarlyExplorationScheduler(BaseReporter):
 
             plt.plot(self.all_values[key], label=key)
             plt.show()
+
+
+class AdaptiveBackpropScheduler(BaseReporter):
+
+    def __init__(self, conf, patience=20, values=None, semi_gen=50, monitor=False, start=0, patience_before_backprop=50):
+
+        self.init_values = {}
+        self.all_values = {}
+
+        if values is None:
+            values = []
+
+        for key in values:
+            self.init_values[key] = getattr(conf.genome_config, key)
+            if monitor:
+                self.all_values[key] = []
+
+        self.start = start
+        self.gen = 0
+        self.cpt = 0
+        self.patience_before_backprop = patience_before_backprop
+        self.fade_factor = 0.5 ** (1 / semi_gen)
+        self.backprop = False
+        self.momentum = 0.95
+        self.s = 0
+        self.w = 1
+        self.last_fitnesses = [0 for _ in range(patience)]
+        self.monitor = monitor
+        setattr(conf.genome_config, "backprop", False)
+
+    def post_evaluate(self, config, population, species, best_genome):
+        """
+        Updates the parameters.
+        """
+
+        if self.gen > self.start:
+
+            fitness = best_genome.fitness
+            self.s = self.s * self.momentum + fitness
+            smoothed_fitness = self.s / self.w
+            self.w = 1 + self.momentum * self.w
+
+            for key in self.init_values:
+                setattr(config.genome_config, key, getattr(config.genome_config, key) * self.fade_factor)
+
+            if self.backprop:
+
+                if self.cpt > self.patience_before_backprop + 50 and smoothed_fitness <= min(self.last_fitnesses):  # if plateau
+                    self.cpt = 0
+                    for key in self.init_values:
+                        setattr(config.genome_config, key, self.init_values[key])
+                    self.backprop = False
+                    setattr(config.genome_config, "backprop", False)
+            elif self.cpt == self.patience_before_backprop:
+                self.backprop = True
+                setattr(config.genome_config, "backprop", True)
+
+            self.last_fitnesses.pop(0)
+            self.last_fitnesses.append(smoothed_fitness)
+            self.cpt += 1
+
+        if self.monitor:
+            for key in self.init_values:
+                self.all_values[key].append(getattr(config.genome_config, key))
+
+        self.gen += 1
+
+    def display(self):
+
+        assert self.monitor
+
+        for key in self.all_values:
+            plt.figure()
+            plt.xlabel("generations")
+            plt.ylabel("parameter values")
+            plt.title("{} scheduling".format(key))
+
+            plt.plot(self.all_values[key], label=key)
+            plt.show()

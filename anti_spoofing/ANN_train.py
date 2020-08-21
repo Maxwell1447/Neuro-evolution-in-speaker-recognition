@@ -12,9 +12,10 @@ from anti_spoofing.metrics_utils import rocch, rocch2eer
 
 class LinearModel(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self, use_gate=True):
         super().__init__()
 
+        self.use_gate = use_gate
         self.fc = torch.nn.Linear(20, 2)
 
     def forward(self, x: torch.Tensor):
@@ -29,7 +30,7 @@ class LinearModel(torch.nn.Module):
             # Usage of batch evaluation provided by PyTorch-NEAT
             xo = self.single_forward(xi)  # batch_size x 2
             score = xo[:, 1]
-            confidence = xo[:, 0]
+            confidence = xo[:, 0] if self.use_gate else torch.ones_like(score)
             contribution += score * confidence  # batch_size
             norm += confidence
 
@@ -44,8 +45,8 @@ class LinearModel(torch.nn.Module):
 
 class LinearModel2(LinearModel):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, use_gate=True):
+        super().__init__(use_gate=use_gate)
 
         self.fc = torch.nn.Linear(20, 50)
         self.fc2 = torch.nn.Linear(50, 2)
@@ -114,7 +115,7 @@ if __name__ == '__main__':
                                                        num_test=10000, balanced=True, include_eval=True)
 
     writer = SummaryWriter('./runs/{}'.format(OPTION))
-    model = LinearModel2()
+    model = LinearModel2(use_gate=False)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.BCELoss()
 

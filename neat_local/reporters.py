@@ -170,8 +170,15 @@ class WriterReporter(neat.reporting.BaseReporter):
     def __init__(self, writer, params=None):
         self.writer = writer
         self.params = params if params is not None else []
+        self.gen = 0
 
     def post_evaluate(self, config, population, species, best_genome):
-        self.writer.add_scalar("best fitness", best_genome.fitness)
+        self.writer.add_scalar("best fitness", best_genome.fitness, self.gen)
         for p in self.params:
-            self.writer.add_scalar(p, getattr(config.genome_config, p))
+            self.writer.add_scalar(p, getattr(config.genome_config, p), self.gen)
+
+        self.gen += 1
+
+    def reset(self):
+        self.gen = 0
+        self.writer.flush()

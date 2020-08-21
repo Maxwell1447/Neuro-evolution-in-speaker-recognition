@@ -19,7 +19,7 @@ from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
 from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
     ImpulseScheduler, SineScheduler, MutateScheduler, BackpropScheduler, EarlyExplorationScheduler, \
-    SquashedSineScheduler, CyclicBackpropScheduler
+    SquashedSineScheduler, CyclicBackpropScheduler, AdaptiveBackpropScheduler
 from neat_local.reporters import ComplexityReporter, EERReporter, StdOutReporter, WriterReporter
 from anti_spoofing.select_best import get_true_winner
 import os
@@ -50,9 +50,9 @@ def reporter_addition(p, config_):
     p.add_reporter(StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+    # p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
-    p.add_reporter(WriterReporter(writer, ["conn_add_prob"]))
+    p.add_reporter(WriterReporter(writer, ["conn_add_prob", "backprop"]))
 
     # eer_acc_reporter = EERReporter(devloader, period=2)
     # p.add_reporter(eer_acc_reporter)
@@ -106,23 +106,37 @@ def reporter_addition(p, config_):
     # p.add_reporter(impulse_scheduler)
 
     if backprop:
-        squashed_sine_scheduler = SquashedSineScheduler(config_, period=300,
-                                                        offset=200,
-                                                        final_values={
-                                                            "node_add_prob": 0.0,
-                                                            "conn_add_prob": 0.0,
-                                                            "node_delete_prob": 0.0,
-                                                            "conn_delete_prob": 0.0,
-                                                            "bias_mutate_rate": 0.,
-                                                            "weight_mutate_rate": 0.,
-                                                            "bias_replace_rate": 0.,
-                                                            "weight_replace_rate": 0.,
-                                                            "learning_rate": 0.01,
-                                                            "enabled_mutate_rate": 0.
-                                                        },
-                                                        alpha=6,
-                                                        verbose=0)
-        p.add_reporter(squashed_sine_scheduler)
+        # squashed_sine_scheduler = SquashedSineScheduler(config_, period=300,
+        #                                                 offset=200,
+        #                                                 final_values={
+        #                                                     "node_add_prob": 0.0,
+        #                                                     "conn_add_prob": 0.0,
+        #                                                     "node_delete_prob": 0.0,
+        #                                                     "conn_delete_prob": 0.0,
+        #                                                     "bias_mutate_rate": 0.,
+        #                                                     "weight_mutate_rate": 0.,
+        #                                                     "bias_replace_rate": 0.,
+        #                                                     "weight_replace_rate": 0.,
+        #                                                     "learning_rate": 0.01,
+        #                                                     "enabled_mutate_rate": 0.
+        #                                                 },
+        #                                                 alpha=6,
+        #                                                 verbose=0)
+        # p.add_reporter(squashed_sine_scheduler)
+
+        adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=20, semi_gen=50,
+                                                                monitor=True, start=200, patience_before_backprop=50,
+                                                                values=[
+                                                                    "node_add_prob",
+                                                                    "conn_add_prob",
+                                                                    "node_delete_prob",
+                                                                    "conn_delete_prob",
+                                                                    "bias_mutate_rate",
+                                                                    "weight_mutate_rate",
+                                                                    "bias_replace_rate",
+                                                                    "weight_replace_rate"
+                                                                ])
+        p.add_reporter(adaptive_backprop_scheduler)
 
         early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=200,
                                                                 values={
@@ -142,17 +156,17 @@ def reporter_addition(p, config_):
 
     complexity_reporter = ComplexityReporter()
     p.add_reporter(complexity_reporter)
-
-    if backprop:
-        backprop_scheduler = CyclicBackpropScheduler(config_, patience=50, offset=25, period=300, start=200,
-                                                     monitor=True)
-        p.add_reporter(backprop_scheduler)
+    #
+    # if backprop:
+    #     backprop_scheduler = CyclicBackpropScheduler(config_, patience=50, offset=25, period=300, start=200,
+    #                                                  monitor=True)
+    #     p.add_reporter(backprop_scheduler)
 
     displayable.append(complexity_reporter)
 
     if backprop:
         displayable.append(early_exploration_scheduler)
-        displayable.append(backprop_scheduler)
+        displayable.append(adaptive_backprop_scheduler)
 
     return displayable, stats_
 
@@ -180,14 +194,16 @@ def run(config_file, n_gen):
         multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data,
                                                 batch_increment=0, initial_batch_size=100,
                                                 backprop=backprop, use_gate=USE_GATE)
-        # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
+        # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc,
+        #                                            train_data,
         #                                            getattr(config_, "pop_size"),
         #                                            batch_increment=50, initial_batch_size=100, batch_generations=50,
         #                                            backprop=backprop, use_gate=USE_GATE)
     else:
         # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data,
         #                                         use_gate=USE_GATE)
-        multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
+        multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
+                                                   train_data,
                                                    getattr(config_, "pop_size"), use_gate=USE_GATE)
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
@@ -226,10 +242,11 @@ if __name__ == '__main__':
     eval_accuracy_list = []
     for i in range(1):
         writer = SummaryWriter('./runs/NEAT/{}'.format(i))
+        writer.flush()
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 3000)
+        winner, config, stats = run(config_path, 1000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop, use_gate=USE_GATE)
         dev_eer_list.append(eer)
