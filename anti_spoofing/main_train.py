@@ -35,6 +35,8 @@ else:
     DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
 
 backprop = True
+USE_DATASET = False
+USE_GATE = True
 
 if backprop:
     import backprop_neat as neat
@@ -173,11 +175,20 @@ def run(config_file, n_gen):
     displayable, stats_ = reporter_addition(p, config_)
 
     # Run for up to n_gen generations.
-    multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count() * 0 + 1, eval_genome_bce, trainloader,
-                                            backprop=backprop)
-    # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), eval_genome_eoc,
-    #                                            trainloader,
-    #                                            getattr(config_, "pop_size"), backprop=backprop)
+
+    if USE_DATASET:
+        multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data,
+                                                batch_increment=0, initial_batch_size=100,
+                                                backprop=backprop, use_gate=USE_GATE)
+        # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
+        #                                            getattr(config_, "pop_size"),
+        #                                            batch_increment=50, initial_batch_size=100, batch_generations=50,
+        #                                            backprop=backprop, use_gate=USE_GATE)
+    else:
+        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data,
+        #                                         use_gate=USE_GATE)
+        multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc, train_data,
+                                                   getattr(config_, "pop_size"), use_gate=USE_GATE)
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
@@ -199,12 +210,15 @@ if __name__ == '__main__':
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed{}.cfg'.format('_backprop' if backprop else ''))
 
     if OPTION == "cqcc":
-        trainloader, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
+        train_data, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
         evalloader = None
+
     else:
-        trainloader, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
-                                                       custom_path=DATA_ROOT, multi_proc=False, balanced=True,
-                                                       batch_size_test=100, include_eval=True)
+
+        train_data, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
+                                                      custom_path=DATA_ROOT, multi_proc=True, balanced=True,
+                                                      batch_size_test=100, include_eval=True,
+                                                      return_dataset=USE_DATASET)
 
     dev_eer_list = []
     dev_accuracy_list = []
@@ -214,13 +228,14 @@ if __name__ == '__main__':
         writer = SummaryWriter('./runs/NEAT/{}'.format(i))
         print(i)
         print(dev_eer_list)
+
         winner, config, stats = run(config_path, 3000)
 
-        eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop)
+        eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop, use_gate=USE_GATE)
         dev_eer_list.append(eer)
         dev_accuracy_list.append(accuracy)
 
-        eer, accuracy = evaluate_eer_acc(winner, config, evalloader, backprop=backprop)
+        eer, accuracy = evaluate_eer_acc(winner, config, evalloader, backprop=backprop, use_gate=USE_GATE)
         eval_eer_list.append(eer)
         eval_accuracy_list.append(accuracy)
 

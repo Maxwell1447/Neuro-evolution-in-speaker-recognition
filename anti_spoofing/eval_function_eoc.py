@@ -7,6 +7,11 @@ from tqdm import tqdm
 import backprop_neat
 import neat_local
 import neat_local.nn
+
+from torch.utils.data import DataLoader
+
+from anti_spoofing.eval_functions import ProcessedASVEvaluator
+
 import neat
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from time import time
@@ -14,17 +19,18 @@ from timeit import timeit
 from copy import copy
 
 
-class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
+class ProcessedASVEvaluatorEoc(ProcessedASVEvaluator):
     """
     Allows parallel batch evaluation using an Iterator model with next().
     The eval function itself is not defined here.
     """
 
-    def __init__(self, num_workers, eval_function, data, pop, timeout=None, backprop=False):
-        super().__init__(num_workers, eval_function, timeout)
-        self.data = data  # PyTorch DataLoader
-        self.data_iter = iter(data)
-        self.timeout = timeout
+    def __init__(self, num_workers, eval_function, data, pop, timeout=None, batch_increment=0, initial_batch_size=100,
+                 batch_generations=50, backprop=False, use_gate=True):
+        super().__init__(num_workers, eval_function, data, timeout=timeout, batch_increment=batch_increment,
+                         initial_batch_size=initial_batch_size, batch_generations=batch_generations, backprop=backprop,
+                         use_gate=use_gate)
+
         self.G = pop
         self.backprop = backprop
         self.l_s_n = []
@@ -43,10 +49,11 @@ class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
         # return ease of classification for each genome
         if self.backprop:
             for i, (_, genome) in enumerate(genomes):
-                self.l_s_n[:, i] = self.eval_function(genome, config, batch, self.backprop)
+                self.l_s_n[:, i] = self.eval_function(genome, config, batch, self.backprop, self.use_gate)
         else:
             for ignored_genome_id, genome in genomes:
-                jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch, self.backprop)))
+                jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch, self.backprop,
+                                                                       self.use_gate)))
             results = [job.get(timeout=self.timeout) for job in jobs]
             for i, genome in enumerate(genomes):
                 self.l_s_n[:, i] = results[i]
@@ -72,29 +79,20 @@ class ProcessedASVEvaluatorEoc(neat.parallel.ParallelEvaluator):
                 genome.fitness = F[pseudo_genome_id].item()
             pseudo_genome_id += 1
 
-    def next(self):
-        try:
-            batch = next(self.data_iter)
-            return batch
-        except StopIteration:
-            self.data_iter = iter(self.data)
-        return next(self.data_iter)
 
-
-class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
+class ProcessedASVEvaluatorEocGc(ProcessedASVEvaluatorEoc):
     """
     Allows parallel batch evaluation using an Iterator model with next().
     The eval function itself is not defined here.
     """
 
-    def __init__(self, num_workers, eval_function, data, validation_data, pop, gc_eval,
-                 config, timeout=None, backprop=False):
-        super().__init__(num_workers, eval_function, timeout)
-        self.data = data  # PyTorch DataLoader
-        self.data_iter = iter(data)
-        self.timeout = timeout
-        self.G = pop
-        self.l_s_n = []
+    def __init__(self, num_workers, eval_function, data, validation_data, pop, gc_eval, config, timeout=None,
+                 batch_increment=0, initial_batch_size=100,
+                 batch_generations=50, backprop=False, use_gate=True):
+        super().__init__(num_workers, eval_function, data, timeout=timeout, batch_increment=batch_increment,
+                         initial_batch_size=initial_batch_size, batch_generations=batch_generations, pop=pop,
+                         backprop=backprop, use_gate=use_gate)
+
         self.validation_data = validation_data
         self.val_data_iter = iter(validation_data)
         self.gc_eval = gc_eval
@@ -102,12 +100,15 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         self.backprop = backprop
         self.gc = None
         self.eer_gc = 1
+        self.generations = 0
+        self.app_gc = 0
 
     def evaluate(self, genomes, config):
         batch = self.next()
         jobs = []
         for ignored_genome_id, genome in genomes:
-            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch, self.backprop)))
+            jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch,
+                                                                   self.backprop, self.use_gate)))
 
         _, outputs = batch
 
@@ -152,14 +153,8 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
         if champions_eer.min() < self.eer_gc:
             self.gc = generation_champions[np.argmin(champions_eer)]
             self.eer_gc = champions_eer.min()
-
-    def next(self):
-        try:
-            batch = next(self.data_iter)
-            return batch
-        except StopIteration:
-            self.data_iter = iter(self.data)
-        return next(self.data_iter)
+            self.app_gc = self.generations
+        self.generations += 1
 
     def next_val(self):
         try:
@@ -167,10 +162,10 @@ class ProcessedASVEvaluatorEocGc(neat.parallel.ParallelEvaluator):
             return batch
         except StopIteration:
             self.val_data_iter = iter(self.validation_data)
-        return next(self.data_iter)
+        return next(self.val_data_iter)
 
 
-def eval_genome_eoc(g, conf, batch, backprop):
+def eval_genome_eoc(g, conf, batch, backprop, use_gate):
     """
     Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
     The input is already preprocessed with shape batch_size x t x bins
@@ -199,7 +194,7 @@ def eval_genome_eoc(g, conf, batch, backprop):
         # Usage of batch evaluation provided by PyTorch-NEAT
         xo = net.activate(input_t)  # batch_size x 2
         score = xo[:, 1]
-        confidence = xo[:, 0]
+        confidence = xo[:, 0] if use_gate else torch.ones_like(score)
         contribution += score * confidence  # batch_size
         norm += confidence  # batch_size
 
@@ -221,7 +216,7 @@ def eval_genome_eoc(g, conf, batch, backprop):
     return l_s_n
 
 
-def quantified_eval_genome_eoc(g, conf, batch, backprop):
+def quantified_eval_genome_eoc(g, conf, batch, backprop, use_gate):
     """
     Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
     The input is already preprocessed with shape batch_size x t x bins
@@ -250,7 +245,7 @@ def quantified_eval_genome_eoc(g, conf, batch, backprop):
         # Usage of batch evaluation provided by PyTorch-NEAT
         xo = net.activate(input_t)  # batch_size x 2
         score = xo[:, 1]
-        confidence = xo[:, 0]
+        confidence = xo[:, 0] if use_gate else torch.ones_like(score)
         contribution += score * confidence  # batch_size
         norm += confidence  # batch_size
 
@@ -274,7 +269,7 @@ def quantified_eval_genome_eoc(g, conf, batch, backprop):
     return l_s_n
 
 
-def double_quantified_eval_genome_eoc(g, conf, batch, backprop):
+def double_quantified_eval_genome_eoc(g, conf, batch, backprop, use_gate):
     """
     Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
     The input is already preprocessed with shape batch_size x t x bins
@@ -306,7 +301,7 @@ def double_quantified_eval_genome_eoc(g, conf, batch, backprop):
         # Usage of batch evaluation provided by PyTorch-NEAT
         xo = net.activate(input_t)  # batch_size x 2
         score = xo[:, 1]
-        confidence = xo[:, 0]
+        confidence = xo[:, 0] if use_gate else torch.ones_like(score)
         contribution += score * confidence  # batch_size
         norm += confidence  # batch_size
 

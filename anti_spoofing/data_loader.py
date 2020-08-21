@@ -99,7 +99,7 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
 
 
 def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000, custom_path='./data',
-              multi_proc=True, balanced=True, option=OPTION, metadata=False, include_eval=False):
+              multi_proc=True, balanced=True, option=OPTION, metadata=False, include_eval=False, return_dataset=False):
     """
     loads the data and puts it in PyTorch DataLoader.
 
@@ -109,7 +109,7 @@ def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=1000
 
     train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type="train",
                                     custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option,
-                                    metadata=metadata)
+                                    metadata=metadata, return_dataset=return_dataset)
     dev_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_test, data_type="dev",
                                   custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option,
                                   metadata=metadata)
@@ -141,7 +141,7 @@ def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=10
 
 
 def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data",
-                     multi_proc=True, balanced=True, option=OPTION, metadata=False):
+                     multi_proc=True, balanced=True, option=OPTION, metadata=False, return_dataset=False):
     is_train = data_type == "train"
 
     local_dir = os.path.dirname(__file__)
@@ -153,6 +153,8 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
                                        "data/preprocessed/{}_{}_{}_{}_{}_{}.torch"
                                        .format(data_type, option, num_data, metadata, WIN_LEN, HOP_LEN)))
         data.set_balance(balanced and is_train)
+        if return_dataset:
+            return data
         dataloader = DataLoader(data, batch_size=batch_size, num_workers=4, shuffle=is_train, drop_last=is_train)
         return dataloader
 
@@ -176,6 +178,10 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
     torch.save(pp_data, os.path.join(local_dir,
                                      "data/preprocessed/{}_{}_{}_{}_{}_{}.torch"
                                      .format(data_type, option, num_data, metadata, WIN_LEN, HOP_LEN)))
+
+    if return_dataset:
+        return pp_data
+
     dataloader = DataLoader(pp_data, batch_size=batch_size, num_workers=4, shuffle=is_train, drop_last=is_train)
 
     return dataloader
