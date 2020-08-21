@@ -1,5 +1,5 @@
 import os
-
+import shutil
 from torch.utils.tensorboard import SummaryWriter
 
 from neat_local.nn.recurrent_net import RecurrentNet
@@ -50,7 +50,7 @@ def reporter_addition(p, config_):
     p.add_reporter(StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    # p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
     p.add_reporter(WriterReporter(writer, ["conn_add_prob", "backprop"]))
 
@@ -124,8 +124,9 @@ def reporter_addition(p, config_):
         #                                                 verbose=0)
         # p.add_reporter(squashed_sine_scheduler)
 
-        adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=20, semi_gen=50,
+        adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=30, semi_gen=20,
                                                                 monitor=True, start=200, patience_before_backprop=50,
+                                                                privilege=100,
                                                                 values=[
                                                                     "node_add_prob",
                                                                     "conn_add_prob",
@@ -200,11 +201,11 @@ def run(config_file, n_gen):
         #                                            batch_increment=50, initial_batch_size=100, batch_generations=50,
         #                                            backprop=backprop, use_gate=USE_GATE)
     else:
-        # multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data,
-        #                                         use_gate=USE_GATE)
-        multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
-                                                   train_data,
-                                                   getattr(config_, "pop_size"), use_gate=USE_GATE)
+        multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count()*0+1, eval_genome_bce, train_data,
+                                                use_gate=USE_GATE)
+        # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
+        #                                            train_data,
+        #                                            getattr(config_, "pop_size"), use_gate=USE_GATE)
 
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
@@ -241,12 +242,12 @@ if __name__ == '__main__':
     eval_eer_list = []
     eval_accuracy_list = []
     for i in range(1):
+        shutil.rmtree('./runs/NEAT/{}'.format(i))
         writer = SummaryWriter('./runs/NEAT/{}'.format(i))
-        writer.flush()
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 1000)
+        winner, config, stats = run(config_path, 10000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop, use_gate=USE_GATE)
         dev_eer_list.append(eer)

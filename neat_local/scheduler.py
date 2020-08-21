@@ -557,7 +557,8 @@ class EarlyExplorationScheduler(BaseReporter):
 
 class AdaptiveBackpropScheduler(BaseReporter):
 
-    def __init__(self, conf, patience=20, values=None, semi_gen=50, monitor=False, start=0, patience_before_backprop=50):
+    def __init__(self, conf, patience=20, values=None, semi_gen=50, monitor=False, start=0, patience_before_backprop=50,
+                 privilege=50):
 
         self.init_values = {}
         self.all_values = {}
@@ -573,6 +574,7 @@ class AdaptiveBackpropScheduler(BaseReporter):
         self.start = start
         self.gen = 0
         self.cpt = 0
+        self.privilege = privilege
         self.patience_before_backprop = patience_before_backprop
         self.fade_factor = 0.5 ** (1 / semi_gen)
         self.backprop = False
@@ -600,7 +602,8 @@ class AdaptiveBackpropScheduler(BaseReporter):
 
             if self.backprop:
 
-                if self.cpt > self.patience_before_backprop + 50 and smoothed_fitness <= min(self.last_fitnesses):  # if plateau
+                if self.cpt > self.patience_before_backprop + self.privilege \
+                        and smoothed_fitness <= min(self.last_fitnesses):  # if plateau
                     self.cpt = 0
                     for key in self.init_values:
                         setattr(config.genome_config, key, self.init_values[key])
@@ -613,6 +616,13 @@ class AdaptiveBackpropScheduler(BaseReporter):
             self.last_fitnesses.pop(0)
             self.last_fitnesses.append(smoothed_fitness)
             self.cpt += 1
+
+        elif self.gen == self.start:
+            self.cpt = 0
+            for key in self.init_values:
+                setattr(config.genome_config, key, self.init_values[key])
+            self.backprop = False
+            setattr(config.genome_config, "backprop", False)
 
         if self.monitor:
             for key in self.init_values:
