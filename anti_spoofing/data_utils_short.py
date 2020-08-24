@@ -39,7 +39,7 @@ class ASVDatasetshort(Dataset):
                  sample_size=None,
                  save_cache=False, index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 do_lfcc=False, n_fft=2048, do_mrf=False):
+                 do_lfcc=False, n_fft=2048, do_mrf=False, custom_path=DATA_ROOT, metadata=True):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -80,9 +80,10 @@ class ASVDatasetshort(Dataset):
         :param do_mrf: bool
         If yes, will use Multi-Resolution Feature Maps
         """
-        data_root = DATA_ROOT
+        data_root = custom_path
         track = 'LA'
         self.track = 'LA'
+        self.metadata = metadata
         self.fragment_length = length
         self.prefix = 'ASVspoof2019_{}'.format(track)
         self.nb_samples = nb_samples
@@ -114,17 +115,13 @@ class ASVDatasetshort(Dataset):
         self.protocols_fname = 'train_short.trn'
         self.protocols_dir = os.path.join(self.data_root,
                                           '{}_protocols/'.format(self.prefix))
-        self.files_dir = os.path.join(self.data_root, '{}_{}'.format(
+        self.files_dir = os.path.join(self.data_root, track, '{}_{}'.format(
             self.prefix, self.dset_name) + v1_suffix, 'flac')
-        if current_os == "Windows":
-            self.protocols_fname = 'data\\{}\\ASVspoof2019_{}_cm_protocols\\ASVspoof2019.{}.cm.{}.txt'.format(track,
-                                                                                                              track,
-                                                                                                              track,
-                                                                                                              self.protocols_fname)
-        else:
-            self.protocols_fname = 'data/{}/ASVspoof2019_{}_cm_protocols/ASVspoof2019.{}.cm.{}.txt'.format(track, track,
-                                                                                                           track,
-                                                                                                           self.protocols_fname)
+
+        self.protocols_fname = os.path.join(custom_path, track, 'ASVspoof2019_{}_cm_protocols'.format(track),
+                                            'ASVspoof2019.{}.cm.{}.txt'.format(track, self.protocols_fname))
+        assert os.path.isfile(self.protocols_fname)
+
         self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
         if os.path.exists(self.cache_fname):
             self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
@@ -141,7 +138,8 @@ class ASVDatasetshort(Dataset):
                 print('Dataset saved to cache ', self.cache_fname)
         if sample_size:
             select_idx = np.random.choice(len(self.files_meta), size=(sample_size,), replace=True).astype(np.int32)
-            self.files_meta = [self.files_meta[x] for x in select_idx]
+            if metadata:
+                self.files_meta = [self.files_meta[x] for x in select_idx]
             self.data_x = [self.data_x[x] for x in select_idx]
             self.data_y = [self.data_y[x] for x in select_idx]
             # self.data_sysid = [self.data_sysid[x] for x in select_idx]
@@ -153,15 +151,17 @@ class ASVDatasetshort(Dataset):
     def __getitem__(self, idx):
         x = self.data_x[idx]
         y = self.data_y[idx]
-        return x, y, self.files_meta[idx].sys_id
+        if self.metadata:
+            return x, y, self.files_meta[idx].sys_id
+        else:
+            return x, y
         # to all of the meta data
         # self.files_meta[idx]
 
     def read_file(self, meta):
-        if current_os == "Windows":
-            tmp_path = meta.path[:5] + self.track + "\\" + meta.path[5:]
-        else:
-            tmp_path = meta.path[:5] + self.track + "/" + meta.path[5:]
+
+        tmp_path = meta.path
+
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
         if self.mfcc:

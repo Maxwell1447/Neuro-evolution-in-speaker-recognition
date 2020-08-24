@@ -23,6 +23,7 @@ from anti_spoofing.mfcc import mfcc
 
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
+DATA_ROOT = 'data'
 
 
 class ASVDataset(Dataset):
