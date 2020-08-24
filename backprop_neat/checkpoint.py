@@ -6,7 +6,7 @@ import time
 
 import torch
 
-from neat.population import Population
+from backprop_neat.population import Population
 from neat.reporting import BaseReporter
 
 
@@ -62,12 +62,27 @@ class Checkpointer(BaseReporter):
         filename = '{0}{1}'.format(self.filename_prefix, generation)
         print("Saving checkpoint to {0}".format(filename))
 
-        data = (generation, config, population, species_set, random.getstate())
+        writing = None
+        writer = None
+        for reporter in species_set.reporters.reporters:
+            try:
+                _ = reporter.writer
+                species_set.reporters.remove(reporter)
+                writing = reporter.params
+                writer = reporter
+                break
+            except:
+                pass
+
+        data = (generation, config, population, species_set, random.getstate(), writing)
         torch.save(data, filename)
+        if writer is not None:
+            species_set.reporters.add(writer)
 
     @staticmethod
     def restore_checkpoint(filename):
         """Resumes the simulation from a previous saved point."""
-        generation, config, population, species_set, rndstate = torch.load(filename)
+        generation, config, population, species_set, rndstate, writing = torch.load(filename)
+
         random.setstate(rndstate)
-        return Population(config, (population, species_set, generation))
+        return Population(config, (population, species_set, generation)), writing

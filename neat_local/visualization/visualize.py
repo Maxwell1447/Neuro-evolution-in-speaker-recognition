@@ -20,16 +20,19 @@ def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    generation = range(len(statistics.most_fit_genomes))
-    best_fitness = [c.fitness for c in statistics.most_fit_genomes]
+    generation = range(len(statistics.best_fitnesses))
+    best_fitness = [c[1] for c in statistics.best_fitnesses]
     avg_fitness = np.array(statistics.get_fitness_mean())
     stdev_fitness = np.array(statistics.get_fitness_stdev())
+
+    print(avg_fitness.shape)
+    print(stdev_fitness.shape)
+    print(len(best_fitness))
 
     plt.plot(generation, smooth(avg_fitness, momentum=momentum), 'b-', label="average")
     plt.plot(generation, smooth(best_fitness, momentum=momentum), 'r-', label="best")
     plt.plot(generation, smooth(avg_fitness - stdev_fitness, momentum=momentum), 'g-.', label="-1 sd")
     plt.plot(generation, smooth(avg_fitness + stdev_fitness, momentum=momentum), 'g-.', label="+1 sd")
-
 
     plt.title("Population's average and best fitness")
     plt.xlabel("Generations")

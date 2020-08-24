@@ -8,8 +8,8 @@ from backprop_neat.genome import DefaultGenome
 from backprop_neat.reproduction import DefaultReproduction
 from backprop_neat.stagnation import DefaultStagnation
 from neat.reporting import StdOutReporter
-from neat.species import DefaultSpeciesSet
-from neat.statistics import StatisticsReporter
+from backprop_neat.species import DefaultSpeciesSet
+from backprop_neat.statistics import StatisticsReporter
 from neat.parallel import ParallelEvaluator
 from neat.threaded import ThreadedEvaluator
 from backprop_neat.checkpoint import Checkpointer

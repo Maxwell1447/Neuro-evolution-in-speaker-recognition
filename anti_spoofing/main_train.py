@@ -37,6 +37,7 @@ else:
 backprop = True
 USE_DATASET = False
 USE_GATE = True
+KEEP_FROM = 0
 
 if backprop:
     import backprop_neat as neat
@@ -51,7 +52,6 @@ def reporter_addition(p, config_):
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
     p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
-
     p.add_reporter(WriterReporter(writer, ["conn_add_prob", "backprop"]))
 
     # eer_acc_reporter = EERReporter(devloader, period=2)
@@ -124,8 +124,10 @@ def reporter_addition(p, config_):
         #                                                 verbose=0)
         # p.add_reporter(squashed_sine_scheduler)
 
-        adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=30, semi_gen=20,
-                                                                monitor=True, start=200, patience_before_backprop=50,
+        start = 200
+
+        adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=40, semi_gen=20,
+                                                                monitor=True, start=start, patience_before_backprop=50,
                                                                 privilege=100,
                                                                 values=[
                                                                     "node_add_prob",
@@ -139,7 +141,7 @@ def reporter_addition(p, config_):
                                                                 ])
         p.add_reporter(adaptive_backprop_scheduler)
 
-        early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=200,
+        early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=start,
                                                                 values={
                                                                     "node_add_prob": 0.5,
                                                                     "conn_add_prob": 0.8,
@@ -185,9 +187,20 @@ def run(config_file, n_gen):
                           config_file)
 
     # Create the population, which is the top-level object for a NEAT run.
-    p = neat.Population(config_)
-
-    displayable, stats_ = reporter_addition(p, config_)
+    if KEEP_FROM > 0:
+        p, w = neat.Checkpointer.restore_checkpoint("neat-checkpoint-{}".format(KEEP_FROM))
+        p.add_reporter(WriterReporter(writer, params=w))
+        stats_ = None
+        displayable = []
+        for reporter in p.reporters.reporters:
+            if isinstance(reporter, neat.StatisticsReporter):
+                stats_ = reporter
+            elif isinstance(reporter, (EarlyExplorationScheduler, AdaptiveBackpropScheduler,
+                                       ComplexityReporter)):
+                displayable.append(reporter)
+    else:
+        p = neat.Population(config_)
+        displayable, stats_ = reporter_addition(p, config_)
 
     # Run for up to n_gen generations.
 
@@ -233,7 +246,7 @@ if __name__ == '__main__':
     else:
 
         train_data, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
-                                                      custom_path=DATA_ROOT, multi_proc=True, balanced=True,
+                                                      custom_path=DATA_ROOT, multi_proc=False, balanced=True,
                                                       batch_size_test=100, include_eval=True,
                                                       return_dataset=USE_DATASET)
 

@@ -174,6 +174,8 @@ class WriterReporter(neat.reporting.BaseReporter):
 
     def post_evaluate(self, config, population, species, best_genome):
         self.writer.add_scalar("best fitness", best_genome.fitness, self.gen)
+        self.writer.add_scalar("complexity", len(best_genome.connections), self.gen)
+
         for p in self.params:
             self.writer.add_scalar(p, getattr(config.genome_config, p), self.gen)
 
@@ -181,4 +183,3 @@ class WriterReporter(neat.reporting.BaseReporter):
 
     def reset(self):
         self.gen = 0
-        self.writer.flush()
