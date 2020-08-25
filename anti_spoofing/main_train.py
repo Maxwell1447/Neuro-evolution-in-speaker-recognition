@@ -248,14 +248,20 @@ if __name__ == '__main__':
         train_data, devloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=10000,
                                                       custom_path=DATA_ROOT, multi_proc=False, balanced=True,
                                                       batch_size_test=100, include_eval=True,
-                                                      return_dataset=USE_DATASET)
+                                                      return_dataset=USE_DATASET,
+                                                      short=True)
 
     dev_eer_list = []
     dev_accuracy_list = []
     eval_eer_list = []
     eval_accuracy_list = []
     for i in range(1):
-        shutil.rmtree('./runs/NEAT/{}'.format(i))
+        if not os.path.isdir("./runs/NEAT"):
+            os.makedirs("./runs/NEAT")
+        try:
+            shutil.rmtree('./runs/NEAT/{}'.format(i))
+        except FileNotFoundError:
+            pass
         writer = SummaryWriter('./runs/NEAT/{}'.format(i))
         print(i)
         print(dev_eer_list)

@@ -6,6 +6,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 import numpy as np
 
+from anti_spoofing.data_utils_short import ASVDatasetshort
 from anti_spoofing.matlab.mat_loader import CQCCDataset
 from preprocessing_tools.preprocessing import preprocess
 import os
@@ -99,7 +100,8 @@ class PreprocessedASVDataset(torch.utils.data.Dataset):
 
 
 def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=10000, num_test=10000, custom_path='./data',
-              multi_proc=True, balanced=True, option=OPTION, metadata=False, include_eval=False, return_dataset=False):
+              multi_proc=True, balanced=True, option=OPTION, metadata=False, include_eval=False, return_dataset=False,
+              short=False):
     """
     loads the data and puts it in PyTorch DataLoader.
 
@@ -107,7 +109,8 @@ def load_data(batch_size=50, batch_size_test=1, length=3 * 16000, num_train=1000
     a data loader is created, then saved for train and test sets.
     """
 
-    train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type="train",
+    type_train = "train_short" if short else "train"
+    train_loader = load_single_data(batch_size=batch_size, length=length, num_data=num_train, data_type=type_train,
                                     custom_path=custom_path, multi_proc=multi_proc, balanced=balanced, option=option,
                                     metadata=metadata, return_dataset=return_dataset)
     dev_loader = load_single_data(batch_size=batch_size_test, length=length, num_data=num_test, data_type="dev",
@@ -142,13 +145,13 @@ def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=10
 
 def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data",
                      multi_proc=True, balanced=True, option=OPTION, metadata=False, return_dataset=False):
-    is_train = data_type == "train"
+    is_train = data_type in ["train", "train_short"]
 
     local_dir = os.path.dirname(__file__)
 
     if os.path.exists(os.path.join(local_dir,
                                    "data/preprocessed/{}_{}_{}_{}_{}_{}.torch"
-                                   .format(data_type, option, num_data, metadata, WIN_LEN, HOP_LEN))):
+                                           .format(data_type, option, num_data, metadata, WIN_LEN, HOP_LEN))):
         data = torch.load(os.path.join(local_dir,
                                        "data/preprocessed/{}_{}_{}_{}_{}_{}.torch"
                                        .format(data_type, option, num_data, metadata, WIN_LEN, HOP_LEN)))
@@ -164,6 +167,9 @@ def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type=
     if data_type == "train":
         data = ASVDataset(length=length, is_train=True, is_eval=False, nb_samples=num_data, random_samples=True,
                           metadata=metadata, custom_path=custom_path)
+    elif data_type == "train_short":
+        data = ASVDatasetshort(length=length, random_samples=True,
+                               metadata=metadata, custom_path=custom_path)
     elif data_type == "dev":
         data = ASVDataset(length=length, is_train=False, is_eval=False, nb_samples=num_data, random_samples=True,
                           metadata=metadata, custom_path=custom_path)
@@ -194,7 +200,7 @@ def load_single_data_cqcc(batch_size=50, num_data=1000, balanced=False, data_typ
 
     if os.path.exists(
             os.path.join(local_dir, "data", "preprocessed", "{}_cqcc_{}_{}_{}_{}_{}"
-                                                            .format(data_type, B, d, cf, ZsdD, balanced))):
+                    .format(data_type, B, d, cf, ZsdD, balanced))):
         print("{} data found locally".format(data_type))
         cqcc_data = torch.load("./data/preprocessed/{}_cqcc_{}_{}_{}_{}_{}"
                                .format(data_type, B, d, cf, ZsdD, balanced))
