@@ -1,4 +1,5 @@
 import torch
+from neat.graphs import required_for_output
 from torch import sigmoid
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
@@ -80,7 +81,14 @@ class ProcessedASVEvaluator(neat.parallel.ParallelEvaluator):
         return next(self.data_iter)
 
 
-def eval_genome_bce(g, conf, batch, backprop, use_gate, return_correct=False):
+def eval_efficiency(g, conf):
+
+    connections, useful_connections = backprop_neat.required_connections(g, conf)
+
+    return len(useful_connections) / len(connections)
+
+
+def eval_genome_bce(g, conf, batch, backprop, use_gate, return_correct=False, efficiency_contribution=0.):
     """
     Same than eval_genomes() but for 1 genome. This function is used for parallel evaluation.
     The input is already preprocessed with shape batch_size x t x bins
@@ -131,14 +139,30 @@ def eval_genome_bce(g, conf, batch, backprop, use_gate, return_correct=False):
         loss.backward()
         optimizer.step()
         g.clamp(conf.genome_config)
-        return 1 / (1 + loss.detach().item())
+
+        if efficiency_contribution:
+            assert 0 <= efficiency_contribution <= 1.
+            fitness = 1 / (1 + loss.detach().item())
+            efficiency = eval_efficiency(g, conf)
+
+            return efficiency_contribution * efficiency + (1 - efficiency_contribution) * fitness
+        else:
+            return 1 / (1 + loss.detach().item())
+
     elif backprop:
 
         loss = torch.nn.BCELoss()(prediction, targets)
-        f = 1 / (1 + loss.detach().item())
+        fitness = 1 / (1 + loss.detach().item())
         if not conf.genome_config.backprop:
             ctx.__exit__()
-        return f
+        if efficiency_contribution:
+            assert 0 <= efficiency_contribution <= 1.
+            fitness = 1 / (1 + loss.detach().item())
+            efficiency = eval_efficiency(g, conf)
+
+            return efficiency_contribution * efficiency + (1 - efficiency_contribution) * fitness
+        else:
+            return fitness
 
     # return the fitness computed from the BCE loss
     with torch.no_grad():

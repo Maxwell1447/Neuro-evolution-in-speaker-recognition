@@ -13,3 +13,4 @@ from backprop_neat.statistics import StatisticsReporter
 from neat.parallel import ParallelEvaluator
 from neat.threaded import ThreadedEvaluator
 from backprop_neat.checkpoint import Checkpointer
+from backprop_neat.graphs import *
