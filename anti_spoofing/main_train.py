@@ -17,9 +17,7 @@ from anti_spoofing.eval_function_eoc import eval_genome_eoc, ProcessedASVEvaluat
     quantified_eval_genome_eoc, double_quantified_eval_genome_eoc
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 from anti_spoofing.constants import *
-from neat_local.scheduler import ExponentialScheduler, OnPlateauScheduler, \
-    ImpulseScheduler, SineScheduler, MutateScheduler, BackpropScheduler, EarlyExplorationScheduler, \
-    SquashedSineScheduler, CyclicBackpropScheduler, AdaptiveBackpropScheduler
+from neat_local.scheduler import *
 from neat_local.reporters import ComplexityReporter, EERReporter, StdOutReporter, WriterReporter
 from anti_spoofing.select_best import get_true_winner
 import os
@@ -37,7 +35,7 @@ else:
 backprop = True
 USE_DATASET = False
 USE_GATE = True
-KEEP_FROM = 0
+KEEP_FROM = 14999
 
 if backprop:
     import backprop_neat as neat
@@ -57,72 +55,7 @@ def reporter_addition(p, config_):
     # eer_acc_reporter = EERReporter(devloader, period=2)
     # p.add_reporter(eer_acc_reporter)
 
-    # exp_scheduler = ExponentialScheduler(semi_gen=200, final_values={
-    #     "node_add_prob": 0.0,
-    #     "conn_add_prob": 0.0,
-    #     "node_delete_prob": 0.0,
-    #     "conn_delete_prob": 0.0,
-    #     "learning_rate": 0.01
-    # })
-    # p.add_reporter(exp_scheduler)
-
-    # mutation_rate_scheduler = ExponentialScheduler(semi_gen=200, final_values={
-    #     "bias_mutate_rate": 0.,
-    #     "weight_mutate_rate": 0.,
-    #     "bias_replace_rate": 0.,
-    #     "weight_replace_rate": 0.
-    # })
-    # p.add_reporter(mutation_rate_scheduler)
-    # mutate_scheduler = MutateScheduler(parameters=["node_add_prob", "conn_add_prob",
-    #                                                "node_delete_prob", "conn_delete_prob"],
-    #                                    patience=2, momentum=0.99)
-    # p.add_reporter(mutate_scheduler)
-
-    # scheduler = ExponentialScheduler(semi_gen=200, final_values={
-    #     "node_add_prob": 0.,
-    #     "conn_add_prob": 0.
-    # })
-    # p.add_reporter(scheduler)
-    # scheduler2 = ExponentialScheduler(semi_gen=300, final_values={
-    #     "node_delete_prob": 0.,
-    #     "conn_delete_prob": 0.
-    # })
-    # p.add_reporter(scheduler2)
-    #
-    # scheduler3 = SineScheduler(conf=config_, period=100, final_values={
-    #     "weight_mutate_power": 0.,
-    #     "bias_mutate_power": 0.,
-    #     "weight_mutate_rate": 0.2,
-    #     "bias_mutate_rate": 0.1
-    # })
-    # p.add_reporter(scheduler3)
-    # impulse_scheduler = ImpulseScheduler(parameters=["node_add_prob", "conn_add_prob",
-    #                                                  "node_delete_prob", "conn_delete_prob"],
-    #                                      verbose=1, patience=10, impulse_factor=2., momentum=0.99, monitor=True)
-    # scheduler = OnPlateauScheduler(parameters=["node_add_prob", "conn_add_prob",
-    #                                            "node_delete_prob", "conn_delete_prob"],
-    #                                verbose=1, patience=10, factor=0.995, momentum=0.99)
-
-    # p.add_reporter(impulse_scheduler)
-
     if backprop:
-        # squashed_sine_scheduler = SquashedSineScheduler(config_, period=300,
-        #                                                 offset=200,
-        #                                                 final_values={
-        #                                                     "node_add_prob": 0.0,
-        #                                                     "conn_add_prob": 0.0,
-        #                                                     "node_delete_prob": 0.0,
-        #                                                     "conn_delete_prob": 0.0,
-        #                                                     "bias_mutate_rate": 0.,
-        #                                                     "weight_mutate_rate": 0.,
-        #                                                     "bias_replace_rate": 0.,
-        #                                                     "weight_replace_rate": 0.,
-        #                                                     "learning_rate": 0.01,
-        #                                                     "enabled_mutate_rate": 0.
-        #                                                 },
-        #                                                 alpha=6,
-        #                                                 verbose=0)
-        # p.add_reporter(squashed_sine_scheduler)
 
         start = 200
 
@@ -157,13 +90,10 @@ def reporter_addition(p, config_):
                                                                 verbose=1)
         p.add_reporter(early_exploration_scheduler)
 
+        p.add_reporter(DisableBackpropScheduler())
+
     complexity_reporter = ComplexityReporter()
     p.add_reporter(complexity_reporter)
-    #
-    # if backprop:
-    #     backprop_scheduler = CyclicBackpropScheduler(config_, patience=50, offset=25, period=300, start=200,
-    #                                                  monitor=True)
-    #     p.add_reporter(backprop_scheduler)
 
     displayable.append(complexity_reporter)
 
@@ -188,7 +118,7 @@ def run(config_file, n_gen):
 
     # Create the population, which is the top-level object for a NEAT run.
     if KEEP_FROM > 0:
-        p, w = neat.Checkpointer.restore_checkpoint("neat-checkpoint-{}".format(KEEP_FROM))
+        p, w = neat.Checkpointer.restore_checkpoint("neat-checkpoint_-{}".format(KEEP_FROM))
         p.add_reporter(WriterReporter(writer, params=w))
         stats_ = None
         displayable = []
@@ -249,7 +179,7 @@ if __name__ == '__main__':
                                                       custom_path=DATA_ROOT, multi_proc=False, balanced=True,
                                                       batch_size_test=100, include_eval=True,
                                                       return_dataset=USE_DATASET,
-                                                      short=True)
+                                                      short=False)
 
     dev_eer_list = []
     dev_accuracy_list = []
@@ -266,7 +196,7 @@ if __name__ == '__main__':
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 10000)
+        winner, config, stats = run(config_path, 5001)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop, use_gate=USE_GATE)
         dev_eer_list.append(eer)

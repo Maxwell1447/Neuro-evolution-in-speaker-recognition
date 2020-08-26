@@ -642,3 +642,13 @@ class AdaptiveBackpropScheduler(BaseReporter):
 
             plt.plot(self.all_values[key], label=key)
             plt.show()
+
+
+class DisableBackpropScheduler(BaseReporter):
+
+    def post_evaluate(self, config, population, species, best_genome):
+        """
+        Updates the parameters.
+        """
+
+        setattr(config.genome_config, "backprop", False)

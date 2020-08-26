@@ -1,6 +1,7 @@
 """Uses `pickle` to save and restore populations (and other aspects of the simulation state)."""
 from __future__ import print_function
 
+import os
 import random
 import time
 
@@ -17,7 +18,7 @@ class Checkpointer(BaseReporter):
     """
 
     def __init__(self, generation_interval=100, time_interval_seconds=300,
-                 filename_prefix='neat-checkpoint-'):
+                 filename_prefix='neat-checkpoint_'):
         """
         Saves the current state (at the end of a generation) every ``generation_interval`` generations or
         ``time_interval_seconds``, whichever happens first.
@@ -53,13 +54,21 @@ class Checkpointer(BaseReporter):
                 checkpoint_due = True
 
         if checkpoint_due:
-            self.save_checkpoint(config, population, species_set, self.current_generation)
             self.last_generation_checkpoint = self.current_generation
             self.last_time_checkpoint = time.time()
+            self.save_checkpoint(config, population, species_set, self.current_generation)
 
     def save_checkpoint(self, config, population, species_set, generation):
         """ Save the current simulation state. """
-        filename = '{0}{1}'.format(self.filename_prefix, generation)
+        filename = '{0}-{1}'.format(self.filename_prefix, generation)
+
+        if self.filename_prefix[-1] == '_':
+            i = 0
+            while os.path.isfile(filename):
+                self.filename_prefix = self.filename_prefix[:-1] + str(i)
+                filename = '{0}-{1}'.format(self.filename_prefix, generation)
+                i += 1
+
         print("Saving checkpoint to {0}".format(filename))
 
         writing = None

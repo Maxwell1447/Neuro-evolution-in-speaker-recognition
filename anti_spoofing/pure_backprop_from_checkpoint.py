@@ -119,7 +119,7 @@ if __name__ == "__main__":
                                                   batch_size_test=100, include_eval=True,
                                                   return_dataset=USE_DATASET)
 
-    p, _ = neat.Checkpointer.restore_checkpoint("neat-checkpoint-{}".format(CHECKPOINT))
+    p, _ = neat.Checkpointer.restore_checkpoint("neat-checkpoint_-{}".format(CHECKPOINT))
 
     max_fitness = 0
     best_genome = None
@@ -132,16 +132,15 @@ if __name__ == "__main__":
 
     # genome = custom_genome(config)
 
-    co, useful_co = required_connections(genome, config)
-
-    print(len(useful_co))
-    print(len(useful_co)/len(co))
-    exit(8)
+    # co, useful_co = required_connections(genome, config)
+    #
+    # print(len(useful_co))
+    # print(len(useful_co)/len(co))
 
     key = list(genome.connections)[3]
     keys = list(genome.connections)[:5]
 
-    optimizer = torch.optim.SGD(genome.get_params(), lr=0.01)
+    optimizer = torch.optim.Adam(genome.get_params(), lr=0.01)
     criterion = torch.nn.BCELoss()
     if not os.path.isdir('./runs/NEAT_pure_backprop'):
         os.makedirs('./runs/NEAT_pure_backprop')
@@ -150,7 +149,7 @@ if __name__ == "__main__":
     i = 0
     # net = backprop_neat.nn.FeedForwardNetwork.create(genome, config)
 
-    for epoch in range(2):
+    for epoch in range(10):
         print("EPOCH {}".format(epoch))
         for batch in tqdm(iter(train_data)):
             optimizer.zero_grad()
