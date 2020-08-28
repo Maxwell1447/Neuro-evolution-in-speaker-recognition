@@ -231,7 +231,7 @@ if __name__ == '__main__':
         eval_accuracy_list.append(accuracy)
 
         if i == 0:
-            make_visualize(winner, config, stats, topology=True)
+            make_visualize(winner, config, stats, topology=False)
 
     print("\n")
     print("DEV equal error rate", dev_eer_list)
