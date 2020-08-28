@@ -79,7 +79,7 @@ def reporter_addition(p, config_):
     for param in ["node_add_prob", "conn_add_prob", "node_delete_prob", "conn_delete_prob",
                   "bias_mutate_rate", "weight_mutate_rate", "bias_replace_rate", "weight_replace_rate"]:
         print(getattr(config_.genome_config, param))
-        exit(8)
+    exit(8)
 
     early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=start,
                                                             values={
