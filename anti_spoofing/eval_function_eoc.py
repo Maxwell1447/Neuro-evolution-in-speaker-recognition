@@ -39,7 +39,11 @@ class ProcessedASVEvaluatorEoc(ProcessedASVEvaluator):
         batch = self.next()
         jobs = []
 
-
+        if self.backprop and not config.genome_config.backprop:
+            ctx = torch.no_grad()
+            ctx.__enter__()
+        else:
+            ctx = None
 
         _, outputs = batch
 
@@ -47,7 +51,7 @@ class ProcessedASVEvaluatorEoc(ProcessedASVEvaluator):
         self.l_s_n = torch.empty((len(outputs), self.G))
 
         # return ease of classification for each genome
-        if self.backprop:
+        if self.backprop or self.num_workers == 1:
             for i, (_, genome) in enumerate(genomes):
                 self.l_s_n[:, i] = self.eval_function(genome, config, batch, self.backprop, self.use_gate)
         else:
@@ -78,6 +82,9 @@ class ProcessedASVEvaluatorEoc(ProcessedASVEvaluator):
             else:
                 genome.fitness = F[pseudo_genome_id].item()
             pseudo_genome_id += 1
+
+        if self.backprop and not config.genome_config.backprop:
+            ctx.__exit__()
 
 
 class ProcessedASVEvaluatorEocGc(ProcessedASVEvaluatorEoc):

@@ -20,7 +20,7 @@ if sys.platform.find("win") >= 0:
 else:
     DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
 
-CHECKPOINT = 9999
+CHECKPOINT = 19999
 
 
 def custom_genome(config, n_hidden=20):
@@ -119,7 +119,7 @@ if __name__ == "__main__":
                                                   batch_size_test=100, include_eval=True,
                                                   return_dataset=USE_DATASET)
 
-    p, _ = neat.Checkpointer.restore_checkpoint("neat-checkpoint_-{}".format(CHECKPOINT))
+    p, _ = neat.Checkpointer.restore_checkpoint("neat-checkpoint0-{}".format(CHECKPOINT))
 
     max_fitness = 0
     best_genome = None

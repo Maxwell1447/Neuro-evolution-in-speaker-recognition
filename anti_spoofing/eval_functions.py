@@ -108,7 +108,7 @@ def eval_genome_bce(g, conf, batch, backprop, use_gate, return_correct=False, ef
     else:
         net = neat_local.nn.RecurrentNet.create(g, conf, device="cpu", dtype=torch.float32)
 
-    if not conf.genome_config.backprop:
+    if backprop and not conf.genome_config.backprop:
         ctx = torch.no_grad()
         ctx.__enter__()
     else:
@@ -153,7 +153,7 @@ def eval_genome_bce(g, conf, batch, backprop, use_gate, return_correct=False, ef
 
         loss = torch.nn.BCELoss()(prediction, targets)
         fitness = 1 / (1 + loss.detach().item())
-        if not conf.genome_config.backprop:
+        if backprop and not conf.genome_config.backprop:
             ctx.__exit__()
         if efficiency_contribution:
             assert 0 <= efficiency_contribution <= 1.

@@ -22,6 +22,8 @@ from neat_local.reporters import ComplexityReporter, EERReporter, StdOutReporter
 from anti_spoofing.select_best import get_true_winner
 import os
 import sys
+import backprop_neat
+
 
 """
 NEAT APPLIED TO ASVspoof 2019
@@ -35,7 +37,8 @@ else:
 backprop = True
 USE_DATASET = False
 USE_GATE = True
-KEEP_FROM = 14999
+KEEP_FROM = 0
+
 
 if backprop:
     import backprop_neat as neat
@@ -47,50 +50,54 @@ def reporter_addition(p, config_):
     displayable = []
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(StdOutReporter(True))
-    stats_ = neat.StatisticsReporter()
+    stats_ = backprop_neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
-    p.add_reporter(WriterReporter(writer, ["conn_add_prob", "backprop"]))
+    p.add_reporter(backprop_neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+
+    written_params = ("conn_add_prob", "backprop") if backprop else ("conn_add_prob",)
+    p.add_reporter(WriterReporter(writer, written_params))
 
     # eer_acc_reporter = EERReporter(devloader, period=2)
     # p.add_reporter(eer_acc_reporter)
 
-    if backprop:
+    start = 200
 
-        start = 200
+    # adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=40, semi_gen=20,
+    #                                                         monitor=True, start=start, patience_before_backprop=50,
+    #                                                         privilege=100,
+    #                                                         values=[
+    #                                                             "node_add_prob",
+    #                                                             "conn_add_prob",
+    #                                                             "node_delete_prob",
+    #                                                             "conn_delete_prob",
+    #                                                             "bias_mutate_rate",
+    #                                                             "weight_mutate_rate",
+    #                                                             "bias_replace_rate",
+    #                                                             "weight_replace_rate"
+    #                                                         ])
+    # p.add_reporter(adaptive_backprop_scheduler)
 
-        adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=40, semi_gen=20,
-                                                                monitor=True, start=start, patience_before_backprop=50,
-                                                                privilege=100,
-                                                                values=[
-                                                                    "node_add_prob",
-                                                                    "conn_add_prob",
-                                                                    "node_delete_prob",
-                                                                    "conn_delete_prob",
-                                                                    "bias_mutate_rate",
-                                                                    "weight_mutate_rate",
-                                                                    "bias_replace_rate",
-                                                                    "weight_replace_rate"
-                                                                ])
-        p.add_reporter(adaptive_backprop_scheduler)
+    for param in ["node_add_prob", "conn_add_prob", "node_delete_prob", "conn_delete_prob",
+                  "bias_mutate_rate", "weight_mutate_rate", "bias_replace_rate", "weight_replace_rate"]:
+        setattr(config_.genome_config, param, getattr(config_.genome_config, param) / 2)
 
-        early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=start,
-                                                                values={
-                                                                    "node_add_prob": 0.5,
-                                                                    "conn_add_prob": 0.8,
-                                                                    "node_delete_prob": 0.1,
-                                                                    "conn_delete_prob": 0.1,
-                                                                    "bias_mutate_rate": 0.8,
-                                                                    "weight_mutate_rate": 0.8,
-                                                                    "bias_replace_rate": 0.1,
-                                                                    "weight_replace_rate": 0.1,
-                                                                },
-                                                                reset=False,
-                                                                monitor=True,
-                                                                verbose=1)
-        p.add_reporter(early_exploration_scheduler)
+    early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=start,
+                                                            values={
+                                                                "node_add_prob": 0.5,
+                                                                "conn_add_prob": 0.8,
+                                                                "node_delete_prob": 0.1,
+                                                                "conn_delete_prob": 0.1,
+                                                                "bias_mutate_rate": 0.8,
+                                                                "weight_mutate_rate": 0.8,
+                                                                "bias_replace_rate": 0.1,
+                                                                "weight_replace_rate": 0.1,
+                                                            },
+                                                            reset=True,
+                                                            monitor=True,
+                                                            verbose=1)
+    p.add_reporter(early_exploration_scheduler)
 
-        p.add_reporter(DisableBackpropScheduler())
+    p.add_reporter(DisableBackpropScheduler())
 
     complexity_reporter = ComplexityReporter()
     p.add_reporter(complexity_reporter)
@@ -99,7 +106,7 @@ def reporter_addition(p, config_):
 
     if backprop:
         displayable.append(early_exploration_scheduler)
-        displayable.append(adaptive_backprop_scheduler)
+        # displayable.append(adaptive_backprop_scheduler)
 
     return displayable, stats_
 
@@ -134,19 +141,21 @@ def run(config_file, n_gen):
 
     # Run for up to n_gen generations.
 
+    multi = backprop + (not backprop) * multiprocessing.cpu_count()
+
     if USE_DATASET:
-        multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_bce, train_data,
+        multi_evaluator = ProcessedASVEvaluator(multi, eval_genome_bce, train_data,
                                                 batch_increment=0, initial_batch_size=100,
                                                 backprop=backprop, use_gate=USE_GATE)
-        # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), quantified_eval_genome_eoc,
+        # multi_evaluator = ProcessedASVEvaluatorEoc(multi, quantified_eval_genome_eoc,
         #                                            train_data,
         #                                            getattr(config_, "pop_size"),
         #                                            batch_increment=50, initial_batch_size=100, batch_generations=50,
         #                                            backprop=backprop, use_gate=USE_GATE)
     else:
-        multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count()*0+1, eval_genome_bce, train_data,
+        multi_evaluator = ProcessedASVEvaluator(multi, eval_genome_bce, train_data,
                                                 use_gate=USE_GATE)
-        # multi_evaluator = ProcessedASVEvaluatorEoc(multiprocessing.cpu_count(), double_quantified_eval_genome_eoc,
+        # multi_evaluator = ProcessedASVEvaluatorEoc(multi, double_quantified_eval_genome_eoc,
         #                                            train_data,
         #                                            getattr(config_, "pop_size"), use_gate=USE_GATE)
 
@@ -196,7 +205,7 @@ if __name__ == '__main__':
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 5001)
+        winner, config, stats = run(config_path, 10000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop, use_gate=USE_GATE)
         dev_eer_list.append(eer)
