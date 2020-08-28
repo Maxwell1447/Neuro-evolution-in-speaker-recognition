@@ -222,11 +222,13 @@ if __name__ == '__main__':
 
         winner, config, stats = run(config_path, 40000)
 
-        eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop, use_gate=USE_GATE)
+        eer, accuracy = evaluate_eer_acc(winner, config, devloader,
+                                         backprop=backprop, use_gate=USE_GATE, loading_bar=False)
         dev_eer_list.append(eer)
         dev_accuracy_list.append(accuracy)
 
-        eer, accuracy = evaluate_eer_acc(winner, config, evalloader, backprop=backprop, use_gate=USE_GATE)
+        eer, accuracy = evaluate_eer_acc(winner, config, evalloader,
+                                         backprop=backprop, use_gate=USE_GATE, loading_bar=False)
         eval_eer_list.append(eer)
         eval_accuracy_list.append(accuracy)
 

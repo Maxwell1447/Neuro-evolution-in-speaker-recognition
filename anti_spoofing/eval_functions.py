@@ -211,7 +211,7 @@ def eval_genome_eer(g, conf, batch, backprop=False, use_gate=True):
     return 2 * (.5 - eer)
 
 
-def feed_and_predict(data, g, conf, backprop, use_gate=True):
+def feed_and_predict(data, g, conf, backprop, use_gate=True, loading_bar=True):
     """
     returns predictions + targets in 2 numpy arrays
     """
@@ -228,7 +228,13 @@ def feed_and_predict(data, g, conf, backprop, use_gate=True):
     targets = []
 
     with torch.no_grad():
-        for batch in tqdm(data_iter, total=len(data)):
+
+        if loading_bar:
+            iterable = tqdm(data_iter, total=len(data))
+        else:
+            iterable = data_iter
+
+        for batch in iterable:
 
             input, target = batch  # input: batch x t x BIN; output: batch
             net.reset(len(target))
