@@ -78,7 +78,8 @@ def reporter_addition(p, config_):
 
     for param in ["node_add_prob", "conn_add_prob", "node_delete_prob", "conn_delete_prob",
                   "bias_mutate_rate", "weight_mutate_rate", "bias_replace_rate", "weight_replace_rate"]:
-        setattr(config_.genome_config, param, getattr(config_.genome_config, param) / 2)
+        print(getattr(config_.genome_config, param))
+        exit(8)
 
     early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=start,
                                                             values={
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed{}.cfg'.format('_backprop' if backprop else '_long'))
 
-    assert False
+    assert config_path == 'ASV_neat_preprocessed_long.cfg'
 
     if OPTION == "cqcc":
         train_data, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
