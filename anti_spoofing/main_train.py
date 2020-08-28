@@ -8,6 +8,7 @@ from torch import sigmoid
 import numpy as np
 import multiprocessing
 from tqdm import tqdm
+import random
 
 from anti_spoofing.utils_ASV import make_visualize
 from anti_spoofing.data_loader import load_data, load_data_cqcc
@@ -187,6 +188,11 @@ def run(config_file, n_gen):
 
 
 if __name__ == '__main__':
+
+    random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
+
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.
