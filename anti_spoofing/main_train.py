@@ -24,7 +24,6 @@ import os
 import sys
 import backprop_neat
 
-
 """
 NEAT APPLIED TO ASVspoof 2019
 """
@@ -34,11 +33,10 @@ if sys.platform.find("win") >= 0:
 else:
     DATA_ROOT = os.path.join("..", "..", "..", "speechmaterials", "databases", "ASVspoof")
 
-backprop = True
+backprop = False
 USE_DATASET = False
 USE_GATE = True
 KEEP_FROM = 0
-
 
 if backprop:
     import backprop_neat as neat
@@ -96,6 +94,23 @@ def reporter_addition(p, config_):
                                                             monitor=True,
                                                             verbose=1)
     p.add_reporter(early_exploration_scheduler)
+
+    squashed_sine_scheduler = SquashedSineScheduler(config_, offset=start,
+                                                    period=150,
+                                                    final_values={
+                                                        "node_add_prob": 0.,
+                                                        "conn_add_prob": 0.,
+                                                        "node_delete_prob": 0.,
+                                                        "conn_delete_prob": 0.,
+                                                        "bias_mutate_rate": 0.,
+                                                        "weight_mutate_rate": 0.,
+                                                        "bias_replace_rate": 0.,
+                                                        "weight_replace_rate": 0.,
+                                                    },
+                                                    monitor=True,
+                                                    verbose=0,
+                                                    alpha=3)
+    p.add_reporter(squashed_sine_scheduler)
 
     p.add_reporter(DisableBackpropScheduler())
 
@@ -205,7 +220,7 @@ if __name__ == '__main__':
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 10000)
+        winner, config, stats = run(config_path, 40000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader, backprop=backprop, use_gate=USE_GATE)
         dev_eer_list.append(eer)
