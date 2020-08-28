@@ -10,6 +10,12 @@ from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
 def compute_eer(target_scores, non_target_scores):
+    """
+    Return the equal error rate from the scores
+    :param target_scores: numpy array scores of the bonafide files
+    :param non_target_scores: numpy array scores of the spoofed files
+    :return: eer equal error rate
+    """
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
     pmiss, pfa = rocch(target_scores, non_target_scores)
@@ -17,7 +23,7 @@ def compute_eer(target_scores, non_target_scores):
     return eer
 
 
-def evaluate_different_window(net, data_loader):
+def evaluate_different_dataset(net, data_loader):
     """
     compute the eer equal error rate
     :param net: list of networks
@@ -161,7 +167,7 @@ if __name__ == '__main__':
 
     eval_dataset = [eval_2048, eval_cqt]
 
-    eer = evaluate_different_window(aggregate_net, eval_dataset)
+    eer = evaluate_different_dataset(aggregate_net, eval_dataset)
 
 
 

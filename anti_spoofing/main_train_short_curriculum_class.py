@@ -23,10 +23,11 @@ batch_size = 64  # size of the batch used for training, choose an even number
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
 n_generation = 150  # number of generations
 
+# boundary index of the type of audio files of the train short data set for testing++
 
 train_short_border = [0, 258, 638, 1018, 1398, 1778, 2158, 2538]
 
-# boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
+# boundary index of the type of audio files of the dev data set, it will select randomly 1150 files from each class
 # for testing
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []

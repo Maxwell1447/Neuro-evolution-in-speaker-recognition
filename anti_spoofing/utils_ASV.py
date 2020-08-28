@@ -40,6 +40,11 @@ def softmax(scores):
 
 
 def show_stats(x):
+    """
+    Display statistics from the data x
+    :param x: data from which we want to display statistics
+    :return: None
+    """
     print("min =", x.min())
     print("max =", x.max())
     print("median =", np.median(x))
@@ -62,7 +67,7 @@ def whiten(sample_input):
 
 def err_threshold(y_true, y_pred, pos_label=1):
     """
-    https://yangcha.github.io/EER-ROC/
+    taken from https://yangcha.github.io/EER-ROC/
     return the equal error rate and the threshold
     :param y_true: true labels
     :param y_pred: prediction scores
@@ -93,7 +98,7 @@ def gate_average(recurrent_net, sample_input):
 
 def gate_mfcc(recurrent_net, sample_input):
     """
-    compute mask and the scores for a given input (audio file) preprocessed with mfcc
+    compute mask and the scores for a given input (audio file) preprocessed with mfcc features
     the mask tells by how the corresponding score should be taken into account
     :param recurrent_net: network
     :param sample_input: one audio file in a numpy format
@@ -109,7 +114,7 @@ def gate_mfcc(recurrent_net, sample_input):
 
 def gate_lfcc(recurrent_net, sample_input):
     """
-    compute mask and the scores for a given input (audio file) preprocessed with lfcc
+    compute mask and the scores for a given input (audio file) preprocessed with lfcc features
     the mask tells by how the corresponding score should be taken into account
     :param recurrent_net: network
     :param sample_input: one audio file in a numpy format
