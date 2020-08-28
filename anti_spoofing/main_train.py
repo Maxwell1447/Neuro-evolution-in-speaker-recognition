@@ -200,7 +200,7 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed{}.cfg'.format('_backprop' if backprop else '_long'))
 
-    assert config_path == 'ASV_neat_preprocessed_long.cfg'
+    print("dir:   ", config_path)
 
     if OPTION == "cqcc":
         train_data, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
