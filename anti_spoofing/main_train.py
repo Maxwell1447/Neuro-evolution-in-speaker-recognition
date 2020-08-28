@@ -76,11 +76,6 @@ def reporter_addition(p, config_):
     #                                                         ])
     # p.add_reporter(adaptive_backprop_scheduler)
 
-    for param in ["node_add_prob", "conn_add_prob", "node_delete_prob", "conn_delete_prob",
-                  "bias_mutate_rate", "weight_mutate_rate", "bias_replace_rate", "weight_replace_rate"]:
-        print(getattr(config_.genome_config, param))
-    exit(8)
-
     early_exploration_scheduler = EarlyExplorationScheduler(config_, duration=start,
                                                             values={
                                                                 "node_add_prob": 0.5,
@@ -200,8 +195,6 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'ASV_neat_preprocessed{}.cfg'.format('_backprop' if backprop else '_long'))
 
-    print("dir:   ", config_path)
-
     if OPTION == "cqcc":
         train_data, devloader = load_data_cqcc(batch_size=100, num_train=10000, num_test=10000, balanced=True)
         evalloader = None
@@ -229,7 +222,7 @@ if __name__ == '__main__':
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 40000)
+        winner, config, stats = run(config_path, 40000//10000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader,
                                          backprop=backprop, use_gate=USE_GATE, loading_bar=False)
