@@ -8,20 +8,17 @@ import pickle
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils_ASV import whiten, gate_mfcc, make_visualize, err_threshold
+from anti_spoofing.utils_ASV import whiten, gate_lfcc, make_visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 """
 NEAT APPLIED TO ASVspoof 2019
 """
 
-nb_samples_train = 2538  # number of audio files used for training
-nb_samples_test = 7000  # number of audio files used for testing
-
-batch_size = 760  # size of the batch used for training, choose a multiple 2
+batch_size = 516  # size of the batch used for training, choose a multiple 2
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
-n_generation = 500  # number of generations
+n_generation = 300  # number of generations
 
 spoofed_class = 2
 
@@ -58,15 +55,15 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.bona_fide_train = list(range(258))  # index list of bona fide files
         rd.shuffle(self.bona_fide_train)  # shuffle the index
         self.bona_fide_index = 0
-        self.nb_iter_bona_fide = max(batch_size // 2, 258)
-        self.nb_iter_spoofed = max(batch_size // 2, 380)
+        self.nb_iter_bona_fide = min(batch_size // 2, 258)
+        self.nb_iter_spoofed = min(batch_size // 2, 380)
 
         # index list of spoofed files
         self.spoofed_train = list(range(380))
         rd.shuffle(self.spoofed_train)  # shuffle the index
         self.spoofed_index = 0
         self.G = pop
-        self.l_s_n = np.zeros((self.batch_size, self.G))
+        self.l_s_n = np.zeros((self.batch_size//2, self.G))
 
 
     def evaluate(self, genomes, config):
@@ -86,7 +83,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
             jobs.append(self.pool.apply_async(self.eval_function, (genome, config, batch_data)))
 
         self.G = len(genomes)
-        self.l_s_n = np.zeros((len(batch_data), self.G))
+        self.l_s_n = np.zeros((len(batch_data)//2, self.G))
 
         pseudo_genome_id = 0
         # return ease of classification for each genome
@@ -143,10 +140,9 @@ def eval_genome(genome, config, batch_data):
     net = neat.nn.RecurrentNetwork.create(genome, config)
     target_scores = []
     non_target_scores = []
-    l_s_n = np.zeros(len(batch_data))
+    l_s_n = np.zeros(len(batch_data)//2)
     for data in batch_data:
         inputs, output = data[0], data[1]
-        inputs = whiten(inputs)
         net.reset()
         """
         mask, score = gate_mfcc(net, inputs)
@@ -156,7 +152,7 @@ def eval_genome(genome, config, batch_data):
         else:
             xo = np.sum(selected_score) / selected_score.size
         """
-        xo = gate_mfcc(net, inputs)
+        xo = gate_lfcc(net, inputs)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -165,13 +161,15 @@ def eval_genome(genome, config, batch_data):
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
 
+
     size_target_scores = target_scores.size
     for i in range(size_target_scores):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / size_target_scores
 
+
     size_non_target_scores = non_target_scores.size
     for i in range(size_non_target_scores):
-        l_s_n[i + batch_size // 2] = (target_scores >= non_target_scores[i]).sum() / size_non_target_scores
+        l_s_n[i + batch_size // 2] = (target_scores <= non_target_scores[i]).sum() / size_non_target_scores
 
     return 1 - l_s_n
 
@@ -221,8 +219,7 @@ def evaluate(net, data_loader):
     for data in tqdm(data_loader):
         net.reset()
         sample_input, output = data[0], data[1]
-        sample_input = whiten(sample_input)
-        xo = gate_mfcc(net, sample_input)
+        xo = gate_lfcc(net, sample_input)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -244,13 +241,15 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True, index_list=index_train)
-    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test, do_mfcc=True)
+    train_loader = ASVDatasetshort(None, do_lfcc=True, index_list=index_train,
+                                   do_standardize=True)
+    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test,
+                             do_lfcc=True, do_standardize=True)
 
     winner, config, stats = run(config_path, n_generation, train_loader, spoofed_class)
     make_visualize(winner, config, stats)
 
-    winner = pickle.load(open('best_genome_eoc_class_1_test', 'rb'))
+    # winner = pickle.load(open('best_genome_eoc_class_1_test', 'rb'))
 
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
@@ -263,4 +262,4 @@ if __name__ == '__main__':
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))
 
-    #pickle.dump(winner, open('best_genome_eoc_class_2_test0', 'wb'))
+    # pickle.dump(winner, open('best_genome_eoc_class_2_lfcc', 'wb'))

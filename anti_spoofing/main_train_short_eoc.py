@@ -156,7 +156,7 @@ def eval_genome(genome, config, batch_data):
         l_s_n[i] = (non_target_scores >= target_scores[i]).sum() / (batch_size // 2)
 
     for i in range(batch_size//2):
-        l_s_n[i+batch_size//2] = (target_scores >= non_target_scores[i]).sum() / (batch_size // 2)
+        l_s_n[i+batch_size//2] = (target_scores <= non_target_scores[i]).sum() / (batch_size // 2)
 
     return 1 - l_s_n
 

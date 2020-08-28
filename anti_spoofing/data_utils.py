@@ -77,7 +77,7 @@ class ASVDataset(Dataset):
         If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
         and not the raw audio files. This version does not use librosa.
         :param do_lfcc: bool
-        If True, compute the linear-frequency cepstral coefﬁcients (GFCC features) from the audio signal.
+        If True, compute the linear-frequency cepstral coefﬁcients (LFCC features) from the audio signal.
         :param custom_path: str
         directory when ASV data in a specific folder
         :param n_fft: int or list of int

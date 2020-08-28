@@ -4,10 +4,8 @@ from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from sklearn.metrics import roc_curve
 
-
 import neat_local.visualization.visualize as visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
-
 
 SAMPLING_RATE = 16000
 
@@ -106,6 +104,23 @@ def gate_mfcc(recurrent_net, sample_input):
     for i in range(length):
         select[i], score[i] = recurrent_net.activate(sample_input[:, i])
     select = sigmoid(select)
+    return np.sum(select * score) / np.sum(select)
+
+
+def gate_lfcc(recurrent_net, sample_input):
+    """
+    compute mask and the scores for a given input (audio file) preprocessed with lfcc
+    the mask tells by how the corresponding score should be taken into account
+    :param recurrent_net: network
+    :param sample_input: one audio file in a numpy format
+    :return mask, score
+    """
+    length = sample_input.shape[0]
+    score, select = np.zeros(length), np.zeros(length)
+    for i in range(length):
+        select[i], score[i] = recurrent_net.activate(sample_input[i, :])
+    select = sigmoid(select)
+    score = sigmoid(score)
     return np.sum(select * score) / np.sum(select)
 
 
@@ -227,7 +242,7 @@ def evaluate_acc_eer(net, data_loader):
     return float(correct) / total, eer
 
 
-def make_visualize(winner_, config_, stats_, topology=True):
+def make_visualize(winner_, config_, stats_, topology=True, ce=False):
     """
     Plot and draw:
         - the graph of the topology
@@ -237,16 +252,19 @@ def make_visualize(winner_, config_, stats_, topology=True):
     :param winner_: genome
     :param config_: configuration file
     :param stats_: statistics from reporter
+    :param ce: cross entropy
     :return None
     """
 
-    node_names = {-1: "input", 0: "gate", 1: "bonafide speech", 2: "Wavenet vocoder", 3: "Conventional vocoder WORLD",
-                  4: "Conventional vocoder MERLIN", 5: "Unit selection system MaryTTS",
-                  6: "Voice conversion using neural networks", 7: "transform function-based voice conversion"}
+    if ce:
+        node_names = {-1: "input", 0: "gate", 1: "bonafide speech", 2: "Wavenet vocoder",
+                      3: "Conventional vocoder WORLD",
+                      4: "Conventional vocoder MERLIN", 5: "Unit selection system MaryTTS",
+                      6: "Voice conversion using neural networks", 7: "transform function-based voice conversion"}
+    else:
+        node_names = {-1: "input", 0: "gate", 1: "score"}
 
     if topology:
         visualize.draw_net(config_, winner_, True, node_names=node_names)
     visualize.plot_stats(stats_, ylog=False, view=True)
     visualize.plot_species(stats_, view=True)
-
-
