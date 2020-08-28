@@ -259,12 +259,12 @@ def feed_and_predict(data, g, conf, backprop, use_gate=True, loading_bar=True):
     return predictions, targets
 
 
-def evaluate_eer_acc(g, conf, data, backprop=False, use_gate=True):
+def evaluate_eer_acc(g, conf, data, backprop=False, use_gate=True, loading_bar=True):
     """
     returns the equal error rate and the accuracy
     """
 
-    predictions, targets = feed_and_predict(data, g, conf, backprop, use_gate=use_gate)
+    predictions, targets = feed_and_predict(data, g, conf, backprop, use_gate=use_gate, loading_bar=loading_bar)
 
     accuracy = np.mean(np.abs(predictions - targets) < 0.5)
 
