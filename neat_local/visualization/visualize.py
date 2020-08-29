@@ -21,11 +21,12 @@ def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    generation = range(len(statistics.best_fitnesses))
     if isinstance(statistics, neat.StatisticsReporter):
         best_fitness = [g.fitness for g in statistics.most_fit_genomes]
+        generation = range(len(statistics.most_fit_genomes))
     else:
         best_fitness = [c[1] for c in statistics.best_fitnesses]
+        generation = range(len(statistics.best_fitnesses))
     avg_fitness = np.array(statistics.get_fitness_mean())
     stdev_fitness = np.array(statistics.get_fitness_stdev())
 
