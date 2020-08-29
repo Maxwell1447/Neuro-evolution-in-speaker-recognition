@@ -10,6 +10,12 @@ from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
 def compute_eer(target_scores, non_target_scores):
+    """
+    Return the equal error rate from the scores
+    :param target_scores: numpy array scores of the bonafide files
+    :param non_target_scores: numpy array scores of the spoofed files
+    :return: eer equal error rate
+    """
     target_scores = np.array(target_scores)
     non_target_scores = np.array(non_target_scores)
     pmiss, pfa = rocch(target_scores, non_target_scores)
@@ -17,7 +23,7 @@ def compute_eer(target_scores, non_target_scores):
     return eer
 
 
-def evaluate_different_window(net, data_loader):
+def evaluate_different_dataset(net, data_loader):
     """
     compute the eer equal error rate
     :param net: list of networks
@@ -134,18 +140,19 @@ if __name__ == '__main__':
     net_5 = pickle.load(open('best_genome_eoc_class_5', 'rb'))
     net_6 = pickle.load(open('best_genome_eoc_class_6_test', 'rb'))
 
+    """
     aggregate_net = []
     train_eer = evaluate(aggregate_net, trainset)
     dev_eer = evaluate(aggregate_net, devset)
-    eer = evaluate(aggregate_net, testset)
+    eer = evaluate(aggregate_net, testset)"""
 
 
 
     net_best = pickle.load(open('best_genome_eoc_batch_128_c3', 'rb'))
-    net_ = pickle.load(open('best_genome_eoc_batch_128_nfft_512', 'rb'))
+    net_ = pickle.load(open('best_genome_eoc_64_cqt_c3', 'rb'))
     net_b = pickle.load(open('best_genome_eoc_batch_128_nfft_1024', 'rb'))
 
-    net = [net_best, net_, net_b]
+    net = [net_best, net_]
 
     aggregate_net = []
     for i in range(len(net)):
@@ -156,17 +163,19 @@ if __name__ == '__main__':
     eval_1024 = pickle.load(open('dataset_eval_mfcc_1024', 'rb'))
     eval_2048 = pickle.load(open('dataset_eval_mfcc_2048', 'rb'))
 
-    eval_dataset = [eval_2048, eval_512, eval_1024]
+    eval_cqt = ASVDataset(is_train=False, is_eval=True, do_chroma_cqt=True, nb_samples=80000)
 
-    eer = evaluate_different_window(aggregate_net, eval_dataset)
+    eval_dataset = [eval_2048, eval_cqt]
+
+    eer = evaluate_different_dataset(aggregate_net, eval_dataset)
 
 
 
-    print("\n")
+    """print("\n")
     print("**** equal error rate train = {}  ****".format(train_eer))
 
     print("\n")
-    print("**** equal error rate dev = {}  ****".format(dev_eer))
+    print("**** equal error rate dev = {}  ****".format(dev_eer))"""
 
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))

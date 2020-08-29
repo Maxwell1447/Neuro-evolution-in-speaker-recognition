@@ -69,6 +69,8 @@ if __name__ == '__main__':
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))
 
+    # use this code if you want to separate the eval dataset into known and unknown classes
+
     """
     test_seen_classes = []
     test_unseen_classes = []

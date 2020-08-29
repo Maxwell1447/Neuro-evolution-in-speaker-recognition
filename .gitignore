@@ -45,4 +45,4 @@ anti_spoofing/extract_scores.py
 
 anti_spoofing/neat_aggregator.cfg
 
-anti_spoofing/main_train_short_aggregator.py
+anti_spoofing/main_aggregator.py

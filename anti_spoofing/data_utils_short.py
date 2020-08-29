@@ -16,16 +16,10 @@ import numpy as np
 import random
 import librosa
 from spafe.features.lfcc import lfcc
-import platform
 
 from anti_spoofing.utils_ASV import whiten
 from anti_spoofing.mfcc import mfcc
 
-# tells us if one is using a linux or a windows machine
-current_os = platform.system()
-
-# the audio files should be located in anti_spoofing/data, change this parameter according to your needs
-DATA_ROOT = 'data'
 
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
@@ -37,9 +31,9 @@ class ASVDatasetshort(Dataset):
     """
     def __init__(self, length, nb_samples=2538, random_samples=False,
                  sample_size=None,
-                 save_cache=False, index_list=None,
+                 save_cache=False, custom_path="./data", index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 do_lfcc=False, n_fft=2048, do_mrf=False, custom_path=DATA_ROOT, metadata=True):
+                 do_lfcc=False, n_fft=2048, do_mrf=False, metadata=True):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -57,6 +51,8 @@ class ASVDatasetshort(Dataset):
         randomly choose which files to keep.
         :param save_cache: bool
         If True, will save the cache with torch.
+        :param custom_path: str
+        directory when ASV data in a specific folder
         :param index_list: list
         If set to a non empty list, will only use the audio files whose index is in the list
         :param do_standardize: bool
@@ -120,6 +116,7 @@ class ASVDatasetshort(Dataset):
 
         self.protocols_fname = os.path.join(custom_path, track, 'ASVspoof2019_{}_cm_protocols'.format(track),
                                             'ASVspoof2019.{}.cm.{}.txt'.format(track, self.protocols_fname))
+
         assert os.path.isfile(self.protocols_fname)
 
         self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
@@ -225,4 +222,4 @@ class ASVDatasetshort(Dataset):
 
 
 if __name__ == '__main__':
-    train_loader = ASVDatasetshort(length=None, nb_samples=2530, do_lfcc=True, do_standardize=True)
+    train_loader = ASVDatasetshort(length=None, nb_samples=10, do_lfcc=True, do_standardize=True)

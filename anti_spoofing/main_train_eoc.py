@@ -1,11 +1,13 @@
 import os
 import neat
 
+import backprop_neat
 from anti_spoofing.eval_functions import evaluate_eer_acc
 import torch
 import numpy as np
 import multiprocessing
 
+import neat_local.visualization.visualize as visualize
 from anti_spoofing.utils_ASV import make_visualize, show_stats
 from anti_spoofing.data_loader import load_data
 from anti_spoofing.eval_function_eoc import eval_genome_eoc, quantified_eval_genome_eoc, eval_eer_gc, \
@@ -33,16 +35,17 @@ def run(config_file, n_gen):
 
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
-    stats_ = neat.StatisticsReporter()
+    stats_ = backprop_neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+    p.add_reporter(backprop_neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     if USE_DATASET:
-        multi_evaluator = ProcessedASVEvaluatorEocGc(multiprocessing.cpu_count(), eval_genome_eoc, data=trainloader,
-                                                     pop=config_.pop_size, config=config_,
+        multi_evaluator = ProcessedASVEvaluatorEocGc(multiprocessing.cpu_count(), quantified_eval_genome_eoc,
+                                                     data=trainloader, pop=config_.pop_size, config=config_,
                                                      gc_eval=eval_eer_gc, validation_data=devloader,
-                                                     batch_increment=2, initial_batch_size=100, batch_generations=2)
+                                                     batch_increment=200, initial_batch_size=100, batch_generations=50)
+
     else:
         multi_evaluator = ProcessedASVEvaluatorEocGc(multiprocessing.cpu_count(), eval_genome_eoc, data=trainloader,
                                                      pop=config_.pop_size, config=config_,
@@ -90,6 +93,7 @@ if __name__ == '__main__':
     for iterations in range(20):
         print("iterations number =", iterations)
         gc, winner, config, stats, gen_gc = run(config_path, 200)
+        visualize.plot_stats(stats, ylog=False, view=True)
 
         with torch.no_grad():
             eer, accuracy = evaluate_eer_acc(winner, config, devloader)

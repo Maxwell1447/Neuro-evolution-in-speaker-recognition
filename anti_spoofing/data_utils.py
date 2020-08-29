@@ -16,7 +16,6 @@ import numpy as np
 import random
 import librosa
 from spafe.features.lfcc import lfcc
-import platform
 
 from anti_spoofing.utils_ASV import whiten
 from anti_spoofing.mfcc import mfcc
@@ -82,7 +81,7 @@ class ASVDataset(Dataset):
         If True will return the Mel-frequency cepstral coefficients (mfcc) of the audio files
         and not the raw audio files. This version does not use librosa.
         :param do_lfcc: bool
-        If True, compute the linear-frequency cepstral coefﬁcients (GFCC features) from the audio signal.
+        If True, compute the linear-frequency cepstral coefﬁcients (LFCC features) from the audio signal.
         :param custom_path: str
         directory when ASV data in a specific folder
         :param n_fft: int or list of int
@@ -214,6 +213,7 @@ class ASVDataset(Dataset):
         #     tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
 
         tmp_path = meta.path
+        print(tmp_path)
 
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
@@ -276,5 +276,5 @@ class ASVDataset(Dataset):
 
 
 if __name__ == '__main__':
-    trainset = ASVDataset(is_train=True, nb_samples=30000, do_mfcc=False, random_samples=True)
+    trainset = ASVDataset(is_train=True, nb_samples=3, do_mfcc=False, random_samples=True)
     testset = ASVDataset(is_train=False, is_eval=True, nb_samples=10, length=48000, do_lfcc=False)

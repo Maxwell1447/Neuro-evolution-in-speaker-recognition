@@ -1,5 +1,6 @@
 import os
 import neat
+import backprop_neat
 from neat_local.nn.recurrent_net import RecurrentNet
 import torch
 from torch import sigmoid
@@ -42,9 +43,9 @@ def run(config_file, n_gen):
 
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
-    stats_ = neat.StatisticsReporter()
+    stats_ = backprop_neat.StatisticsReporter()
     p.add_reporter(stats_)
-    p.add_reporter(neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
+    p.add_reporter(backprop_neat.Checkpointer(generation_interval=1000, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     multi_evaluator = ProcessedASVEvaluator(multiprocessing.cpu_count(), eval_genome_ce, trainloader)

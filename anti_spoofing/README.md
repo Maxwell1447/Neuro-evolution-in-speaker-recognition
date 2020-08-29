@@ -11,12 +11,13 @@ This is the anti spoofing folder. Here are the scripts for running neat on the A
 ## General info
 We are using the ASVspoof 2019 logical (LA) database.
 The logical train audio files are used for training.
-The logical dev audio files are used for testing.
+The logical dev and eval audio files are used for testing.
 
 We have tested several fitness functions, the mean square error (mse), 
-the equal error rate (eer) and the ease of classification (eoc).
+the cross entropy (ce), the equal error rate (eer),
+the ease of classification (eoc) and variant of ease of classification.
 
-We mostly use numpy arrays instead of tensors because it is much faster this way.
+We use numpy arrays and tensors.
 
 ## Screenshots
 ![Example screenshot](./img/Digraph.jpg)
@@ -62,23 +63,27 @@ def run(config_file, n_gen):
 ## Files description
 
 * Python files for running neat are named like the following:
-    * main_\[ dataset for training ]\_[ fitness function ]\_([ use of tensor ]).py
+    * main_\[ dataset for training ]\_[ fitness function ]\.py
      
-     * For example: main_toy_data_set_mse_tensor means that
+     * For example: main_toy_data_set_mse means that
         * The dataset used is the toy dataset
         * The fitness function used is the mean square error
-        * The implementation is using tensors and not numpy arrays
      
      * Regarding the dataset:
         * train means that we are using the entire logical train dataset for training
+            * It is only used with neat-pytorch since it is much faster
         * train_short means that we are using a subset of the logical train dataset for training
+            * It is used with neat-python
         * toy_data_set means that we are using 10 files from the logical train dataset for training
+            * * It is used with neat-python
 
     *  Inside the main files, you can find: 
-        * run function 
+        * run function (always present)
         * eval genome(s) for computing the fitness
             * eval_genome is used for single processing
             * eval_genomes is used for multi processing
+            * for neat-pytorch implementation (main_train(_fitness_funtion)), 
+            see the corresponding eval_functions file
      
 * utils.py contains auxiliary code to normalize audio files, use gates, ...
 
@@ -88,7 +93,8 @@ def run(config_file, n_gen):
     statistics about the dataset (length of the audio files, distribution of spoofed files).
     
 * show_gates.py plots some some statistics about the weights ofr a saved population 
-with neat.Checkpointer. Not implemented yet.
+with neat.Checkpointer. It is only working with raw audio files and neat-python.
+We may implement the others a next time
 
 * metrics_utils.py file implements the error equal rate 
     * Implemented by Andreas Nautsch (EURECOM) and Themos Stafylakis (Omilia),
@@ -101,8 +107,7 @@ with neat.Checkpointer. Not implemented yet.
 To run the code, you have to add a folder data containing LA and PA, in the folder anti spoofing.
 The LA and PA folders can be download [here](https://datashare.is.ed.ac.uk/handle/10283/3336).
 
-We did not test the code on Linux machine (only Windows ones), 
-so you may have compatibilities issues with the path of the files.
+The code should be runnning both on Linux and Windows machine.
 
 The ease of classification and the grand champion algorithm are from the following paper:
 
@@ -113,6 +118,3 @@ The ease of classification and the grand champion algorithm are from the followi
 
 
 ## Future Work
-
-* Adding new gates function
-* Adding new fitness functions

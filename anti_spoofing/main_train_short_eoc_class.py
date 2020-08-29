@@ -8,37 +8,36 @@ import pickle
 
 from anti_spoofing.data_utils import ASVDataset
 from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils_ASV import whiten, gate_mfcc, make_visualize, err_threshold
+from anti_spoofing.utils_ASV import gate_lfcc, make_visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 """
 NEAT APPLIED TO ASVspoof 2019
+Training is done on bonafide files and one class spoofed from the train short data set
 """
-
-nb_samples_train = 2538  # number of audio files used for training
-nb_samples_test = 7000  # number of audio files used for testing
 
 batch_size = 760  # size of the batch used for training, choose a multiple 2
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
-n_generation = 500  # number of generations
+n_generation = 150  # number of generations
 
-spoofed_class = 2
+spoofed_class = 2  # spoofed class to train on
 
+# boundary index of the type of audio files of the train short data set for testing
 train_short_border = [0, 258, 638, 1018, 1398, 1778, 2158, 2538]
-index_train = list(range(0, 258)) + list(range(train_short_border[spoofed_class], train_short_border[spoofed_class+1]))
+index_train = list(range(0, 258)) + list(
+    range(train_short_border[spoofed_class], train_short_border[spoofed_class + 1]))
 
-# boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
-# for testing
+# boundary index of the type of audio files of the dev data set for testing
 dev_border = [0, 2548, 6264, 9980, 13696, 17412, 21128, 22296]
 index_test = []
 
-index_test += rd.sample([k for k in range(dev_border[0], dev_border[1])], 2000)
-index_test += rd.sample([k for k in range(dev_border[spoofed_class], dev_border[spoofed_class + 1])], 1168)
+index_test += list(range(dev_border[0], dev_border[1]))
+index_test += list(range(dev_border[spoofed_class], dev_border[spoofed_class + 1]))
 
 
 class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
-    def __init__(self, num_workers, eval_function, data, pop, class_spoofed, batch_size=batch_size, timeout=None):
+    def __init__(self, num_workers, eval_function, data, pop, batch_size=batch_size, timeout=None):
         """
         :param num_workers: int
         number of workers to use for evaluating the fitness
@@ -58,8 +57,8 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.bona_fide_train = list(range(258))  # index list of bona fide files
         rd.shuffle(self.bona_fide_train)  # shuffle the index
         self.bona_fide_index = 0
-        self.nb_iter_bona_fide = max(batch_size // 2, 258)
-        self.nb_iter_spoofed = max(batch_size // 2, 380)
+        self.nb_iter_bona_fide = min(batch_size // 2, 258)
+        self.nb_iter_spoofed = min(batch_size // 2, 380)
 
         # index list of spoofed files
         self.spoofed_train = list(range(380))
@@ -67,7 +66,6 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.spoofed_index = 0
         self.G = pop
         self.l_s_n = np.zeros((self.batch_size, self.G))
-
 
     def evaluate(self, genomes, config):
         """
@@ -146,7 +144,6 @@ def eval_genome(genome, config, batch_data):
     l_s_n = np.zeros(len(batch_data))
     for data in batch_data:
         inputs, output = data[0], data[1]
-        inputs = whiten(inputs)
         net.reset()
         """
         mask, score = gate_mfcc(net, inputs)
@@ -156,7 +153,7 @@ def eval_genome(genome, config, batch_data):
         else:
             xo = np.sum(selected_score) / selected_score.size
         """
-        xo = gate_mfcc(net, inputs)
+        xo = gate_lfcc(net, inputs)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -171,7 +168,7 @@ def eval_genome(genome, config, batch_data):
 
     size_non_target_scores = non_target_scores.size
     for i in range(size_non_target_scores):
-        l_s_n[i + batch_size // 2] = (target_scores >= non_target_scores[i]).sum() / size_non_target_scores
+        l_s_n[i + size_target_scores] = (target_scores <= non_target_scores[i]).sum() / size_non_target_scores
 
     return 1 - l_s_n
 
@@ -200,7 +197,7 @@ def run(config_file, n_gen, train_loader, spoofed_class):
     # p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
-    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, config_.pop_size, spoofed_class)
+    multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, config_.pop_size)
     winner_ = p.run(multi_evaluator.evaluate, n_gen)
 
     # Display the winning genome.
@@ -221,8 +218,7 @@ def evaluate(net, data_loader):
     for data in tqdm(data_loader):
         net.reset()
         sample_input, output = data[0], data[1]
-        sample_input = whiten(sample_input)
-        xo = gate_mfcc(net, sample_input)
+        xo = gate_lfcc(net, sample_input)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -244,13 +240,13 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True, index_list=index_train)
-    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test, do_mfcc=True)
+    train_loader = ASVDatasetshort(None, do_lfcc=True, index_list=index_train,
+                                   do_standardize=True)
+    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test,
+                             do_lfcc=True, do_standardize=True)
 
     winner, config, stats = run(config_path, n_generation, train_loader, spoofed_class)
     make_visualize(winner, config, stats)
-
-    winner = pickle.load(open('best_genome_eoc_class_1_test', 'rb'))
 
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
 
@@ -263,4 +259,4 @@ if __name__ == '__main__':
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))
 
-    #pickle.dump(winner, open('best_genome_eoc_class_2_test0', 'wb'))
+    pickle.dump(winner, open('best_genome_eoc_class_2_lfcc', 'wb'))
