@@ -38,6 +38,7 @@ backprop = False
 USE_DATASET = False
 USE_GATE = True
 KEEP_FROM = 0
+NUM_CHECKPOINT = "0"
 
 if backprop:
     import backprop_neat as neat
@@ -137,7 +138,7 @@ def run(config_file, n_gen):
 
     # Create the population, which is the top-level object for a NEAT run.
     if KEEP_FROM > 0:
-        p, w = neat.Checkpointer.restore_checkpoint("neat-checkpoint_-{}".format(KEEP_FROM))
+        p, w = neat.Checkpointer.restore_checkpoint("neat-checkpoint{}-{}".format(NUM_CHECKPOINT, KEEP_FROM))
         p.add_reporter(WriterReporter(writer, params=w))
         stats_ = None
         displayable = []
@@ -222,7 +223,7 @@ if __name__ == '__main__':
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 40000//10000)
+        winner, config, stats = run(config_path, 10000)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader,
                                          backprop=backprop, use_gate=USE_GATE, loading_bar=False)
