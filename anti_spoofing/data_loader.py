@@ -143,7 +143,7 @@ def load_data_cqcc(batch_size=50, batch_size_test=1, num_train=1000, num_test=10
     return train_dataloader, dev_dataloader
 
 
-def load_single_data(batch_size=50, length=3 * 16000, num_data=10000, data_type="train", custom_path="./data",
+def load_single_data(batch_size=50, length=4 * 16000, num_data=10000, data_type="train", custom_path="./data",
                      multi_proc=True, balanced=True, option=OPTION, metadata=False, return_dataset=False):
     is_train = data_type in ["train", "train_short"]
 

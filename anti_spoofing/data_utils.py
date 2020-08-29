@@ -35,6 +35,7 @@ class ASVDataset(Dataset):
                  is_train=True, sample_size=None,
                  is_logical=True, is_eval=False,
                  save_cache=False, index_list=None,
+                 random_start=False,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
                  do_lfcc=False, metadata=True, custom_path="./data", n_fft=2048, do_mrf=False):
         """
@@ -63,6 +64,9 @@ class ASVDataset(Dataset):
         If True, will save the cache with torch.
         :param index_list: list
         If set to a non empty list, will only use the audio files whose index is in the list.
+        :param random_start: bool
+        If set to True, it can start the file at a random time provided there is at least 'length' samples remaining.
+        If set to False, it starts from 0.
         :param do_standardize: bool
         If True will standardize the audio files
         :param do_mfcc: bool
@@ -94,6 +98,7 @@ class ASVDataset(Dataset):
         # if is_eval:
         #     data_root = os.path.join('eval_data', data_root)
         self.fragment_length = length
+        self.random_start = random_start
         self.track = track
         self.metadata = metadata
         self.is_train = is_train
@@ -217,7 +222,7 @@ class ASVDataset(Dataset):
             if data_x.size < self.fragment_length:
                 nb_iter = self.fragment_length // data_x.size + 1
                 data_x = np.tile(data_x, nb_iter)
-            begin = np.random.randint(0, data_x.size - self.fragment_length+1)
+            begin = 0 if self.random_start else np.random.randint(0, data_x.size - self.fragment_length+1)
             data_x = data_x[begin: begin + self.fragment_length]
         if self.mfcc:
             data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
