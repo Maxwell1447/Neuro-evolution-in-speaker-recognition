@@ -15,6 +15,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import random
 import librosa
+import pickle
 from spafe.features.lfcc import lfcc
 
 from anti_spoofing.utils_ASV import whiten
@@ -36,7 +37,7 @@ class ASVDataset(Dataset):
                  save_cache=False, index_list=None,
                  random_start=False,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 do_lfcc=False, metadata=True, custom_path="./data", n_fft=2048, do_mrf=False):
+                 do_lfcc=False, metadata=True, sysid=False, custom_path="./data", n_fft=2048, do_mrf=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -99,6 +100,7 @@ class ASVDataset(Dataset):
         self.fragment_length = length
         self.random_start = random_start
         self.track = track
+        self.sysid = sysid
         self.metadata = metadata
         self.is_train = is_train
         self.is_logical = is_logical
@@ -114,8 +116,6 @@ class ASVDataset(Dataset):
         self.n_fft = n_fft
         self.mrf = do_mrf
         self.lfcc = do_lfcc
-        if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt or self.m_mfcc):
-            raise ValueError("You cannot specify a length if you are using pre-processing functions")
         if self.chroma_stft + self.mfcc + self.chroma_cqt + self.m_mfcc >= 2:
             raise ValueError("You cannot use several preprocessing algorithms at the same time")
         v1_suffix = ''
@@ -161,9 +161,9 @@ class ASVDataset(Dataset):
         assert os.path.isfile(self.protocols_fname)
 
         self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
-        if os.path.exists(self.cache_fname):
+        if os.path.exists(self.cache_fname) and not self.index_list:
             # self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
-            self.data_x, self.data_y, self.files_meta = torch.load(self.cache_fname)
+            self.data_x, self.data_y, self.files_meta = pickle.load(open(self.cache_fname, 'rb'))
             print('Dataset loaded from cache ', self.cache_fname)
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
@@ -213,7 +213,6 @@ class ASVDataset(Dataset):
         #     tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
 
         tmp_path = meta.path
-        print(tmp_path)
 
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key

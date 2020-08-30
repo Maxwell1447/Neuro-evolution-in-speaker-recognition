@@ -19,9 +19,9 @@ Training is done on bonafide files and one class spoofed from the train short da
 batch_size = 760  # size of the batch used for training, choose a multiple 2
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
-n_generation = 150  # number of generations
+n_generation = 250  # number of generations
 
-spoofed_class = 2  # spoofed class to train on
+spoofed_class = 4  # spoofed class to train on
 
 # boundary index of the type of audio files of the train short data set for testing
 train_short_border = [0, 258, 638, 1018, 1398, 1778, 2158, 2538]
@@ -194,7 +194,7 @@ def run(config_file, n_gen, train_loader, spoofed_class):
     p.add_reporter(neat.StdOutReporter(True))
     stats_ = neat.StatisticsReporter()
     p.add_reporter(stats_)
-    # p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None))
+    p.add_reporter(neat.Checkpointer(generation_interval=250, time_interval_seconds=None))
 
     # Run for up to n_gen generations.
     multi_evaluator = Anti_spoofing_Evaluator(n_processes, eval_genome, train_loader, config_.pop_size)
@@ -258,5 +258,3 @@ if __name__ == '__main__':
 
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))
-
-    pickle.dump(winner, open('best_genome_eoc_class_2_lfcc', 'wb'))

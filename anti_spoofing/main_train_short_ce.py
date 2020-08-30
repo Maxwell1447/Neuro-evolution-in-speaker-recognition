@@ -89,7 +89,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.current_batch = []
 
         # adding bona fida index for training
-        if batch_size // 7 + self.bona_fide_index >= 258:
+        if batch_size // 7 + self.bona_fide_index >= 259:
             self.bona_fide_index = 0
             rd.shuffle(self.bona_fide_train)
         for index in range(self.batch_size // 7):
@@ -97,7 +97,7 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
 
         # adding spoofed index for training
         for sys_id in range(6):
-            if batch_size // 7 + self.spoofed_index[sys_id] >= 380:
+            if batch_size // 7 + self.spoofed_index[sys_id] >= 381:
                 self.spoofed_index[sys_id] = 0
                 rd.shuffle(self.spoofed_train[sys_id])
             for index in range(self.batch_size // 7):

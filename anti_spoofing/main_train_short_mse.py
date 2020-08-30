@@ -82,14 +82,14 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.current_batch = []
 
         # adding bona fida index for training
-        if batch_size//2 + self.bona_fide_index >= 258:
+        if batch_size//2 + self.bona_fide_index >= 259:
             self.bona_fide_index = 0
             rd.shuffle(self.bona_fide_train)
         for index in range(self.batch_size//2):
             self.current_batch.append(self.data[self.bona_fide_train[self.bona_fide_index + index]])
 
         # adding spoofed index for training
-        if batch_size//2 + self.spoofed_index >= 2280:
+        if batch_size//2 + self.spoofed_index >= 2281:
             self.spoofed_index = 0
             rd.shuffle(self.spoofed_train)
         for index in range(self.batch_size // 2):

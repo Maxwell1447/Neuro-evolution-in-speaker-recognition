@@ -7,7 +7,6 @@
 """
 
 from tqdm import tqdm
-import torch
 import collections
 import os
 import soundfile as sf
@@ -15,11 +14,11 @@ from torch.utils.data import Dataset
 import numpy as np
 import random
 import librosa
+import pickle
 from spafe.features.lfcc import lfcc
 
 from anti_spoofing.utils_ASV import whiten
 from anti_spoofing.mfcc import mfcc
-
 
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
@@ -29,11 +28,12 @@ class ASVDatasetshort(Dataset):
     """
     Utility class to load  train short data set
     """
-    def __init__(self, length, nb_samples=2538, random_samples=False,
+
+    def __init__(self, length=None, nb_samples=2538, random_samples=False,
                  sample_size=None,
                  save_cache=False, custom_path="./data", index_list=None,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 do_lfcc=False, n_fft=2048, do_mrf=False, metadata=True):
+                 do_lfcc=False, n_fft=2048, do_mrf=False, metadata=True, sysid=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -74,12 +74,18 @@ class ASVDatasetshort(Dataset):
         :param n_fft: int or list of int
         length of the FFT window
         :param do_mrf: bool
-        If yes, will use Multi-Resolution Feature Maps
+        If True, will use Multi-Resolution Feature Maps
+        :param metadata: bool
+        If True, will add metadata
+        :param sysid: bool
+        If True, will add sysid
         """
         data_root = custom_path
         track = 'LA'
+        local_dir = os.path.dirname(__file__)
         self.track = 'LA'
         self.metadata = metadata
+        self.sysid = sysid
         self.fragment_length = length
         self.prefix = 'ASVspoof2019_{}'.format(track)
         self.nb_samples = nb_samples
@@ -87,14 +93,14 @@ class ASVDatasetshort(Dataset):
         self.index_list = index_list
         self.standardize = do_standardize
         self.mfcc = do_mfcc
-        self.chroma_cqt = do_chroma_cqt
-        self.chroma_stft = do_chroma_stft
+        self.cqt = do_chroma_cqt
+        self.stft = do_chroma_stft
         self.m_mfcc = do_self_mfcc
         self.n_fft = n_fft
         self.mrf = do_mrf
         self.lfcc = do_lfcc
-        if self.fragment_length and (self.chroma_stft or self.mfcc or self.chroma_cqt):
-            raise ValueError("You cannot specify a length if you are using pre-processing functions")
+        if self.stft + self.mfcc + self.cqt + self.m_mfcc + self.lfcc >= 2:
+            raise ValueError("You cannot use several preprocessing algorithms at the same time")
         v1_suffix = ''
         self.sysid_dict = {
             'human': 0,  # bonafide speech
@@ -116,30 +122,60 @@ class ASVDatasetshort(Dataset):
 
         self.protocols_fname = os.path.join(custom_path, track, 'ASVspoof2019_{}_cm_protocols'.format(track),
                                             'ASVspoof2019.{}.cm.{}.txt'.format(track, self.protocols_fname))
-
+        print("protocols path: ", self.protocols_fname)
         assert os.path.isfile(self.protocols_fname)
 
-        self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
-        if os.path.exists(self.cache_fname):
-            self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
-            print('Dataset loaded from cache ', self.cache_fname)
+        features = 'lfcc' if self.lfcc else 'mfcc' if self.mfcc else 'cqt' if self.cqt else 'stft' if self.stft else ''
+        standardize = '_standardize' if self.standardize else ''
+        metadata = "_metadata" if self.metadata else ''
+        sysid = "_sysid" if self.sysid else ''
+        audio_size = "_size=" + str(self.fragment_length) if self.fragment_length else ''
+        nb_samples = "_nbsamples=" + str(self.nb_samples) if self.nb_samples else ''
+        self.cache_fname = 'dataset_{}_{}_{}_{}{}{}{}'.format(track, self.dset_name + "short", self.n_fft, features,
+                                                              standardize, metadata, sysid, audio_size, nb_samples)
+        print(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname))
+        if os.path.exists(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname)) and not self.index_list:
+            if self.sysid:
+                self.data_x, self.data_y, self.data_sysid = pickle.load(open(os.path.join(local_dir,
+                                                                                          "data/preprocessed/"
+                                                                                          + self.cache_fname), 'rb'))
+            elif self.metadata:
+                self.data_x, self.data_y, self.files_meta = pickle.load(open(os.path.join(local_dir,
+                                                                                          "data/preprocessed/"
+                                                                                          + self.cache_fname), 'rb'))
+            else:
+                self.data_x, self.data_y = pickle.load(open(os.path.join(local_dir,
+                                                                         "data/preprocessed/"
+                                                                         + self.cache_fname), 'rb'))
+
+            print('Dataset loaded from cache ', local_dir, "data/preprocessed/" + self.cache_fname)
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
             # tqdm progress for loading files
             data = list(map(self.read_file, tqdm(self.files_meta)))
-            self.data_x, self.data_y = map(list, zip(*data))
-            # to add meta data    
-            # self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
-            if save_cache:
-                torch.save((self.data_x, self.data_y, self.data_sysid, self.files_meta), self.cache_fname)
-                print('Dataset saved to cache ', self.cache_fname)
+            if self.sysid:
+                self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
+            else:
+                self.data_x, self.data_y = map(list, zip(*data))
+            if save_cache and not self.index_list:
+                if self.sysid:
+                    pickle.dump((self.data_x, self.data_y, self.data_sysid),
+                                open(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname), 'wb'))
+                elif self.metadata:
+                    pickle.dump((self.data_x, self.data_y, self.files_meta),
+                                open(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname), 'wb'))
+                else:
+                    pickle.dump((self.data_x, self.data_y),
+                                open(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname), 'wb'))
+                print('Dataset saved to cache ', local_dir, "data/preprocessed/" + self.cache_fname)
         if sample_size:
             select_idx = np.random.choice(len(self.files_meta), size=(sample_size,), replace=True).astype(np.int32)
             if metadata:
                 self.files_meta = [self.files_meta[x] for x in select_idx]
             self.data_x = [self.data_x[x] for x in select_idx]
             self.data_y = [self.data_y[x] for x in select_idx]
-            # self.data_sysid = [self.data_sysid[x] for x in select_idx]
+            if self.sysid:
+                self.data_sysid = [self.data_sysid[x] for x in select_idx]
         self.length = len(self.data_x)
 
     def __len__(self):
@@ -148,12 +184,12 @@ class ASVDatasetshort(Dataset):
     def __getitem__(self, idx):
         x = self.data_x[idx]
         y = self.data_y[idx]
-        if self.metadata:
+        if self.sysid:
+            return x, y, self.files_meta[idx]
+        elif self.metadata:
             return x, y, self.files_meta[idx].sys_id
         else:
             return x, y
-        # to all of the meta data
-        # self.files_meta[idx]
 
     def read_file(self, meta):
 
@@ -163,9 +199,9 @@ class ASVDatasetshort(Dataset):
         data_y = meta.key
         if self.mfcc:
             data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
-        if self.chroma_cqt:
+        if self.cqt:
             data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate, n_chroma=24)
-        if self.chroma_stft:
+        if self.stft:
             data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
         if self.m_mfcc:
             data_x = mfcc(data_x, num_cep=24, nfft=self.n_fft)
@@ -195,10 +231,10 @@ class ASVDatasetshort(Dataset):
 
             begin = np.random.randint(0, data_x.size - self.fragment_length)
             return data_x[begin: begin + self.fragment_length], float(data_y)
+        elif self.sysid:
+            return data_x, float(data_y), meta.sys_id
         else:
             return data_x, float(data_y)
-        # to add meta data    
-        # meta.sys_id
 
     def _parse_line(self, line):
         tokens = line.strip().split(' ')
@@ -222,4 +258,4 @@ class ASVDatasetshort(Dataset):
 
 
 if __name__ == '__main__':
-    train_loader = ASVDatasetshort(length=None, nb_samples=10, do_lfcc=True, do_standardize=True)
+    train_loader = ASVDatasetshort(length=None, nb_samples=2538, do_lfcc=True, do_standardize=True, save_cache=True)

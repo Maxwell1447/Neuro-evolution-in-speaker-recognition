@@ -18,7 +18,7 @@ NEAT APPLIED TO ASVspoof 2019
 nb_samples_train = 2538  # number of audio files used for training
 nb_samples_test = 7000  # number of audio files used for testing
 
-batch_size = 64  # size of the batch used for training, choose an even number
+batch_size = 124  # size of the batch used for training, choose an even number
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
 n_generation = 150  # number of generations
@@ -119,14 +119,14 @@ class Anti_spoofing_Evaluator(neat.parallel.ParallelEvaluator):
         self.current_batch = []
 
         # adding bona fida index for training
-        if batch_size // 2 + self.bona_fide_index >= 258:
+        if batch_size // 2 + self.bona_fide_index >= 259:
             self.bona_fide_index = 0
             rd.shuffle(self.bona_fide_train)
         for index in range(self.batch_size // 2):
             self.current_batch.append(self.data[self.bona_fide_train[self.bona_fide_index + index]])
 
         # adding spoofed index for training
-        if batch_size // 2 + self.spoofed_index >= len(self.spoofed_train):
+        if batch_size // 2 + self.spoofed_index >= len(self.spoofed_train) + 1:
             self.spoofed_index = 0
             rd.shuffle(self.spoofed_train)
         for index in range(self.batch_size // 2):
