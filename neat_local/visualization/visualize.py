@@ -30,10 +30,6 @@ def plot_stats_single(statistics, ylog=False, view=False, filename='avg_fitness.
     avg_fitness = np.array(statistics.get_fitness_mean())
     stdev_fitness = np.array(statistics.get_fitness_stdev())
 
-    print(avg_fitness.shape)
-    print(stdev_fitness.shape)
-    print(len(best_fitness))
-
     plt.plot(generation, smooth(avg_fitness, momentum=momentum), 'b-', label="average")
     plt.plot(generation, smooth(best_fitness, momentum=momentum), 'r-', label="best")
     plt.plot(generation, smooth(avg_fitness - stdev_fitness, momentum=momentum), 'g-.', label="-1 sd")
