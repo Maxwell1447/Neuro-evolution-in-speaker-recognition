@@ -46,7 +46,7 @@ def evaluate_different_dataset(net, data_loader):
         for i in range(nb_net):
             net[i].reset()
             sample_input, output = data_loader[i][index_data][0], data_loader[i][index_data][1]
-            sample_input = whiten(sample_input)
+            # sample_input = whiten(sample_input)
             xo[i] = gate_mfcc(net[i], sample_input)
         if output == 1:
             target_scores_sum.append(xo.mean())
@@ -92,7 +92,7 @@ def evaluate(net, data_loader):
         for i in range(nb_net):
             net[i].reset()
         sample_input, output = data[0], data[1]
-        sample_input = whiten(sample_input)
+        # sample_input = whiten(sample_input)
         xo = np.zeros(nb_net)
         for i in range(nb_net):
             xo[i] = gate_mfcc(net[i], sample_input)
@@ -129,53 +129,32 @@ if __name__ == '__main__':
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
+    net_1 = pickle.load(open('best_genome_eoc_class_1_lfcc', 'rb'))
+    net_2 = pickle.load(open('best_genome_eoc_class_2_lfcc', 'rb'))
+    net_3 = pickle.load(open('best_genome_eoc_class_3_lfcc', 'rb'))
+    net_4 = pickle.load(open('best_genome_eoc_class_4_lfcc', 'rb'))
+    net_5 = pickle.load(open('best_genome_eoc_class_5_lfcc', 'rb'))
+    net_6 = pickle.load(open('best_genome_eoc_class_6_lfcc', 'rb'))
 
-    net_1_0 = pickle.load(open('best_genome_eoc_class_1', 'rb'))
-    net_1_1 = pickle.load(open('best_genome_eoc_class_1_test', 'rb'))
-    net_1_2 = pickle.load(open('best_genome_eoc_class_1_test0', 'rb'))
-    net_2 = pickle.load(open('best_genome_eoc_class_2_test', 'rb'))
-    net_2_0 = pickle.load(open('best_genome_eoc_class_2', 'rb'))
-    net_3 = pickle.load(open('best_genome_eoc_class_3', 'rb'))
-    net_4 = pickle.load(open('best_genome_eoc_class_4', 'rb'))
-    net_5 = pickle.load(open('best_genome_eoc_class_5', 'rb'))
-    net_6 = pickle.load(open('best_genome_eoc_class_6_test', 'rb'))
-
-    """
-    aggregate_net = []
-    train_eer = evaluate(aggregate_net, trainset)
-    dev_eer = evaluate(aggregate_net, devset)
-    eer = evaluate(aggregate_net, testset)"""
-
-
-
-    net_best = pickle.load(open('best_genome_eoc_batch_128_c3', 'rb'))
-    net_ = pickle.load(open('best_genome_eoc_64_cqt_c3', 'rb'))
-    net_b = pickle.load(open('best_genome_eoc_batch_128_nfft_1024', 'rb'))
-
-    net = [net_best, net_]
+    net = [net_1, net_2, net_3, net_4, net_5, net_6]
 
     aggregate_net = []
     for i in range(len(net)):
         aggregate_net.append(neat.nn.RecurrentNetwork.create(net[i], config))
 
+    train_lfcc = ASVDataset(is_train=True, is_eval=False, do_lfcc=True, nb_samples=80000, do_standardize=True)
+    dev_lfcc = ASVDataset(is_train=False, is_eval=False, do_lfcc=True, nb_samples=80000, do_standardize=True)
+    eval_lfcc = ASVDataset(is_train=False, is_eval=True, do_lfcc=True, nb_samples=80000, do_standardize=True)
 
-    eval_512 = pickle.load(open('dataset_eval_mfcc_512', 'rb'))
-    eval_1024 = pickle.load(open('dataset_eval_mfcc_1024', 'rb'))
-    eval_2048 = pickle.load(open('dataset_eval_mfcc_2048', 'rb'))
+    dev_eer = evaluate(aggregate_net, dev_lfcc)
 
-    eval_cqt = ASVDataset(is_train=False, is_eval=True, do_chroma_cqt=True, nb_samples=80000)
-
-    eval_dataset = [eval_2048, eval_cqt]
-
-    eer = evaluate_different_dataset(aggregate_net, eval_dataset)
-
-
+    eer = evaluate(aggregate_net, eval_lfcc)
 
     """print("\n")
     print("**** equal error rate train = {}  ****".format(train_eer))
-
+    """
     print("\n")
-    print("**** equal error rate dev = {}  ****".format(dev_eer))"""
+    print("**** equal error rate dev = {}  ****".format(dev_eer))
 
     print("\n")
     print("**** equal error rate = {}  ****".format(eer))

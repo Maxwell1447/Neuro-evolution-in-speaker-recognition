@@ -34,10 +34,10 @@ class ASVDataset(Dataset):
     def __init__(self, length=None, nb_samples=10000, random_samples=False,
                  is_train=True, sample_size=None,
                  is_logical=True, is_eval=False,
-                 save_cache=False, index_list=None,
+                 save_cache=False, index_list=None, metadata=True, sysid=False,
                  random_start=False,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 do_lfcc=False, metadata=True, sysid=False, custom_path="./data", n_fft=2048, do_mrf=False):
+                 do_lfcc=False, custom_path="./data", n_fft=2048, do_mrf=False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -61,9 +61,13 @@ class ASVDataset(Dataset):
         If True, will use the files from the eval folder.
         If is_train and is_eval are False, will use the files of the dev folder.
         :param save_cache: bool
-        If True, will save the cache with torch.
+        If True, will save the dataset with pickle in data/preprocessed.
         :param index_list: list
         If set to a non empty list, will only use the audio files whose index is in the list.
+        :param metadata: bool
+        If True, will add metadata
+        :param sysid: bool
+        If True, will add sysid
         :param random_start: bool
         If set to True, it can start the file at a random time provided there is at least 'length' samples remaining.
         If set to False, it starts from 0.
@@ -95,6 +99,7 @@ class ASVDataset(Dataset):
             track = 'LA'
         else:
             track = 'PA'
+        local_dir = os.path.dirname(__file__)
         # if is_eval:
         #     data_root = os.path.join('eval_data', data_root)
         self.fragment_length = length
@@ -105,18 +110,30 @@ class ASVDataset(Dataset):
         self.is_train = is_train
         self.is_logical = is_logical
         self.prefix = 'ASVspoof2019_{}'.format(track)
+        self.use_all = False
         self.nb_samples = nb_samples
+        if nb_samples:
+            if self.is_logical:
+                if is_train:
+                    if self.nb_samples > 25380:
+                        self.use_all = True
+                elif is_eval:
+                    if self.nb_samples > 71237:
+                        self.use_all = True
+                else:
+                    if self.nb_samples > 24844:
+                        self.use_all = True
         self.random_samples = random_samples
         self.index_list = index_list
         self.standardize = do_standardize
         self.mfcc = do_mfcc
-        self.chroma_cqt = do_chroma_cqt
-        self.chroma_stft = do_chroma_stft
+        self.cqt = do_chroma_cqt
+        self.stft = do_chroma_stft
         self.m_mfcc = do_self_mfcc
         self.n_fft = n_fft
         self.mrf = do_mrf
         self.lfcc = do_lfcc
-        if self.chroma_stft + self.mfcc + self.chroma_cqt + self.m_mfcc >= 2:
+        if self.stft + self.mfcc + self.cqt + self.m_mfcc >= 2:
             raise ValueError("You cannot use several preprocessing algorithms at the same time")
         v1_suffix = ''
         if is_eval and track == 'PA':
@@ -160,29 +177,57 @@ class ASVDataset(Dataset):
         print("protocols path: ", self.protocols_fname)
         assert os.path.isfile(self.protocols_fname)
 
-        self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
-        if os.path.exists(self.cache_fname) and not self.index_list:
-            # self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
-            self.data_x, self.data_y, self.files_meta = pickle.load(open(self.cache_fname, 'rb'))
-            print('Dataset loaded from cache ', self.cache_fname)
+        features = 'lfcc' if self.lfcc else 'mfcc' if self.mfcc else 'cqt' if self.cqt else 'stft' if self.stft else ''
+        standardize = '_standardize' if self.standardize else ''
+        metadata = "_metadata" if self.metadata else ''
+        sysid = "_sysid" if self.sysid else ''
+        audio_size = "_size=" + str(self.fragment_length) if self.fragment_length else ''
+        nb_samples = "_nbsamples=" + str(self.nb_samples) if (self.nb_samples and not self.use_all) else ''
+        self.cache_fname = 'dataset_{}_{}_{}_{}{}{}{}'.format(track, self.dset_name, self.n_fft, features,
+                                                              standardize, metadata, sysid, audio_size, nb_samples)
+
+        if os.path.exists(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname)) and not self.index_list:
+            if self.sysid:
+                self.data_x, self.data_y, self.data_sysid = pickle.load(open(os.path.join(local_dir,
+                                                                                          "data/preprocessed/"
+                                                                                          + self.cache_fname), 'rb'))
+            elif self.metadata:
+                self.data_x, self.data_y, self.files_meta = pickle.load(open(os.path.join(local_dir,
+                                                                                          "data/preprocessed/"
+                                                                                          + self.cache_fname), 'rb'))
+            else:
+                self.data_x, self.data_y = pickle.load(open(os.path.join(local_dir,
+                                                                         "data/preprocessed/"
+                                                                         + self.cache_fname), 'rb'))
+            print('Dataset loaded from cache ', local_dir, "data/preprocessed/" + self.cache_fname)
+
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
             # tqdm progress for loading files
             data = list(map(self.read_file, tqdm(self.files_meta)))
-            self.data_x, self.data_y = map(list, zip(*data))
-            # to add meta data    
-            # self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
-            if save_cache:
-                # torch.save((self.data_x, self.data_y, self.data_sysid, self.files_meta), self.cache_fname)
-                torch.save((self.data_x, self.data_y, self.files_meta), self.cache_fname)
-                print('Dataset saved to cache ', self.cache_fname)
+            if self.sysid:
+                self.data_x, self.data_y, self.data_sysid = map(list, zip(*data))
+            else:
+                self.data_x, self.data_y = map(list, zip(*data))
+            if save_cache and not self.index_list:
+                if self.sysid:
+                    pickle.dump((self.data_x, self.data_y, self.data_sysid),
+                                open(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname), 'wb'))
+                elif self.metadata:
+                    pickle.dump((self.data_x, self.data_y, self.files_meta),
+                                open(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname), 'wb'))
+                else:
+                    pickle.dump((self.data_x, self.data_y),
+                                open(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname), 'wb'))
+                print('Dataset saved to cache ', local_dir, "data/preprocessed/" + self.cache_fname)
         if sample_size:
             select_idx = np.random.choice(len(self.files_meta), size=(sample_size,), replace=True).astype(np.int32)
             if metadata:
                 self.files_meta = [self.files_meta[x] for x in select_idx]
             self.data_x = [self.data_x[x] for x in select_idx]
             self.data_y = [self.data_y[x] for x in select_idx]
-            # self.data_sysid = [self.data_sysid[x] for x in select_idx]
+            if self.sysid:
+                self.data_sysid = [self.data_sysid[x] for x in select_idx]
         self.length = len(self.data_x)
 
     def __len__(self):
@@ -225,9 +270,9 @@ class ASVDataset(Dataset):
             data_x = data_x[begin: begin + self.fragment_length]
         if self.mfcc:
             data_x = librosa.feature.mfcc(y=data_x, sr=sample_rate, n_mfcc=24, n_fft=self.n_fft)
-        if self.chroma_cqt:
+        if self.cqt:
             data_x = librosa.feature.chroma_cqt(y=data_x, sr=sample_rate, n_chroma=24)
-        if self.chroma_stft:
+        if self.stft:
             data_x = librosa.feature.chroma_stft(y=data_x, sr=sample_rate, n_chroma=24, n_fft=self.n_fft)
         if self.m_mfcc:
             data_x = mfcc(data_x, num_cep=24, nfft=self.n_fft)
@@ -249,9 +294,10 @@ class ASVDataset(Dataset):
                     fft_data_x = whiten(fft_data_x)
                 data_x = np.concatenate((data_x, fft_data_x))
 
-        return data_x, float(data_y)
-        # to add meta data    
-        # meta.sys_id
+        if self.sysid:
+            return data_x, float(data_y), meta.sys_id
+        else:
+            return data_x, float(data_y)
 
     def _parse_line(self, line):
         tokens = line.strip().split(' ')
@@ -275,5 +321,5 @@ class ASVDataset(Dataset):
 
 
 if __name__ == '__main__':
-    trainset = ASVDataset(is_train=True, nb_samples=3, do_mfcc=False, random_samples=True)
-    testset = ASVDataset(is_train=False, is_eval=True, nb_samples=10, length=48000, do_lfcc=False)
+    trainset = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_lfcc=True, random_samples=False, do_standardize=True, save_cache=True)
+    testset = ASVDataset(is_train=False, nb_samples=80000, do_lfcc=True, random_samples=False, do_standardize=True, save_cache=True)
