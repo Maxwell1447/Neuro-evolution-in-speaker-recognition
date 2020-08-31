@@ -22,8 +22,6 @@ from anti_spoofing.mfcc import mfcc
 
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
-DATA_ROOT = 'data'
-
 
 class ASVDataset(Dataset):
     """
@@ -99,8 +97,6 @@ class ASVDataset(Dataset):
         else:
             track = 'PA'
         local_dir = os.path.dirname(__file__)
-        # if is_eval:
-        #     data_root = os.path.join('eval_data', data_root)
         self.fragment_length = length
         self.random_start = random_start
         self.track = track
@@ -114,13 +110,13 @@ class ASVDataset(Dataset):
         if nb_samples:
             if self.is_logical:
                 if is_train:
-                    if self.nb_samples > 25380:
+                    if self.nb_samples >= 25380:
                         self.use_all = True
                 elif is_eval:
-                    if self.nb_samples > 71237:
+                    if self.nb_samples >= 71237:
                         self.use_all = True
                 else:
-                    if self.nb_samples > 24844:
+                    if self.nb_samples >= 24844:
                         self.use_all = True
         self.random_samples = random_samples
         self.index_list = index_list

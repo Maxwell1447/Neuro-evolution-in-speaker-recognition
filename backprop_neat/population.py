@@ -3,7 +3,6 @@ from __future__ import print_function
 
 from neat.reporting import ReporterSet
 from neat.math_util import mean
-from neat.six_util import iteritems, itervalues
 
 
 class CompleteExtinctionException(Exception):
@@ -87,11 +86,11 @@ class Population(object):
             self.reporters.start_generation(self.generation)
 
             # Evaluate all genomes using the user-provided function.
-            fitness_function(list(iteritems(self.population)), self.config)
+            fitness_function(list(self.population.items()), self.config)
 
             # Gather and report statistics.
             best = None
-            for g in itervalues(self.population):
+            for g in self.population.items():
                 if best is None or g.fitness > best.fitness:
                     best = g
             self.reporters.post_evaluate(self.config, self.population, self.species, best)
@@ -102,7 +101,7 @@ class Population(object):
 
             if not self.config.no_fitness_termination:
                 # End if the fitness threshold is reached.
-                fv = self.fitness_criterion(g.fitness for g in itervalues(self.population))
+                fv = self.fitness_criterion(g.fitness for g in self.population.items)
                 if fv >= self.config.fitness_threshold:
                     self.reporters.found_solution(self.config, self.generation, best)
                     break

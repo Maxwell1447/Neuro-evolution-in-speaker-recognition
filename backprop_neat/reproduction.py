@@ -10,8 +10,6 @@ from itertools import count
 
 from backprop_neat.config import ConfigParameter, DefaultClassConfig
 from neat.math_util import mean
-from neat.six_util import iteritems, itervalues
-
 
 
 class DefaultReproduction(DefaultClassConfig):

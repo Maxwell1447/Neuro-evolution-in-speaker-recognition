@@ -3,16 +3,16 @@ from random import choice, gauss, random, uniform
 
 import torch
 from backprop_neat.config import ConfigParameter
-from neat.six_util import iterkeys, iteritems
 
 
 class BaseAttribute(object):
     """Superclass for the type-specialized attribute subclasses, used by genes."""
+
     def __init__(self, name, **default_dict):
         self.name = name
-        for n, default in iteritems(default_dict):
+        for n, default in default_dict.items():
             self._config_items[n] = [self._config_items[n][0], default]
-        for n in iterkeys(self._config_items):
+        for n in self._config_items.keys():
             setattr(self, n + "_name", self.config_item_name(n))
 
     def config_item_name(self, config_item_base_name):
@@ -22,7 +22,7 @@ class BaseAttribute(object):
         return [ConfigParameter(self.config_item_name(n),
                                 self._config_items[n][0],
                                 self._config_items[n][1])
-                for n in iterkeys(self._config_items)]
+                for n in self._config_items.keys()]
 
 
 class FloatAttribute(BaseAttribute):
@@ -54,9 +54,9 @@ class FloatAttribute(BaseAttribute):
 
         if 'uniform' in init_type:
             min_value = max(getattr(config, self.min_value_name),
-                            (mean-(2*stdev)))
+                            (mean - (2 * stdev)))
             max_value = min(getattr(config, self.max_value_name),
-                            (mean+(2*stdev)))
+                            (mean + (2 * stdev)))
             return torch.tensor(uniform(min_value, max_value), requires_grad=True)
 
         raise RuntimeError("Unknown init_type {!r} for {!s}".format(getattr(config,
@@ -123,7 +123,7 @@ class BoolAttribute(BaseAttribute):
 
         return value
 
-    def validate(self, config): # pragma: no cover
+    def validate(self, config):  # pragma: no cover
         pass
 
 
@@ -139,7 +139,7 @@ class StringAttribute(BaseAttribute):
     def init_value(self, config):
         default = getattr(config, self.default_name)
 
-        if default.lower() in ('none','random'):
+        if default.lower() in ('none', 'random'):
             options = getattr(config, self.options_name)
             return choice(options)
 
@@ -156,5 +156,5 @@ class StringAttribute(BaseAttribute):
 
         return value
 
-    def validate(self, config): # pragma: no cover
+    def validate(self, config):  # pragma: no cover
         pass

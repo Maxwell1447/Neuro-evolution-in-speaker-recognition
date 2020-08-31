@@ -4,8 +4,8 @@ from tqdm import tqdm
 import os
 import pickle
 
-from anti_spoofing.data_utils import ASVDataset
-from anti_spoofing.utils_ASV import whiten, gate_mfcc
+from anti_spoofing.data_utils import ASVDataset, ASVFile
+from anti_spoofing.utils_ASV import whiten, gate_lfcc
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
@@ -47,7 +47,7 @@ def evaluate_different_dataset(net, data_loader):
             net[i].reset()
             sample_input, output = data_loader[i][index_data][0], data_loader[i][index_data][1]
             # sample_input = whiten(sample_input)
-            xo[i] = gate_mfcc(net[i], sample_input)
+            xo[i] = gate_lfcc(net[i], sample_input)
         if output == 1:
             target_scores_sum.append(xo.mean())
             target_scores_prod.append(xo.prod())
@@ -95,7 +95,7 @@ def evaluate(net, data_loader):
         # sample_input = whiten(sample_input)
         xo = np.zeros(nb_net)
         for i in range(nb_net):
-            xo[i] = gate_mfcc(net[i], sample_input)
+            xo[i] = gate_lfcc(net[i], sample_input)
         if output == 1:
             target_scores_sum.append(xo.mean())
             target_scores_prod.append(xo.prod())
@@ -146,18 +146,19 @@ if __name__ == '__main__':
     dev_lfcc = ASVDataset(is_train=False, is_eval=False, do_lfcc=True, nb_samples=80000, do_standardize=True)
     eval_lfcc = ASVDataset(is_train=False, is_eval=True, do_lfcc=True, nb_samples=80000, do_standardize=True)
 
-    dev_eer = evaluate(aggregate_net, dev_lfcc)
+    for i in range(len(aggregate_net)):
+        train_eer = evaluate([aggregate_net[i]], train_lfcc)
+        dev_eer = evaluate([aggregate_net[i]], dev_lfcc)
+        eer = evaluate([aggregate_net[i]], eval_lfcc)
 
-    eer = evaluate(aggregate_net, eval_lfcc)
+        print("\n")
+        print("**** equal error rate train = {}  ****".format(train_eer))
 
-    """print("\n")
-    print("**** equal error rate train = {}  ****".format(train_eer))
-    """
-    print("\n")
-    print("**** equal error rate dev = {}  ****".format(dev_eer))
+        print("\n")
+        print("**** equal error rate dev = {}  ****".format(dev_eer))
 
-    print("\n")
-    print("**** equal error rate = {}  ****".format(eer))
+        print("\n")
+        print("**** equal error rate = {}  ****".format(eer))
 
     """
     test_seen_classes = []

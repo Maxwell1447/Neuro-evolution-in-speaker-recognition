@@ -2,7 +2,6 @@ from itertools import count
 
 from neat.math_util import mean, stdev
 from neat.reporting import ReporterSet
-from neat.six_util import iteritems, iterkeys, itervalues
 from neat.config import ConfigParameter, DefaultClassConfig
 
 class Species(object):
@@ -20,10 +19,8 @@ class Species(object):
         self.representative = representative
         self.members = members
 
-
     def get_fitnesses(self):
-        return [m.fitness for m in itervalues(self.members)]
-
+        return [m.fitness for m in self.members.values()]
 
 
 class GenomeDistanceCache(object):
@@ -80,11 +77,11 @@ class DefaultSpeciesSet(DefaultClassConfig):
         compatibility_threshold = self.species_set_config.compatibility_threshold
 
         # Find the best representatives for each existing species.
-        unspeciated = set(iterkeys(population))
+        unspeciated = set(population.keys())
         distances = GenomeDistanceCache(config.genome_config)
         new_representatives = {}
         new_members = {}
-        for sid, s in iteritems(self.species):
+        for sid, s in self.species.items():
             candidates = []
             for gid in unspeciated:
                 g = population[gid]
@@ -105,7 +102,7 @@ class DefaultSpeciesSet(DefaultClassConfig):
 
             # Find the species with the most similar representative.
             candidates = []
-            for sid, rid in iteritems(new_representatives):
+            for sid, rid in new_representatives.items():
                 rep = population[rid]
                 d = distances(rep, g)
                 if d < compatibility_threshold:
@@ -123,7 +120,7 @@ class DefaultSpeciesSet(DefaultClassConfig):
 
         # Update species collection based on new speciation.
         self.genome_to_species = {}
-        for sid, rid in iteritems(new_representatives):
+        for sid, rid in new_representatives.items():
             s = self.species.get(sid)
             if s is None:
                 s = Species(sid, generation)
@@ -136,8 +133,8 @@ class DefaultSpeciesSet(DefaultClassConfig):
             member_dict = dict((gid, population[gid]) for gid in members)
             s.update(population[rid], member_dict)
 
-        gdmean = mean(itervalues(distances.distances))
-        gdstdev = stdev(itervalues(distances.distances))
+        gdmean = mean(distances.distances.values())
+        gdstdev = stdev(distances.distances.values)
         self.reporters.info(
             'Mean genetic distance {0:.3f}, standard deviation {1:.3f}'.format(gdmean, gdstdev))
 
