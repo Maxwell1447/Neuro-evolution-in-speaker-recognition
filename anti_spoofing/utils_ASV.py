@@ -45,11 +45,11 @@ def show_stats(x):
     :param x: data from which we want to display statistics
     :return: None
     """
-    print("min =", x.min())
-    print("max =", x.max())
-    print("median =", np.median(x))
-    print("average =", x.mean())
-    print("std =", x.std())
+    print("min =", round(x.min() * 100, 1), "%")
+    print("max =", round(x.max() * 100, 1), "%")
+    print("median =", round(np.median(x) * 100, 1), "%")
+    print("average =", round(x.mean() * 100, 1), "%")
+    print("std =", round(x.std() * 100, 2))
 
 
 def whiten(sample_input):

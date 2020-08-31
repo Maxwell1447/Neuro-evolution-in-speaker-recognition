@@ -6,8 +6,8 @@ import multiprocessing
 from tqdm import tqdm
 
 from anti_spoofing.data_utils import ASVDataset
-from anti_spoofing.data_utils_short import ASVDatasetshort
-from anti_spoofing.utils_ASV import whiten, gate_mfcc, make_visualize
+from anti_spoofing.data_utils_short import ASVFile, ASVDatasetshort
+from anti_spoofing.utils_ASV import gate_lfcc, make_visualize
 from anti_spoofing.metrics_utils import rocch2eer, rocch
 
 
@@ -21,7 +21,7 @@ nb_samples_test = 7000  # number of audio files used for testing
 batch_size = 128  # size of the batch used for training, choose an even number
 
 n_processes = multiprocessing.cpu_count() - 2  # number of workers to use for evaluating the fitness
-n_generation = 10  # number of generations
+n_generation = 150  # number of generations
 
 # boundary index of the type of audio files of the dev data set, it will select randomly 100 files from each class
 # for testing
@@ -143,7 +143,7 @@ def eval_genome(genome, config, batch_data):
         else:
             xo = np.sum(selected_score) / selected_score.size
         """
-        xo = gate_mfcc(net, inputs)
+        xo = gate_lfcc(net, inputs)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -204,7 +204,7 @@ def evaluate(net, data_loader):
     for data in tqdm(data_loader):
         net.reset()
         sample_input, output = data[0], data[1]
-        xo = gate_mfcc(net, sample_input)
+        xo = gate_lfcc(net, sample_input)
         if output == 1:
             target_scores.append(xo)
         else:
@@ -226,20 +226,23 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat.cfg')
 
-    # n_fft_list = [512, 1024, 2048]
-    train_loader = ASVDatasetshort(None, nb_samples=nb_samples_train, do_mfcc=True, n_fft=4096, do_standardize=True)
-    test_loader = ASVDataset(None, is_train=False, is_eval=False, index_list=index_test, do_mfcc=True,
-                             n_fft=4096, do_standardize=True)
+    train_loader = ASVDatasetshort(nb_samples=nb_samples_train, do_lfcc=True, do_standardize=True)
+    dev_loader = ASVDataset(nb_samples=25000, is_train=False, is_eval=False, do_lfcc=True, do_standardize=True)
+    eval_loader = ASVDataset(nb_samples=80000, is_train=False, is_eval=True, do_lfcc=True, do_standardize=True)
 
     winner, config, stats = run(config_path, n_generation)
     make_visualize(winner, config, stats)
 
     winner_net = neat.nn.RecurrentNetwork.create(winner, config)
     train_eer = evaluate(winner_net, train_loader)
-    eer = evaluate(winner_net, test_loader)
+    dev_eer = evaluate(winner_net, dev_loader)
+    eval_eer = evaluate(winner_net, eval_loader)
 
     print("\n")
-    print("**** training equal error rate = {}  ****".format(train_eer))
+    print("**** train equal error rate = {}  ****".format(train_eer))
 
     print("\n")
-    print("**** equal error rate = {}  ****".format(eer))
+    print("**** dev equal error rate = {}  ****".format(dev_eer))
+
+    print("\n")
+    print("**** dev equal error rate = {}  ****".format(eval_eer))

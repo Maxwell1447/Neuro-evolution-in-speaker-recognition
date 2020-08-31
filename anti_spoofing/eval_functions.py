@@ -1,6 +1,4 @@
 import torch
-from neat.graphs import required_for_output
-from torch import sigmoid
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
 from tqdm import tqdm

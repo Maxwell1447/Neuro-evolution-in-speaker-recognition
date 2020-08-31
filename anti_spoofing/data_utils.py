@@ -23,18 +23,20 @@ from anti_spoofing.mfcc import mfcc
 ASVFile = collections.namedtuple('ASVFile',
                                  ['speaker_id', 'file_name', 'path', 'sys_id', 'key'])
 
+
 class ASVDataset(Dataset):
     """
     Utility class to load  train/dev/eval data set
     """
 
-    def __init__(self, length=None, nb_samples=10000, random_samples=False,
-                 is_train=True, sample_size=None,
-                 is_logical=True, is_eval=False,
-                 save_cache=False, index_list=None, metadata=True, sysid=False,
-                 random_start=False,
-                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
-                 do_lfcc=False, custom_path="./data", n_fft=2048, do_mrf=False):
+    def __init__(self, length: int = None, nb_samples: int = 10000, random_samples: bool = False,
+                 is_train: bool = True, sample_size: int = None,
+                 is_logical: bool = True, is_eval: bool = False,
+                 save_cache: bool = False, index_list: int = None, metadata: bool = True, sysid: bool = False,
+                 random_start: bool = False, do_standardize: bool = False,
+                 do_mfcc: bool = False, do_chroma_cqt: bool = False, do_chroma_stft: bool = False,
+                 do_self_mfcc: bool = False, do_lfcc: bool = False,
+                 custom_path: str = "./data", n_fft: int or list = 2048, do_mrf: bool = False):
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -316,5 +318,5 @@ class ASVDataset(Dataset):
 
 
 if __name__ == '__main__':
-    trainset = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_lfcc=True, random_samples=False, do_standardize=True, save_cache=True)
-    testset = ASVDataset(is_train=False, nb_samples=80000, do_lfcc=True, random_samples=False, do_standardize=True, save_cache=True)
+    trainset = ASVDataset(is_train=False, is_eval=True, nb_samples=80000, do_lfcc=True, do_standardize=True)
+    testset = ASVDataset(is_train=False, nb_samples=80000, do_lfcc=True, random_samples=False, do_standardize=True)
