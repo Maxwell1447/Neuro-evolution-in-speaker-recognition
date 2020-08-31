@@ -7,6 +7,7 @@ import csv
 
 from neat.math_util import mean, stdev, median2
 from neat.reporting import BaseReporter
+from six import iteritems
 
 
 class StatisticsReporter(BaseReporter):
@@ -25,8 +26,8 @@ class StatisticsReporter(BaseReporter):
 
         # Store the fitnesses of the members of each currently active species.
         species_stats = {}
-        for sid, s in species.species.items():
-            species_stats[sid] = dict((k, v.fitness) for k, v in s.members.items())
+        for sid, s in iteritems(species.species):
+            species_stats[sid] = dict((k, v.fitness) for k, v in iteritems(s.members))
 
         self.generation_statistics.append(species_stats)
 

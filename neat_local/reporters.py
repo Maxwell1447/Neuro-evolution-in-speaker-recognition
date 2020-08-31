@@ -17,6 +17,7 @@ from utils import smooth
 import time
 
 from neat.math_util import mean, stdev
+from neat.six_util import itervalues, iterkeys
 
 
 class ComplexityReporter(neat.reporting.BaseReporter):
@@ -100,7 +101,7 @@ class StdOutReporter(BaseReporter):
         ns = len(species_set.species)
         if self.show_species_detail:
             print('Population of {0:d} members in {1:d} species:'.format(ng, ns))
-            sids = list(species_set.species.keys())
+            sids = list(iterkeys(species_set.species))
             sids.sort()
             print("   ID   age  size  fitness  adj fit  stag  cplx")
             print("  ====  ===  ====  =======  =======  ====  ====")
