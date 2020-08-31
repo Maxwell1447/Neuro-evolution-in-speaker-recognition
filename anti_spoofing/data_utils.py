@@ -37,7 +37,11 @@ class ASVDataset(Dataset):
                  save_cache=False, index_list=None, metadata=True, sysid=False,
                  random_start=False,
                  do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
+<<<<<<< HEAD
                  do_lfcc=False, custom_path="./data", n_fft=2048, do_mrf=False):
+=======
+                 do_lfcc=False, metadata=True, sysid=False, custom_path="./data", n_fft=2048, do_mrf=False):
+>>>>>>> anti_spoofing
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -133,7 +137,11 @@ class ASVDataset(Dataset):
         self.n_fft = n_fft
         self.mrf = do_mrf
         self.lfcc = do_lfcc
+<<<<<<< HEAD
         if self.stft + self.mfcc + self.cqt + self.m_mfcc >= 2:
+=======
+        if self.chroma_stft + self.mfcc + self.chroma_cqt + self.m_mfcc >= 2:
+>>>>>>> anti_spoofing
             raise ValueError("You cannot use several preprocessing algorithms at the same time")
         v1_suffix = ''
         if is_eval and track == 'PA':
@@ -177,6 +185,7 @@ class ASVDataset(Dataset):
         print("protocols path: ", self.protocols_fname)
         assert os.path.isfile(self.protocols_fname)
 
+<<<<<<< HEAD
         features = 'lfcc' if self.lfcc else 'mfcc' if self.mfcc else 'cqt' if self.cqt else 'stft' if self.stft else ''
         standardize = '_standardize' if self.standardize else ''
         metadata = "_metadata" if self.metadata else ''
@@ -201,6 +210,13 @@ class ASVDataset(Dataset):
                                                                          + self.cache_fname), 'rb'))
             print('Dataset loaded from cache ', local_dir, "data/preprocessed/" + self.cache_fname)
 
+=======
+        self.cache_fname = 'cache_{}{}_{}.npy'.format(self.dset_name, '', track)
+        if os.path.exists(self.cache_fname) and not self.index_list:
+            # self.data_x, self.data_y, self.data_sysid, self.files_meta = torch.load(self.cache_fname)
+            self.data_x, self.data_y, self.files_meta = pickle.load(open(self.cache_fname, 'rb'))
+            print('Dataset loaded from cache ', self.cache_fname)
+>>>>>>> anti_spoofing
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
             # tqdm progress for loading files

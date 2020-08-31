@@ -29,6 +29,7 @@ class ASVDatasetshort(Dataset):
     Utility class to load  train short data set
     """
 
+<<<<<<< HEAD
     def __init__(self, length: int = None, nb_samples: int = 2538, random_samples: bool = False,
                  sample_size: int = None, index_list: list = None, random_start: bool = False,
                  save_cache: bool = False, custom_path="./data",
@@ -36,6 +37,13 @@ class ASVDatasetshort(Dataset):
                  do_chroma_stft: bool = False, do_self_mfcc: bool = False, do_lfcc: bool = False,
                  n_fft: int or list = 2048, do_mrf: bool = False,
                  metadata: bool = True, sysid: bool = False):
+=======
+    def __init__(self, length=None, nb_samples=2538, random_samples=False,
+                 sample_size=None,
+                 save_cache=False, custom_path="./data", index_list=None,
+                 do_standardize=False, do_mfcc=False, do_chroma_cqt=False, do_chroma_stft=False, do_self_mfcc=False,
+                 do_lfcc=False, n_fft=2048, do_mrf=False, metadata=True, sysid=False):
+>>>>>>> anti_spoofing
         """
         :param length: int
         Length of the audio files in number of elements in a numpy array format.
@@ -128,7 +136,10 @@ class ASVDatasetshort(Dataset):
 
         self.protocols_fname = os.path.join(custom_path, track, 'ASVspoof2019_{}_cm_protocols'.format(track),
                                             'ASVspoof2019.{}.cm.{}.txt'.format(track, self.protocols_fname))
+<<<<<<< HEAD
 
+=======
+>>>>>>> anti_spoofing
         print("protocols path: ", self.protocols_fname)
         assert os.path.isfile(self.protocols_fname)
 
@@ -137,10 +148,17 @@ class ASVDatasetshort(Dataset):
         metadata = "_metadata" if self.metadata else ''
         sysid = "_sysid" if self.sysid else ''
         audio_size = "_size=" + str(self.fragment_length) if self.fragment_length else ''
+<<<<<<< HEAD
         nb_samples = "_nbsamples=" + str(self.nb_samples) if (self.nb_samples and self.nb_samples < 2538) else ''
         self.cache_fname = 'dataset_{}_{}_{}_{}{}{}{}'.format(track, self.dset_name + "short", self.n_fft, features,
                                                               standardize, metadata, sysid, audio_size, nb_samples)
 
+=======
+        nb_samples = "_nbsamples=" + str(self.nb_samples) if self.nb_samples else ''
+        self.cache_fname = 'dataset_{}_{}_{}_{}{}{}{}'.format(track, self.dset_name + "short", self.n_fft, features,
+                                                              standardize, metadata, sysid, audio_size, nb_samples)
+        print(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname))
+>>>>>>> anti_spoofing
         if os.path.exists(os.path.join(local_dir, "data/preprocessed/" + self.cache_fname)) and not self.index_list:
             if self.sysid:
                 self.data_x, self.data_y, self.data_sysid = pickle.load(open(os.path.join(local_dir,
@@ -154,8 +172,13 @@ class ASVDatasetshort(Dataset):
                 self.data_x, self.data_y = pickle.load(open(os.path.join(local_dir,
                                                                          "data/preprocessed/"
                                                                          + self.cache_fname), 'rb'))
+<<<<<<< HEAD
             print('Dataset loaded from cache ', local_dir, "data/preprocessed/" + self.cache_fname)
 
+=======
+
+            print('Dataset loaded from cache ', local_dir, "data/preprocessed/" + self.cache_fname)
+>>>>>>> anti_spoofing
         else:
             self.files_meta = self.parse_protocols_file(self.protocols_fname)
             # tqdm progress for loading files
@@ -237,7 +260,19 @@ class ASVDatasetshort(Dataset):
                     fft_data_x = whiten(fft_data_x)
                 data_x = np.concatenate((data_x, fft_data_x))
 
+<<<<<<< HEAD
         if self.sysid:
+=======
+        # to make all data to have the same length
+        if self.fragment_length:
+            if data_x.size < self.fragment_length:
+                nb_iter = self.fragment_length // data_x.size + 1
+                data_x = np.tile(data_x, nb_iter)
+
+            begin = np.random.randint(0, data_x.size - self.fragment_length)
+            return data_x[begin: begin + self.fragment_length], float(data_y)
+        elif self.sysid:
+>>>>>>> anti_spoofing
             return data_x, float(data_y), meta.sys_id
         else:
             return data_x, float(data_y)
