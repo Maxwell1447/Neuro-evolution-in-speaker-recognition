@@ -5,6 +5,7 @@ This is the anti spoofing folder. Here are the scripts for running neat on the A
 * [General info](#general-info)
 * [Screenshots](#screenshots)
 * [Files description](#files-description)
+* [Schedulers](#schedulers)
 * [Note](#note)
 * [Future work](#future-work)
 
@@ -13,11 +14,13 @@ We are using the ASVspoof 2019 logical (LA) database.
 The logical train audio files are used for training.
 The logical dev and eval audio files are used for testing.
 
+We tested several pre-processing methods to facilitate the learning process of NEAT.
+
 We have tested several fitness functions, the mean square error (mse), 
 the cross entropy (ce), the equal error rate (eer),
-the ease of classification (eoc) and variant of ease of classification.
+the ease of classification (eoc) and variants of ease of classification.
 
-We use numpy arrays and tensors.
+We use numpy arrays and tensors to handle the data.
 
 ## Screenshots
 ![Example screenshot](./img/Digraph.jpg)
@@ -102,6 +105,33 @@ We may implement the others a next time
     * libmath.py contains auxiliary code used by metrics_utils.py.
 
 * neat.cfg configuration file that defines the parameters of the neat algorithm
+
+---
+
+There is an exception to that rule: [main_train.py](main_train.py) that allows flexibility in the runs. Below the header, you can change the values of these lines:
+```python
+backprop = False
+USE_DATASET = False
+USE_GATE = True
+KEEP_FROM = 0
+NUM_CHECKPOINT = "4"
+SEED = 0
+NUM_GEN = 10000
+```
+* *backprop* enables backpropagation and load a different [config_file](ASV_neat_preprocessed_backprop.cfg) instead of [this one](ASV_neat_preprocessed_long.cfg)
+* *USE_DATASET* makes so that ```load_data()``` returns Datasets and not Dataloaders (used for dynamic batch size)
+* *USE_GATE* enables the gate in the computation of the score
+* *KEEP_FROM* when **0** starts a new run, when else, continues a previous run from a checkpoint with this exact number of generation
+* *NUM_CHECKPOINT* is the id of the run (incremented each run) that is loaded to be continued
+* *SEED* is the seed chosen for the run to have reproducible results
+* *NUM_GEN* is the number of generations chosen to train the population
+
+## Schedulers
+
+You can add schedulers to change the values in the config variable over the generations.
+To add a certain instanciated scheduler to the run in [main_train.py](main_train.py), look at the *reporter_addition()* function. 
+For some of them, you can toogle ```monitor=True``` when instanciating. If so, you can add the reporter to list ```displayable``` to display the evolution of the scheduled values over the generations when the run is over.
+
 
 ## Note
 To run the code, you have to add a folder data containing LA and PA, in the folder anti spoofing.
