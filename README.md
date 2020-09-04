@@ -7,17 +7,38 @@ to deal with the following databases:
 - Iris
 - MNIST
 - audio gender classification with the Libri speech (helped with [this repository](https://github.com/oscarknagg/raw-audio-gender-classification))
-- Anti spoofing with the ASVspoof 2019
+- Anti-spoofing with ASVSpoof2019
 
-Our goal was to understand the ability of NEAT and its variants to deal with classification tasks.
+We tried to understand the ability of NEAT and its variants to deal with classification tasks. Our main objective was to achieve the best performance in ASVSpoof2019.
 
 ## Table of contents
+* [Context](#context)
 * [General info](#general-info)
 * [Setup](#setup)
 * [Aspect covered](#aspect-covered)
 * [Status](#status)
 * [Inspiration](#references)
 * [Authors](#authors)
+
+## Context
+
+All the work has been performed by students in Data Science from Eurecom. This was in the context of the **Automatic Speaker Verification
+Spoofing And Countermeasures Challenge** started in 2019. The students worked in a team of researcher from Eurecom's Digital Security Department.
+
+### **Students**
+
+- Arnaud Barral
+
+- Maxime Bouthors
+
+### **Supervisors**
+
+- [Nicholas Evans](https://www.eurecom.fr/~evans)
+
+- [Massimiliano Todisco](https://www.massimilianotodisco.eu)
+
+- Jose Patino
+
 
 ## General info
 Neuroevolution, or neuro-evolution, uses evolutionary algorithms to generate artificial neural networks (ANN), 
@@ -39,7 +60,7 @@ the aspect treated, and how to run the code.
 Run ```pip install -r requirement.txt``` to install the required packages.
 
 To generate the graphics of the topologies of the genomes, you need to install [graphviz](https://www.graphviz.org/download/).
-Make sure that the directory containing the *dot* executable is on your systems’ path.
+Make sure that the directory containing the *dot* executable is on your system’s path.
 
 ## Aspects covered
 List of aspects covered:
@@ -48,12 +69,11 @@ List of aspects covered:
 * [GPU vs CPU in NEAT evaluation](gpu_tests)
 * [CNN-HyperNEAT applied on MNIST](hyperneat)
 * [NEAT applied on anti-spoofing](anti_spoofing)
+* [Backprop NEAT](backprop_neat)
 
-To-do list:
-* ES-HyperNEAT
 
 ## Status
-Project is currently in progress
+Project finished. Some modifications may still occur though.
 
 ## References
 
