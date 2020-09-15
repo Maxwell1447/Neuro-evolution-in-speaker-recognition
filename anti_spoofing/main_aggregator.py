@@ -5,22 +5,7 @@ import os
 import pickle
 
 from anti_spoofing.data_utils import ASVDataset, ASVFile
-from anti_spoofing.utils_ASV import whiten, gate_lfcc
-from anti_spoofing.metrics_utils import rocch2eer, rocch
-
-
-def compute_eer(target_scores, non_target_scores):
-    """
-    Return the equal error rate from the scores
-    :param target_scores: numpy array scores of the bonafide files
-    :param non_target_scores: numpy array scores of the spoofed files
-    :return: eer equal error rate
-    """
-    target_scores = np.array(target_scores)
-    non_target_scores = np.array(non_target_scores)
-    pmiss, pfa = rocch(target_scores, non_target_scores)
-    eer = rocch2eer(pmiss, pfa)
-    return eer
+from anti_spoofing.utils_ASV import whiten, gate_lfcc, compute_eer
 
 
 def evaluate_different_dataset(net, data_loader):
@@ -136,7 +121,9 @@ if __name__ == '__main__':
     net_5 = pickle.load(open('best_genome_eoc_class_5_lfcc', 'rb'))
     net_6 = pickle.load(open('best_genome_eoc_class_6_lfcc', 'rb'))
 
-    net = [net_1, net_2, net_3, net_4, net_5, net_6]
+    net = pickle.load(open('best_genome_winner_curriculum_1_not_add', 'rb'))
+
+    net = [net]
 
     aggregate_net = []
     for i in range(len(net)):

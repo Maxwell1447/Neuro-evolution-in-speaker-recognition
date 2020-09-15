@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     for iterations in range(20):
         print("iterations number =", iterations)
-        winner, config, stats = run(config_path, 200)
+        winner, config, stats = run(config_path, 500)
         visualize.plot_stats(stats, ylog=False, view=True)
 
         with torch.no_grad():

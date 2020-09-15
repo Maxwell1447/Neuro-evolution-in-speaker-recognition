@@ -41,7 +41,7 @@ def softmax(scores):
 
 def show_stats(x):
     """
-    Display statistics from the data x
+    Display statistics from the data x with percentage
     :param x: data from which we want to display statistics
     :return: None
     """
@@ -50,6 +50,33 @@ def show_stats(x):
     print("median =", round(np.median(x) * 100, 1), "%")
     print("average =", round(x.mean() * 100, 1), "%")
     print("std =", round(x.std() * 100, 2))
+
+
+def show_stats_no_percentage(x):
+    """
+    Display statistics from the data x
+    :param x: data from which we want to display statistics
+    :return: None
+    """
+    print("min =", round(x.min(), 2))
+    print("max =", round(x.max(), 2))
+    print("median =", round(np.median(x), 2))
+    print("average =", round(x.mean(), 2))
+    print("std =", round(x.std(), 2))
+
+
+def compute_eer(target_scores, non_target_scores):
+    """
+    Return the equal error rate from the scores
+    :param target_scores: list of the scores of the bonafide files
+    :param non_target_scores: list of the scores of the spoofed files
+    :return: eer equal error rate
+    """
+    target_scores = np.array(target_scores)
+    non_target_scores = np.array(non_target_scores)
+    pmiss, pfa = rocch(target_scores, non_target_scores)
+    eer = rocch2eer(pmiss, pfa)
+    return eer
 
 
 def whiten(sample_input):

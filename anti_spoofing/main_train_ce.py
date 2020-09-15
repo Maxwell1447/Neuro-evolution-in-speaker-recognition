@@ -1,14 +1,9 @@
 import os
 import neat
 import backprop_neat
-from neat_local.nn.recurrent_net import RecurrentNet
-import torch
-from torch import sigmoid
 import numpy as np
 import multiprocessing
-from tqdm import tqdm
 import warnings
-import pickle
 
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
@@ -91,29 +86,27 @@ if __name__ == '__main__':
 
     trainloader, testloader, evalloader = load_data(batch_size=100, length=3 * 16000, num_train=30000, num_test=40000,
                                                     metadata=True, batch_size_test=100, option="lfcc", multi_proc=True,
-                                                    include_eval=True)
+                                                    include_eval=True, balanced=False)
 
-    eer_list = []
-    accuracy_list = []
-    anti_spoofing_accuracy_list = []
-    for iterations in range(1):
-        print(iterations)
-        print(eer_list)
-        winner, config, stats = run(config_path, 100)
 
-        eer, accuracy, anti_spoofing_accuracy, c_matrix = evaluate(winner, config, testloader)
-        eer_list.append(eer)
-        accuracy_list.append(accuracy)
-        anti_spoofing_accuracy_list.append(anti_spoofing_accuracy)
+    winner, config, stats = run(config_path, 1000)
+
+    eer, accuracy, anti_spoofing_accuracy, c_matrix = evaluate(winner, config, testloader)
+    eer_eval, accuracy_eval, anti_spoofing_accuracy_eval, c_matrix_eval = evaluate(winner, config, evalloader)
 
     print("\n")
-    print("equal error rate", eer_list)
-    print("accuracy", accuracy_list)
-    print("accuracy", anti_spoofing_accuracy_list)
+    print("Result on dev")
+    print("equal error rate", eer)
+    print("accuracy", accuracy)
+    print("accuracy", anti_spoofing_accuracy)
 
     print("\n")
+    print("Result on eval")
+    print("equal error rate", eer_eval)
+    print("accuracy", accuracy_eval)
+    print("accuracy", anti_spoofing_accuracy_eval)
 
-    show_stats(np.array(eer_list))
+
 
     make_visualize(winner, config, stats)
 
@@ -124,3 +117,13 @@ if __name__ == '__main__':
     plt.title("Confusion matrix bonafide, spoofed", fontsize=16)
     sns.heatmap(c_matrix, annot=True, linewidths=.5, cmap="coolwarm", fmt=".2%", yticklabels=yticklabels)
     plt.show()
+
+
+    plt.figure(figsize=(14, 7))
+    yticklabels = ["bona fide", "A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08",
+                   "A09", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A17",
+                   "A18", "A19"]
+    plt.title("Confusion matrix bonafide, spoofed", fontsize=16)
+    sns.heatmap(c_matrix_eval, annot=True, linewidths=.5, cmap="coolwarm", fmt=".2%", yticklabels=yticklabels)
+    plt.show()
+
