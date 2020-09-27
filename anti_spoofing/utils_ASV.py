@@ -92,6 +92,17 @@ def whiten(sample_input):
     return whiten_input
 
 
+def moving_average(a, n=3):
+    """
+    :param a:
+    :param n:
+    :return:
+    """
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
+
 def err_threshold(y_true, y_pred, pos_label=1):
     """
     taken from https://yangcha.github.io/EER-ROC/
