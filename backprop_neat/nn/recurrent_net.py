@@ -88,11 +88,11 @@ class RecurrentNet:
             batch_size, self.n_outputs, dtype=self.dtype, device=self.device)
 
     def activate(self, inputs):
-        '''
+        """
         inputs: (batch_size, n_inputs)
 
         returns: (batch_size, n_outputs)
-        '''
+        """
         activs_for_output = self.activs
         if self.n_hidden > 0:
             for _ in range(self.n_internal_steps):
