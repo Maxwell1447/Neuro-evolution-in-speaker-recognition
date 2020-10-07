@@ -38,7 +38,9 @@ backprop = False
 USE_DATASET = False
 USE_GATE = True
 KEEP_FROM = 9999
-NUM_CHECKPOINT = "_"
+NUM_GEN = 3001
+NUM_CHECKPOINT = "2"
+SEED = 1
 
 if backprop:
     import backprop_neat as neat
@@ -60,7 +62,7 @@ def reporter_addition(p, config_):
     # eer_acc_reporter = EERReporter(devloader, period=2)
     # p.add_reporter(eer_acc_reporter)
 
-    start = 200
+    start = 300
 
     # adaptive_backprop_scheduler = AdaptiveBackpropScheduler(config_, patience=40, semi_gen=20,
     #                                                         monitor=True, start=start, patience_before_backprop=50,
@@ -89,12 +91,12 @@ def reporter_addition(p, config_):
                                                                 "weight_replace_rate": 0.1,
                                                             },
                                                             reset=True,
-                                                            monitor=True,
+                                                            monitor=False,
                                                             verbose=1)
     p.add_reporter(early_exploration_scheduler)
 
     squashed_sine_scheduler = SquashedSineScheduler(config_, offset=start,
-                                                    period=150,
+                                                    period=200,
                                                     final_values={
                                                         "node_add_prob": 0.,
                                                         "conn_add_prob": 0.,
@@ -105,7 +107,7 @@ def reporter_addition(p, config_):
                                                         "bias_replace_rate": 0.,
                                                         "weight_replace_rate": 0.,
                                                     },
-                                                    monitor=True,
+                                                    monitor=False,
                                                     verbose=0,
                                                     alpha=3)
     p.add_reporter(squashed_sine_scheduler)
@@ -176,8 +178,8 @@ def run(config_file, n_gen):
 
     # winner_ = get_true_winner(config_, p.population, trainloader, max_batch=10)
 
-    for reporter in displayable:
-        reporter.display()
+    # for reporter in displayable:
+        # reporter.display()
 
     print("run finished")
 
@@ -186,9 +188,9 @@ def run(config_file, n_gen):
 
 if __name__ == '__main__':
 
-    random.seed(0)
-    torch.manual_seed(0)
-    np.random.seed(0)
+    random.seed(SEED)
+    torch.manual_seed(SEED)
+    np.random.seed(SEED)
 
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
@@ -223,7 +225,7 @@ if __name__ == '__main__':
         print(i)
         print(dev_eer_list)
 
-        winner, config, stats = run(config_path, 5000)
+        winner, config, stats = run(config_path, NUM_GEN)
 
         eer, accuracy = evaluate_eer_acc(winner, config, devloader,
                                          backprop=backprop, use_gate=USE_GATE, loading_bar=False)

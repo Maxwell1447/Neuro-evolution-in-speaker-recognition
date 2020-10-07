@@ -164,6 +164,7 @@ def load_single_data(batch_size=50, length=4 * 16000, num_data=10000, data_type=
     if not os.path.isdir(os.path.join(local_dir, 'data/preprocessed')):
         os.makedirs(os.path.join(local_dir, 'data/preprocessed'))
 
+
     if data_type == "train":
         data = ASVDataset(length=length, is_train=True, is_eval=False, nb_samples=num_data, random_samples=True,
                           metadata=metadata, custom_path=custom_path)

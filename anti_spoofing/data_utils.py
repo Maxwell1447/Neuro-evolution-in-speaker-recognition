@@ -213,7 +213,7 @@ class ASVDataset(Dataset):
         #     tmp_path = meta.path[:5] + os.path.join(self.track, meta.path[5:])
 
         tmp_path = meta.path
-        print(tmp_path)
+        # print(tmp_path)
 
         data_x, sample_rate = sf.read(tmp_path)
         data_y = meta.key
